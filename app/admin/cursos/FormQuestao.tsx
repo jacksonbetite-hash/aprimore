@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useState } from 'react';
+import { useActionState, useEffect, useRef, useState } from 'react';
 import type { EstadoAdmin } from '../acoes.ts';
 import type { QuestaoAdmin } from '../../../lib/admin-cursos.ts';
 
@@ -18,15 +18,36 @@ const VAZIA = { texto: '', correta: false, comentario: '' };
  * por que aquela alternativa parecia certa.
  */
 export default function FormQuestao({
-  acao, portalId, aulaId, questao, aoFechar,
+  acao, portalId, aulaId, avaliacaoId, questao, aoFechar,
 }: {
   acao: (e: EstadoAdmin, d: FormData) => Promise<EstadoAdmin>;
   portalId: number;
   aulaId: number;
+  /** §5.11: a mesma questão, quando pertence à avaliação final de uma trilha. */
+  avaliacaoId?: number;
   questao?: QuestaoAdmin;
   aoFechar?: () => void;
 }) {
   const [estado, enviar, pendente] = useActionState(acao, {});
+
+  /**
+   * Questão NOVA salva com sucesso fecha o formulário.
+   *
+   * Sem isso ele continuava aberto com o texto da questão que acabou de
+   * ser gravada, e o botão "Criar questão" ali, convidando a salvar a
+   * mesma coisa de novo — foi o que aconteceu ao cadastrar um exercício
+   * inteiro de uma sentada. Na EDIÇÃO o formulário fica aberto de
+   * propósito: quem está corrigindo um comentário quer ver o resultado
+   * sem reabrir a questão.
+   */
+  const jaFechou = useRef(false);
+  useEffect(() => {
+    if (!questao && estado.ok && aoFechar && !jaFechou.current) {
+      jaFechou.current = true;
+      aoFechar();
+    }
+  }, [estado.ok, questao, aoFechar]);
+
   const iniciais = questao?.alternativas.length
     ? questao.alternativas.map((a) => ({ texto: a.texto, correta: a.correta, comentario: a.comentario }))
     : [ { ...VAZIA }, { ...VAZIA }, { ...VAZIA }, { ...VAZIA } ];
@@ -39,6 +60,7 @@ export default function FormQuestao({
     <form action={enviar} className="form-editor">
       <input type="hidden" name="portalId" value={portalId} />
       <input type="hidden" name="aulaId" value={aulaId} />
+      {avaliacaoId && <input type="hidden" name="avaliacaoId" value={avaliacaoId} />}
       {questao && <input type="hidden" name="id" value={questao.id} />}
       {estado.erro && <p className="alerta alerta-erro" role="alert">{estado.erro}</p>}
       {estado.ok && <p className="alerta alerta-ok" role="status">{estado.ok}</p>}

@@ -1,0 +1,152 @@
+{
+  "area": {
+    "nome": "Direito Administrativo"
+  },
+  "curso": {
+    "nome": "Direito Administrativo para concursos",
+    "ementa": "Direito Administrativo para quem vai prestar concurso: a estrutura da Administração Pública explicada do zero — critérios de organização, moldura constitucional, autarquias e agências reguladoras, fundações, consórcios e empresas estatais. Linguagem simples, exemplos reais e questões no estilo das bancas.",
+    "professor": "Prof. Otávio Lins",
+    "onda": 1
+  },
+  "assunto": {
+    "nome": "Estrutura da Administração Pública"
+  },
+  "aula": {
+    "titulo": "Estrutura da Administração Pública (parte 1)",
+    "resumo": "Esta é a primeira de cinco aulas sobre a estrutura da Administração Pública — o tema que responde, na prática, à pergunta \"quem é quem\" dentro do Estado. A professora começa com dois avisos honestos. O primeiro é sobre a linguagem: autarquia, fundação pública, sociedade de economia mista, consórcio público não são palavras de conversa de corredor, e é normal estranhar no começo. O segundo é sobre a legislação: parte das normas que organizam a Administração é antiga — o Decreto-Lei 200/1967, que separa administração direta e indireta, continua em vigor — e exige alguma engenharia criativa para ser lida ao lado da Constituição de 1988.\n\nO percurso do curso é este. Aula 1: como a Administração se organiza por dentro, se existem critérios para isso e se o administrador tem livre escolha. Aula 2: a moldura constitucional, em especial os preceitos do art. 37 da CF/88 (o inciso XIX, por exemplo, diz que só lei específica cria autarquia e autoriza a instituição de empresa pública, sociedade de economia mista e fundação). Aula 3: as autarquias comuns e as autarquias especiais, que você conhece pelo nome de agências reguladoras (hoje regidas também pela Lei 13.848/2019). Aula 4: fundações e associações públicas, estas ligadas aos consórcios públicos da Lei 11.107/2005. Aula 5: as entidades empresariais — empresas públicas e sociedades de economia mista, com o estatuto da Lei 13.303/2016.\n\nUm conselho de método que vale para o concurso inteiro: na ciência do Direito, saber o texto exato de um artigo raramente é o mais importante. O que resolve questão é entender a racionalidade por trás do que o constituinte ou o legislador decidiu. Por isso a primeira aula não começa decorando lista de entidades, e sim perguntando qual é a lógica da operação de organizar o Estado.\n\nPor que isso é útil? Num passado distante falava-se em Estado guarda-noturno: uma Administração enxuta, que cuidava basicamente de segurança pública e de poucos serviços do mesmo tipo. Esse Estado não existe mais. A Administração do século XXI faz muito mais — e, como você verá na parte 2, precisa de muitas estruturas para dar conta. Entender essa estrutura é saber a quem bater à porta.\n\nVídeo: \"Saber Direito Aula - Direito Administrativo - Estrutura da Administração - Aula 1\", canal Saber Direito (YouTube), licença Creative Commons Atribuição (CC BY). Reproduzido com os créditos ao autor. Trecho de 0:00 a 6:00.",
+    "minutos": 6,
+    "segundos": 0
+  },
+  "questoes": [
+    {
+      "enunciado": "No plano do curso apresentado pela professora, as chamadas autarquias especiais são mais conhecidas por qual nome?",
+      "tipo": "multipla_escolha",
+      "origem": "Autoral",
+      "dificuldade": "introdutorio",
+      "alternativas": [
+        {
+          "texto": "Empresas públicas.",
+          "correta": false,
+          "comentario": "Errada. Empresa pública é entidade empresarial, tema da quinta aula, ao lado da sociedade de economia mista. Não é autarquia."
+        },
+        {
+          "texto": "Agências reguladoras.",
+          "correta": true,
+          "comentario": "Correta. As agências reguladoras (Anatel, Anvisa, ANP etc.) são autarquias em regime especial, com mais autonomia que a autarquia comum — hoje reguladas também pela Lei 13.848/2019."
+        },
+        {
+          "texto": "Consórcios públicos.",
+          "correta": false,
+          "comentario": "Errada. Consórcio público é a união de entes federados para gestão associada de serviços (Lei 11.107/2005), ligado às associações públicas da quarta aula."
+        },
+        {
+          "texto": "Fundações privadas.",
+          "correta": false,
+          "comentario": "Errada. Fundação é outra espécie de entidade, estudada na quarta aula; e fundação privada nem sequer integra a Administração."
+        }
+      ]
+    },
+    {
+      "enunciado": "Segundo a apresentação do curso, as associações públicas estão vinculadas a qual figura?",
+      "tipo": "multipla_escolha",
+      "origem": "Autoral",
+      "dificuldade": "introdutorio",
+      "alternativas": [
+        {
+          "texto": "Aos consórcios públicos.",
+          "correta": true,
+          "comentario": "Correta. A Lei 11.107/2005 permite que o consórcio público adquira personalidade jurídica de direito público como associação pública, que integra a administração indireta dos entes consorciados."
+        },
+        {
+          "texto": "Às sociedades de economia mista.",
+          "correta": false,
+          "comentario": "Errada. Sociedade de economia mista é entidade empresarial com capital público e privado, assunto da quinta aula."
+        },
+        {
+          "texto": "Às agências reguladoras.",
+          "correta": false,
+          "comentario": "Errada. Agências reguladoras são autarquias especiais, tema da terceira aula, e não têm relação com as associações públicas."
+        },
+        {
+          "texto": "Aos órgãos da administração direta.",
+          "correta": false,
+          "comentario": "Errada. Órgãos da administração direta não têm personalidade jurídica própria; a associação pública é entidade com personalidade, ligada ao consórcio."
+        }
+      ]
+    },
+    {
+      "enunciado": "Julgue: \"Para a professora, o mais importante no estudo do Direito é conhecer o teor exato de cada artigo, mais do que a racionalidade por trás dele\".",
+      "tipo": "certo_errado",
+      "origem": "Inspirada em prova · Cebraspe",
+      "dificuldade": "introdutorio",
+      "alternativas": [
+        {
+          "texto": "Certo",
+          "correta": false,
+          "comentario": "Errado. A aula diz o contrário: no mais das vezes, saber o exato teor do artigo não é o principal; o que importa é entender a racionalidade do que o constituinte ou o legislador decidiu."
+        },
+        {
+          "texto": "Errado",
+          "correta": true,
+          "comentario": "Certo. A afirmação inverte o conselho de método da aula. Entender a lógica da organização administrativa é o que permite resolver questões sobre situações que o texto literal não descreve."
+        }
+      ]
+    },
+    {
+      "enunciado": "A expressão \"Estado guarda-noturno\", usada na aula, descreve:",
+      "tipo": "multipla_escolha",
+      "origem": "Autoral",
+      "dificuldade": "introdutorio",
+      "alternativas": [
+        {
+          "texto": "Uma Administração do passado, limitada basicamente à segurança pública e a poucos serviços do mesmo tipo.",
+          "correta": true,
+          "comentario": "Correta. É a imagem do Estado mínimo de outrora, que apenas vigiava; a aula a contrapõe à Administração do século XXI, que provê educação, saúde e serviços de toda ordem."
+        },
+        {
+          "texto": "A Administração atual, que atua principalmente no período noturno.",
+          "correta": false,
+          "comentario": "Errada. A expressão é metafórica e histórica; não descreve horário de funcionamento nem a Administração de hoje."
+        },
+        {
+          "texto": "O modelo de policiamento comunitário adotado pelos Municípios.",
+          "correta": false,
+          "comentario": "Errada. Não se trata de um modelo de polícia, e sim de uma concepção de Estado com atribuições reduzidas."
+        },
+        {
+          "texto": "Uma Administração que assume todas as atividades econômicas do país.",
+          "correta": false,
+          "comentario": "Errada. É o oposto: o guarda-noturno é o Estado que faz pouco; o Estado que assume tudo seria o modelo intervencionista."
+        }
+      ]
+    },
+    {
+      "enunciado": "De acordo com o art. 37, XIX, da CF/88, mencionado no resumo da aula, como se cria uma autarquia?",
+      "tipo": "multipla_escolha",
+      "origem": "Autoral · OAB",
+      "dificuldade": "intermediario",
+      "alternativas": [
+        {
+          "texto": "Por decreto do chefe do Poder Executivo.",
+          "correta": false,
+          "comentario": "Errada. Decreto pode organizar o funcionamento da Administração (art. 84, VI), mas não cria entidade da administração indireta."
+        },
+        {
+          "texto": "Por lei específica, que cria diretamente a autarquia.",
+          "correta": true,
+          "comentario": "Correta. O art. 37, XIX, diz que somente por lei específica poderá ser criada autarquia — enquanto empresa pública, sociedade de economia mista e fundação são apenas autorizadas por lei e nascem com o registro dos atos constitutivos."
+        },
+        {
+          "texto": "Por lei que apenas autoriza a criação, como acontece com a empresa pública.",
+          "correta": false,
+          "comentario": "Errada. Essa é a pegadinha do inciso: a lei AUTORIZA a instituição de empresa pública, sociedade de economia mista e fundação, mas CRIA a autarquia."
+        },
+        {
+          "texto": "Por contrato de consórcio entre entes federados.",
+          "correta": false,
+          "comentario": "Errada. O contrato de consórcio dá origem à associação pública (Lei 11.107/2005), não a uma autarquia comum."
+        }
+      ]
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useId, useState } from 'react';
 import type { EstadoAdmin } from '../acoes.ts';
 import type { PlanoPortal, PortalAdmin, Personalizacao } from '../../../lib/admin-portais.ts';
 
@@ -203,11 +203,53 @@ export function FormPortal({
   );
 }
 
+/**
+ * Cor principal do portal: amostra clicável + o valor por extenso.
+ *
+ * Só um campo de texto pedindo "#997bf4" transferia ao professor a
+ * tarefa de descobrir o código hexadecimal da própria marca. O
+ * `input[type=color]` abre a paleta do sistema; o campo de texto
+ * continua ali para quem já tem o código da identidade visual, e os dois
+ * andam juntos. O que vai ao servidor é sempre o texto — `corSegura`
+ * (lib/portal.ts) só aceita #rgb ou #rrggbb, e cor inválida é ignorada
+ * em vez de virar CSS.
+ */
+function SeletorCor({ valor }: { valor: string }) {
+  const [cor, setCor] = useState(valor);
+  const id = useId();
+  const valida = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(cor.trim());
+  return (
+    <label htmlFor={id}>
+      Cor principal
+      <span className="campo-cor">
+        <input type="color" aria-label="Escolher a cor principal"
+          value={valida ? cor.trim() : '#7c3aed'}
+          onChange={(e) => setCor(e.target.value)} />
+        <input id={id} name="corPrimaria" value={cor} placeholder="#997bf4"
+          onChange={(e) => setCor(e.target.value)} />
+      </span>
+      <span className="dica">
+        Clique no quadrado para escolher, ou escreva o código —
+        formato <code>#rrggbb</code> (ex.: <code>#0f766e</code>). Ela pinta botões e
+        destaques da sua página. Em branco, fica a cor padrão da plataforma.
+      </span>
+    </label>
+  );
+}
+
 /** A página única do §5.10 — seções fixas, conteúdo do professor. */
 export function FormSite({
-  acao, portalId, personalizacao,
+  acao, portalId, personalizacao, campoFoto = true,
 }: {
   acao: Acao; portalId: number; personalizacao: Personalizacao;
+  /**
+   * O caminho da foto como campo de texto. No painel do professor ele
+   * some: quem grava esse caminho é o envio de arquivo, logo acima do
+   * formulário, e deixá-lo editável só permitia apagá-lo sem querer ao
+   * salvar. Escondido, o valor atual viaja num `hidden` — some da tela,
+   * não do registro.
+   */
+  campoFoto?: boolean;
 }) {
   const [estado, enviar, pendente] = useActionState(acao, {});
   return (
@@ -234,22 +276,31 @@ export function FormSite({
           <input name="contato" defaultValue={personalizacao.contato ?? ''}
             placeholder="e-mail ou WhatsApp que aparece no portal" />
         </label>
-        <label>
-          Cor principal
-          <input name="corPrimaria" defaultValue={personalizacao.corPrimaria ?? ''}
-            placeholder="#997bf4" />
-        </label>
-        <label>
-          Foto de apresentação
-          <input name="foto" defaultValue={personalizacao.foto ?? ''}
-            placeholder="nome-do-arquivo" />
-        </label>
+        <SeletorCor valor={personalizacao.corPrimaria ?? ''} />
+        {campoFoto ? (
+          <label>
+            Foto de apresentação
+            <input name="foto" defaultValue={personalizacao.foto ?? ''}
+              placeholder="nome-do-arquivo" />
+            <span className="dica">
+              O professor envia a dele pelo painel; aqui só se corrige o caminho.
+            </span>
+          </label>
+        ) : (
+          <input type="hidden" name="foto" value={personalizacao.foto ?? ''} />
+        )}
       </div>
 
-      <div className="acoes">
-        <button className="btn btn-primario" type="submit" disabled={pendente}>
-          {pendente ? 'Salvando…' : 'Salvar página'}
-        </button>
+      <div className="acoes" style={{ display: 'grid', gap: 12 }}>
+        {/* O aviso repete aqui embaixo de propósito: o botão fica no fim de
+            um formulário longo, e uma confirmação só no topo passa
+            despercebida — foi o relato de "salvei e não apareceu nada". */}
+        <Avisos estado={estado} />
+        <div className="acoes-linha">
+          <button className="btn btn-primario" type="submit" disabled={pendente}>
+            {pendente ? 'Salvando…' : 'Salvar página'}
+          </button>
+        </div>
         <span className="dica">
           Estrutura única, sem editor livre (§5.10): o professor controla texto, imagem e cor —
           não HTML, CSS nem a ordem das seções. É o que mantém o provisionamento automático e o

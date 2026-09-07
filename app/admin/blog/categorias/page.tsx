@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import FormCategoria from './FormCategoria.tsx';
+import { BotaoIcone, EdicaoNaLinha } from '../../../ui.tsx';
 import { acaoSalvarCategoria, acaoEditarCategoriaLinha, acaoExcluirCategoria } from '../acoes.ts';
 import { listarCategorias } from '../../../../lib/admin-blog.ts';
 
@@ -34,31 +35,25 @@ export default async function Categorias() {
         <h2 className="headline-md">Categorias</h2>
         <table className="tabela">
           <thead>
-            <tr><th>Nome</th><th>Endereço</th><th>Artigos</th><th>Ordem e ações</th></tr>
+            <tr><th>Nome</th><th>Endereço</th><th>Ordem</th><th>Artigos</th><th>Ações</th></tr>
           </thead>
           <tbody>
             {categorias.map((c) => (
               <tr key={c.id}>
                 <td><strong>{c.nome}</strong></td>
                 <td className="suave mono">?categoria={c.slug}</td>
+                <td className="apertado">{c.ordem}</td>
                 <td>{c.posts === 0 ? <span className="suave">nenhum</span> : c.posts}</td>
                 <td>
                   <div className="acoes-linha">
-                    <form action={acaoEditarCategoriaLinha} className="acoes-linha">
+                    <EdicaoNaLinha acao={acaoEditarCategoriaLinha} nome={c.nome} ordem={c.ordem}
+                                   oQue={`a categoria ${c.nome}`}>
                       <input type="hidden" name="id" value={c.id} />
-                      <input name="nome" defaultValue={c.nome} aria-label={`Nome de ${c.nome}`}
-                        style={{ width: 180, padding: '6px 10px', borderRadius: 8,
-                                 border: '1px solid var(--outline-variant)' }} />
-                      <input name="ordem" type="number" defaultValue={c.ordem}
-                        aria-label={`Ordem de ${c.nome}`}
-                        style={{ width: 78, padding: '6px 10px', borderRadius: 8,
-                                 border: '1px solid var(--outline-variant)' }} />
-                      <button className="btn btn-contorno btn-sm" type="submit">Salvar</button>
-                    </form>
+                    </EdicaoNaLinha>
                     {c.posts === 0 && (
                       <form action={acaoExcluirCategoria}>
                         <input type="hidden" name="id" value={c.id} />
-                        <button className="btn btn-contorno btn-sm" type="submit">Excluir</button>
+                        <BotaoIcone icone="delete" rotulo="Excluir" variante="perigo" />
                       </form>
                     )}
                   </div>
@@ -66,7 +61,7 @@ export default async function Categorias() {
               </tr>
             ))}
             {categorias.length === 0 && (
-              <tr><td colSpan={4}><div className="vazio">Nenhuma categoria ainda.</div></td></tr>
+              <tr><td colSpan={5}><div className="vazio">Nenhuma categoria ainda.</div></td></tr>
             )}
           </tbody>
         </table>

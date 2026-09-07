@@ -4,8 +4,7 @@ import { Icone } from '../componentes.tsx';
 import { sair } from '../acoes-auth.ts';
 import { alunoAtual } from '../../lib/sessao.ts';
 import { portalDoProfessor } from '../../lib/professor.ts';
-import { portalIdAtual } from '../../lib/portal-consultas.ts';
-import { dominioBase } from '../../lib/portal.ts';
+import { portalIdAtual, enderecoDoPortal } from '../../lib/portal-consultas.ts';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,9 +21,14 @@ export default async function LayoutProfessor({ children }: { children: React.Re
   const portal = await portalDoProfessor(u.id);
   if (!portal) redirect('/para-professores');
 
-  const endereco = `http://${portal.mascara}.${dominioBase()}`;
+  const endereco = await enderecoDoPortal(portal.mascara);
   const GRUPOS: GrupoLateral[] = [
-    { itens: [{ href: '/professor', icone: 'dashboard', texto: 'Visão geral' }] },
+    {
+      itens: [
+        { href: '/professor', icone: 'dashboard', texto: 'Visão geral' },
+        { href: '/professor/perfil', icone: 'person', texto: 'Meu perfil' },
+      ],
+    },
     {
       titulo: 'Meu portal',
       itens: [

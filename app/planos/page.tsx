@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import { Pagina, Icone, portalSuspenso, PortalSuspenso } from '../componentes.tsx';
 import SeletorPeriodo from './SeletorPeriodo.tsx';
+import AbasPublico from './AbasPublico.tsx';
 import { economia, brl } from '../../lib/precos.ts';
 import { tabelaVigente } from '../../lib/precos-consultas.ts';
 import { listarMateriasEmCache } from '../../lib/catalogo.ts';
@@ -10,19 +11,49 @@ import { temCpf } from '../../lib/checkout.ts';
 import { acaoComprar, acaoAtivarTrial } from '../acoes-comerciais.ts';
 import { portalIdAtual } from '../../lib/portal-consultas.ts';
 import { planoDeLancamento } from '../../lib/portal-assinatura.ts';
+import { PLANOS_EMPRESA } from '../../lib/empresas.ts';
+import { recusarNoPortalDeEmpresa } from '../guarda-empresa.ts';
 
 export const metadata: Metadata = {
   title: 'Planos e licenças',
-  description: 'Licença por curso ou passe completo, teste de 7 dias sem cartão, Pix ou cartão e cancelamento em 2 cliques.',
+  description: 'Licença por curso ou passe completo, teste de 7 dias sem cartão, Pix ou cartão e cancelamento em 2 cliques. '
+    + 'Portal do Professor e planos corporativos para empresas e RH.',
 };
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * O que o banner do professor destaca é o que o portal entrega hoje —
+ * a mesma regra da home: nada de DRM ou boleto, que não existem (ver
+ * lib/video.ts e lib/pagamento.ts).
+ */
+const DESTAQUES_PROFESSOR = [
+  'Endereço de vídeo assinado, com prazo, e marca d’água com o nome do aluno',
+  'Seu próprio subdomínio — domínio próprio como upgrade',
+  'Pix e cartão com split: a sua parte cai direto na sua conta',
+  'Alunos 100% seus: cadastro, progresso e faturamento à parte',
+];
+
+const RECURSOS_EMPRESA = [
+  { icone: 'shield_person', titulo: 'Portal fechado',
+    texto: 'Só entra quem tem o e-mail da empresa. Nada do conteúdo interno fica público.' },
+  { icone: 'insights', titulo: 'Progresso em tempo real',
+    texto: 'O RH acompanha aulas concluídas, notas e engajamento, por pessoa e por equipe.' },
+  { icone: 'library_books', titulo: 'Trilhas por departamento',
+    texto: 'Integração, compliance, vendas, atendimento: cada área com o seu roteiro.' },
+  { icone: 'workspace_premium', titulo: 'Certificado de conclusão',
+    texto: 'Ao fim de cada trilha, com a chancela da empresa, para o registro interno de treinamento.' },
+];
+
 export default async function Planos() {
+  // §5.11 — página de preço não existe na empresa: o colaborador não
+  // contrata nada, e mostrar oferta a ele seria vender pelas costas do RH.
+  await recusarNoPortalDeEmpresa();
   const portalId = await portalIdAtual();
+  const plataforma = portalId === 0;
   const [tabela, materias, aluno, planoPortal] = await Promise.all([
     tabelaVigente(portalId), listarMateriasEmCache(portalId), alunoAtual(),
-    portalId === 0 ? planoDeLancamento() : Promise.resolve(null),
+    plataforma ? planoDeLancamento() : Promise.resolve(null),
   ]);
   // §5.10 — portal suspenso não vende para visitante; aluno logado vê
   // seus planos (e a compra é barrada em abrirPedido de todo jeito).
@@ -38,15 +69,23 @@ export default async function Planos() {
       <section className="cabeca-materia">
         <div className="container">
           <div className="trilha-topo"><Link href="/">Início</Link><Icone nome="chevron_right" tamanho={16} /><span>Planos</span></div>
-          <h1>Planos <em className="cor-marca">sob medida</em></h1>
-          <p className="sub">
-            A licença é por curso. Se for estudar vários, o passe completo sai mais em conta.
-            Tudo o que está escrito aqui é o que vale na hora da compra (CDC, art. 30).
-          </p>
+          <div className="cabeca-planos">
+            <div>
+              <h1>Planos <em className="cor-marca">sob medida</em></h1>
+              <p className="sub">
+                A licença é por curso. Se for estudar vários, o passe completo sai mais em conta.
+                Tudo o que está escrito aqui é o que vale na hora da compra (CDC, art. 30).
+              </p>
+            </div>
+            {/* Professor e empresa só se vendem no site principal (§5.10):
+                no portal de um professor, a página é só a de aluno e as
+                abas não fazem sentido. */}
+            {plataforma && <AbasPublico />}
+          </div>
         </div>
       </section>
 
-      <section className="secao" style={{ paddingTop: '2.5rem' }}>
+      <section className="secao" id="alunos" style={{ paddingTop: '2.5rem' }}>
         <div className="container">
           <SeletorPeriodo
             tabela={tabela}
@@ -63,6 +102,110 @@ export default async function Planos() {
           </p>
         </div>
       </section>
+
+      {plataforma && (
+        <section className="secao" id="professores" style={{ paddingTop: 0 }}>
+          <div className="container">
+            <div className="chamada chamada-lado">
+              <span className="bolha bolha-a" aria-hidden="true" />
+              <span className="bolha bolha-b" aria-hidden="true" />
+              <div className="chamada-texto">
+                <span className="chip chip-vidro chip-sm">
+                  <Icone nome="auto_awesome" tamanho={16} /> Para educadores e criadores
+                </span>
+                <h2>Para professores: o seu portal</h2>
+                <p>
+                  Seu site de aulas com endereço próprio, checkout e alunos seus —
+                  {' '}{planoPortal ? <>por <strong>{brl(planoPortal.licencaMensalCentavos)}/mês + {Number(planoPortal.percentualBase)}% sobre as vendas</strong></> : 'contratação em minutos'}.
+                  Exige CNPJ; o portal vai ao ar no dia da contratação.
+                </p>
+                <ul className="chamada-destaques">
+                  {DESTAQUES_PROFESSOR.map((d) => (
+                    <li key={d}><Icone nome="check_circle" tamanho={18} /> <span>{d}</span></li>
+                  ))}
+                </ul>
+              </div>
+              <div className="chamada-acao">
+                <Link className="btn btn-primario btn-lg" href="/para-professores">Conhecer e contratar</Link>
+                <span className="nota">Sem taxa de adesão · sem fidelidade</span>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {plataforma && (
+        <section className="secao clara" id="empresas">
+          <div className="container">
+            <div className="secao-titulo">
+              <span className="chip chip-marca chip-sm">
+                <Icone nome="handshake" tamanho={16} /> Aprimore Empresas · em implantação
+              </span>
+              <h2>Universidade corporativa &amp; <em>treinamentos para RH</em></h2>
+              <p>
+                Vídeos de integração, treinamentos internos, compliance e desenvolvimento
+                contínuo da equipe num portal exclusivo, fechado e com a identidade da sua marca.
+              </p>
+            </div>
+
+            <div className="grade-4" style={{ marginBottom: 'clamp(32px, 4vw, 48px)' }}>
+              {RECURSOS_EMPRESA.map((r) => (
+                <div className="cartao cartao-recurso" key={r.titulo}>
+                  <span className="selo"><Icone nome={r.icone} tamanho={22} /></span>
+                  <h3>{r.titulo}</h3>
+                  <p>{r.texto}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Os cartões seguem o desenho dos planos de aluno; o destaque
+                usa `recomendado`, e não `destaque`, para o preço do aluno
+                continuar sendo o único `.plano.destaque .valor` da página. */}
+            <div className="planos">
+              {PLANOS_EMPRESA.map((p) => (
+                <div className={`cartao cartao-plano plano${p.recomendado ? ' recomendado' : ''}`} key={p.id}>
+                  {p.recomendado && <span className="fita">Mais recomendado</span>}
+                  <div className="nome">{p.publico}</div>
+                  <div className="promessa">{p.nome}</div>
+                  <p className="resumo">{p.resumo}</p>
+                  <div className="valor">
+                    {p.centavosMes === null ? 'Sob proposta' : <>{brl(p.centavosMes)}<small>/mês</small></>}
+                  </div>
+                  <p className="periodo">{p.cobranca}</p>
+                  <p className="inclui">{p.tituloLista}</p>
+                  <ul>
+                    {p.itens.map((item) => (
+                      <li key={item}><Icone nome="check_circle" tamanho={20} /> {item}</li>
+                    ))}
+                  </ul>
+                  <Link className={`btn ${p.recomendado ? 'btn-primario' : 'btn-contorno'} btn-bloco`}
+                        href={`/empresas?plano=${p.id}#contato`}>
+                    {p.centavosMes === null ? 'Falar com o time' : `Pedir proposta ${p.nome.split(' ').at(-1)}`}
+                  </Link>
+                </div>
+              ))}
+            </div>
+            <p style={{ textAlign: 'center', fontSize: '.85rem', color: 'var(--on-surface-variant)', marginTop: '1.4rem' }}>
+              Preços de referência da proposta. A contratação fecha por porte e trilhas, sem cobrança antes do contrato.
+            </p>
+
+            <div className="cartao convite-empresa" style={{ marginTop: 32 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <span className="monograma" aria-hidden="true">RH</span>
+                <div>
+                  <strong style={{ fontFamily: 'var(--font-display)', fontSize: 16 }}>
+                    Precisa de um diagnóstico do treinamento da sua equipe?
+                  </strong>
+                  <p style={{ fontSize: 14, color: 'var(--on-surface-variant)', marginTop: 2 }}>
+                    Apresentação guiada e gratuita de 30 minutos com os seus gestores.
+                  </p>
+                </div>
+              </div>
+              <Link className="btn btn-contorno" href="/empresas#contato">Agendar apresentação</Link>
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="secao tinta">
         <div className="container">
@@ -90,26 +233,6 @@ export default async function Planos() {
           </div>
         </div>
       </section>
-
-      {portalId === 0 && (
-        <section className="secao" id="professores">
-          <div className="container">
-            <div className="chamada chamada-lado">
-              <span className="bolha bolha-a" aria-hidden="true" />
-              <span className="bolha bolha-b" aria-hidden="true" />
-              <div className="chamada-texto">
-                <h2>Para professores: o seu portal</h2>
-                <p>
-                  Seu site de aulas com endereço próprio, checkout e alunos seus —
-                  {' '}{planoPortal ? <>por <strong>{brl(planoPortal.licencaMensalCentavos)}/mês + {Number(planoPortal.percentualBase)}% sobre as vendas</strong></> : 'contratação em minutos'}.
-                  Exige CNPJ; o portal vai ao ar no dia da contratação.
-                </p>
-              </div>
-              <Link className="btn btn-primario btn-lg" href="/para-professores">Conhecer e contratar</Link>
-            </div>
-          </div>
-        </section>
-      )}
 
       <section className="secao" id="legal">
         <div className="container">

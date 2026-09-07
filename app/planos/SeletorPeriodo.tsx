@@ -116,8 +116,8 @@ export default function SeletorPeriodo({
             <input type="hidden" name="produto" value="MATERIA" />
             <input type="hidden" name="periodo" value={periodo} />
             <input type="hidden" name="meio" value={meio} />
-            <select name="materiaId" value={materiaId} onChange={(e) => setMateriaId(e.target.value)}
-                    aria-label="Escolha o curso"
+            <label className="caption suave" htmlFor="compra-materia">Selecione o curso</label>
+            <select id="compra-materia" name="materiaId" value={materiaId} onChange={(e) => setMateriaId(e.target.value)}
                     style={{ padding: '10px 12px', borderRadius: 'var(--r)', border: '2px solid var(--borda-controle)', background: 'var(--surface-container-lowest)', color: 'var(--on-surface)', fontFamily: 'inherit' }}>
               {materias.map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
             </select>
@@ -141,8 +141,8 @@ export default function SeletorPeriodo({
             <li><Icone nome="check_circle" tamanho={20} /> Todos os cursos publicados</li>
             <li><Icone nome="check_circle" tamanho={20} /> Cursos novos liberados automaticamente</li>
             <li><Icone nome="check_circle" tamanho={20} /> Simulados cronometrados</li>
-            <li><Icone nome="check_circle" tamanho={20} /> Estatística de acerto por assunto</li>
-            <li><Icone nome="check_circle" tamanho={20} /> Sem anúncios</li>
+            <li><Icone nome="check_circle" tamanho={20} /> Estatística e diagnóstico de acerto por assunto</li>
+            <li><Icone nome="check_circle" tamanho={20} /> Sem anúncios em nenhum lugar</li>
           </ul>
           <form action={enviarCompra} className="pilha-sm">
             <input type="hidden" name="produto" value="CATALOGO" />

@@ -12,11 +12,13 @@ import type { QuestaoAdmin } from '../../../lib/admin-cursos.ts';
  * questões.
  */
 export default function Exercicio({
-  questoes, portalId, aulaId, salvar, excluir,
+  questoes, portalId, aulaId, avaliacaoId, salvar, excluir,
 }: {
   questoes: QuestaoAdmin[];
   portalId: number;
   aulaId: number;
+  /** §5.11: as questões de uma avaliação final, em vez das de uma aula. */
+  avaliacaoId?: number;
   salvar: (e: EstadoAdmin, d: FormData) => Promise<EstadoAdmin>;
   excluir: (d: FormData) => Promise<void>;
 }) {
@@ -26,7 +28,9 @@ export default function Exercicio({
     <>
       {questoes.length === 0 && aberta !== 'nova' && (
         <div className="vazio">
-          Esta aula ainda não tem exercício. O §5.3 pede pelo menos uma questão comentada.
+          {avaliacaoId
+            ? 'Esta avaliação ainda não tem questão. Sem questão ela não pode ser publicada.'
+            : 'Esta aula ainda não tem exercício. O §5.3 pede pelo menos uma questão comentada.'}
         </div>
       )}
 
@@ -49,6 +53,7 @@ export default function Exercicio({
               <form action={excluir}>
                 <input type="hidden" name="portalId" value={portalId} />
                 <input type="hidden" name="aulaId" value={aulaId} />
+                {avaliacaoId && <input type="hidden" name="avaliacaoId" value={avaliacaoId} />}
                 <input type="hidden" name="id" value={q.id} />
                 <button className="btn btn-contorno btn-sm" type="submit">Excluir</button>
               </form>
@@ -57,8 +62,8 @@ export default function Exercicio({
 
           {aberta === q.id ? (
             <div style={{ marginTop: 16 }}>
-              <FormQuestao acao={salvar} portalId={portalId} aulaId={aulaId} questao={q}
-                aoFechar={() => setAberta(null)} />
+              <FormQuestao acao={salvar} portalId={portalId} aulaId={aulaId} avaliacaoId={avaliacaoId}
+                questao={q} aoFechar={() => setAberta(null)} />
             </div>
           ) : (
             <ul style={{ marginTop: 12, display: 'grid', gap: 6 }}>
@@ -78,7 +83,7 @@ export default function Exercicio({
       {aberta === 'nova' ? (
         <div className="cartao" style={{ padding: 20 }}>
           <h3 className="headline-md" style={{ marginBottom: 16 }}>Nova questão</h3>
-          <FormQuestao acao={salvar} portalId={portalId} aulaId={aulaId}
+          <FormQuestao acao={salvar} portalId={portalId} aulaId={aulaId} avaliacaoId={avaliacaoId}
             aoFechar={() => setAberta(null)} />
         </div>
       ) : (

@@ -6,7 +6,11 @@ import {
   autenticar, cadastrar, criarSessao, revogarSessao,
   validarEmail, validarSenha, COOKIE_SESSAO, DURACAO_SESSAO_DIAS,
 } from '../lib/auth.ts';
-import { portalIdAtual } from '../lib/portal-consultas.ts';
+import { portalIdAtual, portalAtual } from '../lib/portal-consultas.ts';
+import { dominioAutorizado } from '../lib/empresa.ts';
+import { autocadastrar } from '../lib/empresa-equipe.ts';
+import { gerarHashSenha } from '../lib/auth.ts';
+import { paginaInicial } from '../lib/navegacao.ts';
 import { vincularIndicacao } from '../lib/portal-indicacao.ts';
 import { COOKIE_INDICACAO } from '../lib/portal.ts';
 
@@ -45,7 +49,8 @@ export async function entrar(_estado: EstadoForm, dados: FormData): Promise<Esta
   if (!email || !senha) return { erro: 'Preencha e-mail e senha.' };
 
   // §5.10: o login vale dentro do portal em que foi feito.
-  const r = await autenticar(await portalIdAtual(), email, senha);
+  const portalId = await portalIdAtual();
+  const r = await autenticar(portalId, email, senha);
   if (!r.ok) {
     // Mensagem única de propósito: dizer "e-mail não existe" entrega
     // quais e-mails estão cadastrados a quem estiver sondando.
@@ -56,7 +61,10 @@ export async function entrar(_estado: EstadoForm, dados: FormData): Promise<Esta
 
   await abrirSessao(r.usuarioId);
   await vincularIndicacaoDoCookie(r.usuarioId);
-  redirect(r.statusConta === 'BLOQUEADA_INATIVIDADE' ? '/painel?reativar=1' : '/painel');
+  // Reativar a conta é a única coisa a fazer antes de qualquer outra:
+  // ela vence até o destino pedido.
+  if (r.statusConta === 'BLOQUEADA_INATIVIDADE') redirect('/painel?reativar=1');
+  redirect(paginaInicial(r.papel, portalId, String(dados.get('destino') ?? '')));
 }
 
 export async function criarConta(_estado: EstadoForm, dados: FormData): Promise<EstadoForm> {
@@ -70,7 +78,27 @@ export async function criarConta(_estado: EstadoForm, dados: FormData): Promise<
   const erroSenha = validarSenha(senha);
   if (erroSenha) return { erro: erroSenha };
 
-  const id = await cadastrar(await portalIdAtual(), nome, email, senha);
+  // §5.11 — num portal de empresa, cadastrar-se sozinho só vale para
+  // quem tem e-mail de um domínio que o RH autorizou. A conferência é
+  // aqui, no servidor: a tela de cadastro nem existe sem domínio, mas
+  // uma tela escondida não é uma trava.
+  const portal = await portalAtual();
+  let id: number | null;
+  if (portal.tipo === 'EMPRESA') {
+    if (!dominioAutorizado(portal.dominiosEmail, email)) {
+      return {
+        erro: 'Este portal é fechado. Só cria conta sozinho quem tem e-mail da empresa — '
+          + 'para os demais, quem administra o treinamento envia um convite.',
+      };
+    }
+    try {
+      id = await autocadastrar(portal.id, nome, email, await gerarHashSenha(senha));
+    } catch (err) {
+      return { erro: (err as Error).message };
+    }
+  } else {
+    id = await cadastrar(portal.id, nome, email, senha);
+  }
   if (id === null) {
     return { erro: 'Já existe uma conta com esse e-mail. Tente entrar.' };
   }

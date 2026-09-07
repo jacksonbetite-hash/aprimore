@@ -39,6 +39,19 @@ export const PORTAL_PLATAFORMA = 0;
 
 export type StatusPortal = 'RASCUNHO' | 'ATIVO' | 'SUSPENSO' | 'ENCERRADO';
 
+/**
+ * O regime de acesso do portal (§5.11). Não é "de quem ele é" — é se ele
+ * é aberto ou fechado:
+ *
+ *   PROFESSOR  vitrine pública: catálogo, amostra gratuita, preço na tela,
+ *              qualquer um cria conta e compra. É também o tipo da
+ *              PLATAFORMA (portal 0), por CHECK no banco: o site
+ *              principal nunca pode ficar atrás de um login.
+ *   EMPRESA    porta fechada: marca e login. Entra quem o RH cadastrou ou
+ *              convidou, e o acesso vem de licença B2B, não de compra.
+ */
+export type PortalTipo = 'PROFESSOR' | 'EMPRESA';
+
 /** O que o professor preenche na página única (§5.10, "Anatomia"). */
 export interface Personalizacao {
   chamada?: string;
@@ -54,10 +67,13 @@ export interface Portal {
   mascara: string;
   nomeExibicao: string;
   status: StatusPortal;
+  tipo: PortalTipo;
   personalizacao: Personalizacao;
   /** Identificação do responsável no rodapé do portal (§5.10, LGPD/CDC). */
   responsavelNome: string | null;
   responsavelDoc: string | null;
+  /** §5.11: domínios de e-mail que dispensam convite. Vazio = só por convite. */
+  dominiosEmail: string[];
 }
 
 export const PLATAFORMA: Portal = {
@@ -65,9 +81,11 @@ export const PLATAFORMA: Portal = {
   mascara: 'plataforma',
   nomeExibicao: 'Aprimore o Saber',
   status: 'ATIVO',
+  tipo: 'PROFESSOR',
   personalizacao: {},
   responsavelNome: null,
   responsavelDoc: null,
+  dominiosEmail: [],
 };
 
 /** Só #rgb ou #rrggbb entram no CSS do portal — cor é dado, não código. */

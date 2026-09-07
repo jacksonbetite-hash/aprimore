@@ -16,6 +16,7 @@ import Link from 'next/link';
  */
 const TRACOS: Record<string, React.ReactNode> = {
   balance: <><path d="M12 3v18M7 21h10M12 6 4 8m8-2 8 2" /><path d="M4 8 1.5 14a3.5 3.5 0 0 0 5 0L4 8Z" /><path d="M20 8l-2.5 6a3.5 3.5 0 0 0 5 0L20 8Z" /></>,
+  devices: <><rect x="2" y="5" width="15" height="11" rx="2" /><path d="M6 20h7M9.5 16v4" /><rect x="18" y="9" width="4" height="11" rx="1.5" /></>,
   search: <><circle cx="11" cy="11" r="7" /><path d="m20 20-3.6-3.6" /></>,
   play_arrow: <path d="M8 5.5v13l11-6.5-11-6.5Z" />,
   pause: <><path d="M9.5 5v14M14.5 5v14" /></>,
@@ -87,6 +88,25 @@ const TRACOS: Record<string, React.ReactNode> = {
   fact_check: <><rect x="3.5" y="4.5" width="17" height="15" rx="2.5" /><path d="M7 9h6M7 12.5h4" /><path d="m14 15.2 1.8 1.8 3.2-3.5" /></>,
   medication: <><rect x="5.5" y="9" width="13" height="11.5" rx="3" /><path d="M12 12.5v4.5M9.8 14.8h4.4" /><path d="M7 6h10l-1 3H8L7 6Z" /></>,
   savings: <><path d="M4 12.5a6 6 0 0 1 6-6h3a6 6 0 0 1 5.6 3.9l1.9.9v3.4l-2 .4a6 6 0 0 1-2 2.4v2h-3v-1.2h-3V20H7.5v-2A6 6 0 0 1 4 12.5Z" /><circle cx="15.5" cy="12" r=".9" fill="currentColor" stroke="none" /><path d="M9 4.5a2.5 2.5 0 0 1 4 1.8" /></>,
+  /* Ações das tabelas da retaguarda: o botão é o ícone, e a palavra
+     aparece ao passar o mouse (ver .btn-icone em globals.css). */
+  delete: <><path d="M5 7h14" /><path d="M9.5 7V5.5a1.5 1.5 0 0 1 1.5-1.5h2a1.5 1.5 0 0 1 1.5 1.5V7" /><path d="M6.5 7l.8 11.6a2 2 0 0 0 2 1.9h5.4a2 2 0 0 0 2-1.9L17.5 7" /><path d="M10.5 11v5.5M13.5 11v5.5" /></>,
+  visibility: <><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" /><circle cx="12" cy="12" r="3.2" /></>,
+  visibility_off: <><path d="M4 4.5l15.5 15" /><path d="M9.5 6c.8-.3 1.6-.5 2.5-.5 6 0 9.5 6.5 9.5 6.5a17 17 0 0 1-3.4 4" /><path d="M6.6 8.3A17 17 0 0 0 2.5 12S6 18.5 12 18.5c1.4 0 2.6-.3 3.7-.8" /><path d="M9.9 10.2a3.2 3.2 0 0 0 4.3 4.4" /></>,
+  open_in_new: <><path d="M14 4.5h5.5V10" /><path d="m19.5 4.5-8 8" /><path d="M18 14v4.5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-10a2 2 0 0 1 2-2h4.5" /></>,
+  inventory_2: <><rect x="3" y="7.5" width="18" height="12.5" rx="2" /><path d="M3.5 7.5 5 4h14l1.5 3.5" /><path d="M10 12h4" /></>,
+  block: <><circle cx="12" cy="12" r="8.5" /><path d="m6 6 12 12" /></>,
+  more_time: <><path d="M20.5 12a8.5 8.5 0 1 1-4.2-7.3" /><path d="M12 7v5.3l3 1.9" /><path d="M18.5 3.5v5M16 6h5" /></>,
+  close: <path d="m6 6 12 12M18 6 6 18" />,
+  save: <><path d="M5.5 4.5h10L19.5 8.5v11a1.5 1.5 0 0 1-1.5 1.5H6a1.5 1.5 0 0 1-1.5-1.5v-14a1 1 0 0 1 1-1Z" /><path d="M8.5 4.5v5h6v-5" /><rect x="8" y="13.5" width="8" height="5.5" rx="1" /></>,
+  person: <><circle cx="12" cy="8" r="3.6" /><path d="M4.5 20c0-3.4 3.4-5.5 7.5-5.5s7.5 2.1 7.5 5.5" /></>,
+  palette: <><path d="M12 3.5a8.5 8.5 0 0 0 0 17c1.4 0 2-1 2-1.8 0-1.5-1.6-1.6-1.6-3 0-1 .8-1.7 1.9-1.7h1.8a4.4 4.4 0 0 0 4.4-4.4C20.5 6.3 16.7 3.5 12 3.5Z" /><circle cx="8" cy="10" r="1.1" fill="currentColor" stroke="none" /><circle cx="12" cy="7.6" r="1.1" fill="currentColor" stroke="none" /><circle cx="16" cy="9.6" r="1.1" fill="currentColor" stroke="none" /></>,
+  movie: <><rect x="3" y="5.5" width="18" height="13" rx="2.5" /><path d="M3.5 9.5h17" /><path d="M8 5.7 6.5 9.5M13 5.7 11.5 9.5M18 5.7 16.5 9.5" /></>,
+  calculate: <><rect x="4.5" y="3" width="15" height="18" rx="2" /><path d="M8 7.5h8" /><path d="M8 12h2.5M13.5 12h2.5M8 16.5h2.5M15.2 15v3M13.7 16.5h3" /></>,
+  timeline: <><path d="M3 15.5h4l3-8 4 11 3-7h4" /><circle cx="7" cy="15.5" r="1.3" fill="currentColor" stroke="none" /><circle cx="17" cy="11.5" r="1.3" fill="currentColor" stroke="none" /></>,
+  print: <><path d="M7 8.5V4h10v4.5" /><rect x="4" y="8.5" width="16" height="8" rx="2" /><path d="M7 13.5h10v6H7z" /></>,
+  link: <><path d="M10 14a4 4 0 0 0 5.7 0l2.8-2.8a4 4 0 0 0-5.7-5.7l-1.2 1.2" /><path d="M14 10a4 4 0 0 0-5.7 0l-2.8 2.8a4 4 0 0 0 5.7 5.7l1.2-1.2" /></>,
+
 };
 
 export function Icone(
@@ -124,5 +144,103 @@ export function Marca({ href = '/', nome }: { href?: string; nome?: string }) {
       </svg>
       <span className="rotulo">{nome ?? 'Aprimore o Saber'}</span>
     </Link>
+  );
+}
+
+/* ==================================================================
+   Botões de ação das tabelas da retaguarda
+   ------------------------------------------------------------------
+   Numa linha de tabela, a palavra ocupa mais espaço do que informa:
+   com quatro ações a coluna "Ações" ficava mais larga que o próprio
+   dado. Aqui a ação é o ícone, e a palavra volta ao passar o mouse (e
+   ao focar pelo teclado). A palavra continua existindo para quem usa
+   leitor de tela — em `aria-label`, não escondida.
+   ================================================================== */
+
+type VarianteIcone = 'contorno' | 'primario' | 'perigo';
+
+const classeIcone = (v: VarianteIcone, extra?: string) =>
+  ['btn-icone', v !== 'contorno' ? `btn-icone-${v}` : '', extra].filter(Boolean).join(' ');
+
+export function BotaoIcone({
+  icone, rotulo, variante = 'contorno', tipo = 'submit', desabilitado, aoClicar,
+}: {
+  icone: string;
+  /** A palavra que o botão substitui: aparece no hover e no leitor de tela. */
+  rotulo: string;
+  variante?: VarianteIcone;
+  tipo?: 'submit' | 'button';
+  desabilitado?: boolean;
+  aoClicar?: () => void;
+}) {
+  return (
+    <button className={classeIcone(variante)} type={tipo} aria-label={rotulo}
+            disabled={desabilitado} onClick={aoClicar}>
+      <Icone nome={icone} tamanho={20} />
+      <span className="dica-icone" aria-hidden="true">{rotulo}</span>
+    </button>
+  );
+}
+
+/** A mesma coisa, quando a ação é navegar. `externo` abre noutra aba. */
+export function LinkIcone({
+  href, icone, rotulo, variante = 'contorno', externo,
+}: {
+  href: string; icone: string; rotulo: string;
+  variante?: VarianteIcone; externo?: boolean;
+}) {
+  const conteudo = (
+    <>
+      <Icone nome={icone} tamanho={20} />
+      <span className="dica-icone" aria-hidden="true">{rotulo}</span>
+    </>
+  );
+  return externo
+    ? <a className={classeIcone(variante)} href={href} target="_blank" rel="noreferrer"
+         aria-label={rotulo}>{conteudo}</a>
+    : <Link className={classeIcone(variante)} href={href} aria-label={rotulo}>{conteudo}</Link>;
+}
+
+/**
+ * Edição de nome e ordem na própria linha da tabela (área, assunto,
+ * categoria).
+ *
+ * Antes os dois campos ficavam sempre abertos dentro da coluna de ações,
+ * e ninguém os reconhecia como "editar": pareciam parte do desenho da
+ * tabela. Agora a linha mostra um lápis; clicar abre os campos. É
+ * `<details>`, e não estado de React, porque não há nada a sincronizar —
+ * abrir e fechar é trabalho do navegador, e assim a tabela inteira
+ * continua sendo componente de servidor.
+ */
+export function EdicaoNaLinha({
+  acao, nome, ordem, oQue, children,
+}: {
+  acao: (dados: FormData) => Promise<void>;
+  nome: string; ordem: number;
+  /** Aparece no rótulo: "Editar a área Direito Penal". */
+  oQue: string;
+  /** Os campos ocultos que identificam a linha (id, portalId, materiaId…). */
+  children?: React.ReactNode;
+}) {
+  return (
+    <details className="edicao-linha">
+      <summary className="btn-icone" aria-label={`Editar ${oQue}`}>
+        <Icone nome="edit" tamanho={20} />
+        <span className="dica-icone" aria-hidden="true">Editar</span>
+      </summary>
+      <form action={acao} className="edicao-campos">
+        {children}
+        <label>
+          Nome
+          <input name="nome" defaultValue={nome} required maxLength={120}
+                 aria-label={`Nome — ${oQue}`} />
+        </label>
+        <label>
+          Ordem
+          <input name="ordem" type="number" defaultValue={ordem} aria-label={`Ordem — ${oQue}`} />
+        </label>
+        <BotaoIcone icone="check" rotulo="Salvar" variante="primario" />
+      </form>
+    </details>
   );
 }

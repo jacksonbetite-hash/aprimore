@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { FormPortal, FormPlano, FormProfessor } from './Formularios.tsx';
+import { BotaoIcone, LinkIcone } from '../../ui.tsx';
 import { acaoCriarPortal, acaoSalvarPlano, acaoCriarProfessor, acaoStatusPortal } from './acoes.ts';
 import { listarPortais, listarPlanos, listarProfessores } from '../../../lib/admin-portais.ts';
 import { brl } from '../../../lib/precos.ts';
@@ -35,7 +36,7 @@ export default async function Portais() {
         <table className="tabela">
           <thead>
             <tr>
-              <th>Portal</th><th>Professor</th><th>Plano</th>
+              <th>Portal</th><th>Responsável</th><th>Plano</th>
               <th>Acervo</th><th>Situação</th><th>Ações</th>
             </tr>
           </thead>
@@ -47,6 +48,13 @@ export default async function Portais() {
                     style={{ color: 'var(--primary-texto)', fontWeight: 700 }}>
                     {p.nomeExibicao}
                   </Link>
+                  {/* §5.11 — sem esta etiqueta, a lista mistura dois
+                      produtos que se administram de forma diferente: um
+                      vende e tem repasse, o outro só paga mensalidade. */}
+                  <span className={`chip chip-sm ${p.tipo === 'EMPRESA' ? 'chip-terciaria' : 'chip-neutra'}`}
+                        style={{ marginLeft: 8 }}>
+                    {p.tipo === 'EMPRESA' ? 'empresa' : 'professor'}
+                  </span>
                   <br /><span className="suave mono">{p.mascara}.aprimoreosaber.com.br</span>
                 </td>
                 <td>
@@ -54,7 +62,12 @@ export default async function Portais() {
                   <br /><span className="suave">{p.professorEmail}</span>
                 </td>
                 <td>{p.planoNome ?? <span className="suave">—</span>}</td>
-                <td className="apertado">{p.materias} curso(s) · {p.alunos} aluno(s)</td>
+                <td className="apertado">
+                  {p.tipo === 'EMPRESA'
+                    ? <>{p.materias} trilha(s) · {p.alunos}
+                        {p.limiteContas !== null && <> de {p.limiteContas}</>} pessoa(s)</>
+                    : <>{p.materias} curso(s) · {p.alunos} aluno(s)</>}
+                </td>
                 <td>
                   <span className={`chip chip-sm ${CHIP[p.status]}`}>{p.status.toLowerCase()}</span>
                   {!p.contratoAceito && (
@@ -63,24 +76,25 @@ export default async function Portais() {
                 </td>
                 <td>
                   <div className="acoes-linha">
+                    <LinkIcone href={`/admin/portais/${p.id}`} icone="edit"
+                               rotulo="Abrir o portal" />
+                    <LinkIcone href={`/admin/cursos?portal=${p.id}`} icone="menu_book"
+                               rotulo="Acervo do portal" />
                     {p.status === 'ATIVO' ? (
                       <form action={acaoStatusPortal}>
                         <input type="hidden" name="id" value={p.id} />
                         <input type="hidden" name="status" value="SUSPENSO" />
-                        <button className="btn btn-contorno btn-sm" type="submit">Suspender</button>
+                        <BotaoIcone icone="block" rotulo="Suspender" variante="perigo" />
                       </form>
                     ) : p.status !== 'ENCERRADO' && (
                       <form action={acaoStatusPortal}>
                         <input type="hidden" name="id" value={p.id} />
                         <input type="hidden" name="status" value="ATIVO" />
-                        <button className="btn btn-primario btn-sm" type="submit"
-                          disabled={!p.contratoAceito}>
-                          Publicar
-                        </button>
+                        <BotaoIcone icone="visibility" variante="primario"
+                          desabilitado={!p.contratoAceito}
+                          rotulo={p.contratoAceito ? 'Publicar' : 'Publicar (falta o contrato aceito)'} />
                       </form>
                     )}
-                    <Link className="btn btn-contorno btn-sm"
-                      href={`/admin/cursos?portal=${p.id}`}>Acervo</Link>
                   </div>
                 </td>
               </tr>

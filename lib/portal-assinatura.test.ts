@@ -44,6 +44,10 @@ const evento = (ref: string, id: string, tipo: 'pagamento.confirmado' | 'pagamen
 // ocupa o teto regulatório do autosserviço (§5.10.2) e derruba o fluxo
 // real. Portal antes do usuário: professor_id aponta sem cascade.
 async function limparRastros() {
+  // O portal agora nasce com tabela de preço copiada da plataforma
+  // (semearPrecosDaPlataforma); `preco` não tem ON DELETE CASCADE,
+  // então sai antes do portal.
+  await query(`DELETE FROM preco WHERE portal_id IN (SELECT id FROM portal WHERE mascara LIKE 'teste-assinatura-%')`);
   await query(`DELETE FROM portal WHERE mascara LIKE 'teste-assinatura-%'`);
   await query(`DELETE FROM usuario WHERE email LIKE 'teste-portal-%@exemplo.com'`);
   await query(`DELETE FROM evento_gateway WHERE evento_id LIKE 'ev-portal-%'`);
@@ -181,4 +185,30 @@ test('sem renda ou com CEP torto, nada é criado', talvez, async () => {
   const d = dados();
   await assert.rejects(assinarPortal({ ...d, endereco: { ...d.endereco, cep: '123' } }), /CEP/);
   await assert.rejects(assinarPortal({ ...dados(), telefone: '123' }), /Telefone/);
+});
+
+
+/**
+ * O portal nascia sem nenhuma linha em `preco`, e o buraco aparecia nos
+ * dois piores lugares: a seção "Como assinar" da página pública mostrava
+ * "R$ NaN" (`brl(undefined)`) e o checkout recusava a compra com "não há
+ * preço vigente para este produto" — portal no ar, sem poder vender.
+ */
+test('o portal nasce com tabela de preço vigente, copiada da plataforma', talvez, async () => {
+  const r = await assinarPortal(dados());
+
+  const daPlataforma = await query<{ produto: string; periodo: string; centavos: number }>(
+    `SELECT produto, periodo, centavos FROM preco
+      WHERE portal_id = 0 AND vigente_ate IS NULL AND vigente_de <= current_date
+      ORDER BY produto, periodo`,
+  );
+  const doPortal = await query<{ produto: string; periodo: string; centavos: number }>(
+    `SELECT produto, periodo, centavos FROM preco
+      WHERE portal_id = $1 AND vigente_ate IS NULL AND vigente_de <= current_date
+      ORDER BY produto, periodo`,
+    [r.portalId],
+  );
+  assert.ok(daPlataforma.length > 0, 'a plataforma precisa ter tabela para o teste valer');
+  assert.deepEqual(doPortal, daPlataforma,
+    'produto, período e valor entram iguais aos nossos — o admin ajusta depois (§5.9)');
 });

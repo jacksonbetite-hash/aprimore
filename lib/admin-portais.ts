@@ -1,7 +1,9 @@
 import { query, queryOne } from './db.ts';
 import { emTransacao, auditar, type Exec } from './auditoria.ts';
 import { gerarHashSenha, validarEmail, validarSenha } from './auth.ts';
-import { PORTAL_PLATAFORMA, type StatusPortal, conferirDominio } from './portal.ts';
+import {
+  PORTAL_PLATAFORMA, conferirDominio, type StatusPortal, type PortalTipo,
+} from './portal.ts';
 
 /**
  * Portais de professor na retaguarda — §5.10 e §5.10.1.
@@ -26,6 +28,10 @@ import { PORTAL_PLATAFORMA, type StatusPortal, conferirDominio } from './portal.
 
 export interface PortalAdmin {
   id: number; mascara: string; nomeExibicao: string; status: StatusPortal;
+  /** §5.11 — PROFESSOR ou EMPRESA. Muda o que a linha significa. */
+  tipo: PortalTipo;
+  /** Teto de contas do contrato vigente; null nos portais de professor. */
+  limiteContas: number | null;
   dominioProprio: string | null;
   professorId: number | null; professorNome: string | null; professorEmail: string | null;
   planoId: number | null; planoNome: string | null;
@@ -37,7 +43,9 @@ export interface PortalAdmin {
 }
 
 const CAMPOS = `
-  p.id, p.mascara, p.nome_exibicao AS "nomeExibicao", p.status,
+  p.id, p.mascara, p.nome_exibicao AS "nomeExibicao", p.status, p.tipo,
+  (SELECT c.limite_contas FROM portal_contrato c
+    WHERE c.portal_id = p.id AND c.vigente_ate IS NULL) AS "limiteContas",
   p.dominio_proprio AS "dominioProprio",
   p.professor_id AS "professorId", u.nome AS "professorNome", u.email AS "professorEmail",
   p.plano_id AS "planoId", pl.nome AS "planoNome",
@@ -51,7 +59,8 @@ const CAMPOS = `
     AS "contratoAceito",
   (SELECT count(*)::int FROM materia m WHERE m.portal_id = p.id) AS materias,
   (SELECT count(*)::int FROM usuario us
-    WHERE us.portal_id = p.id AND us.papel = 'aluno') AS alunos
+    WHERE us.portal_id = p.id AND us.papel = 'aluno'
+      AND us.status_conta <> 'ENCERRADA') AS alunos
 `;
 
 /**
@@ -253,6 +262,43 @@ export async function conferirMascara(exec: Exec, mascara: string, ignorarId?: n
   return limpa;
 }
 
+/**
+ * Tabela de preços inicial do portal, copiada da plataforma.
+ *
+ * §5.10 dá a cada portal a própria tabela. O que faltava era o começo
+ * dela: portal recém-criado nascia sem nenhuma linha em `preco`, e o
+ * efeito aparecia nos dois lugares em que mais dói — a seção "Como
+ * assinar" da página do professor mostrava <strong>R$ NaN</strong>, e o
+ * checkout recusava a compra com "não há preço vigente para este
+ * produto". Nascer com a nossa tabela dá um portal vendável desde o
+ * primeiro minuto; o admin (e a vigência do §5.9) continuam podendo
+ * trocar cada valor depois.
+ *
+ * Idempotente: só insere produto/período que ainda não tem preço vigente
+ * no portal, então rodar de novo não duplica nada.
+ */
+export async function semearPrecosDaPlataforma(exec: Exec, portalId: number, ator: string) {
+  // §5.11 — portal de empresa não vende: preço ali seria linha morta que
+  // um dia apareceria numa tela por engano.
+  const [alvo] = await exec<{ tipo: string }>('SELECT tipo FROM portal WHERE id = $1', [portalId]);
+  if (alvo?.tipo === 'EMPRESA') return 0;
+
+  const linhas = await exec<{ produto: string }>(
+    `INSERT INTO preco (portal_id, produto, periodo, centavos, vigente_de, criado_por)
+     SELECT $1, p.produto, p.periodo, p.centavos, current_date, $2
+       FROM preco p
+      WHERE p.portal_id = ${PORTAL_PLATAFORMA}
+        AND p.vigente_ate IS NULL AND p.vigente_de <= current_date
+        AND NOT EXISTS (
+          SELECT 1 FROM preco q
+           WHERE q.portal_id = $1 AND q.produto = p.produto AND q.periodo = p.periodo
+             AND q.vigente_ate IS NULL)
+     RETURNING produto`,
+    [portalId, ator],
+  );
+  return linhas.length;
+}
+
 export async function criarPortal(ator: string, d: DadosPortal) {
   if (!d.nomeExibicao.trim()) throw new Error('o portal precisa de um nome de exibição');
   if (!Number.isInteger(d.professorId)) throw new Error('escolha o professor');
@@ -272,8 +318,10 @@ export async function criarPortal(ator: string, d: DadosPortal) {
        d.responsavelNome?.trim() || null, d.responsavelDoc?.trim() || null,
        d.responsavelEmail?.trim() || null],
     );
+    const precos = await semearPrecosDaPlataforma(exec, novo.id, ator);
     await auditar(exec, ator, 'portal.criado', 'portal', novo.id,
-      { mascara, nome: d.nomeExibicao.trim(), professorId: d.professorId, planoId: d.planoId });
+      { mascara, nome: d.nomeExibicao.trim(), professorId: d.professorId,
+        planoId: d.planoId, precosCopiados: precos });
     return novo.id;
   });
 }

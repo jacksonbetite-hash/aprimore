@@ -2,9 +2,10 @@ import { queryOne } from './db.ts';
 import { emTransacao, auditar } from './auditoria.ts';
 import { gerarHashSenha, validarEmail, validarSenha } from './auth.ts';
 import { PORTAL_PLATAFORMA, validarCnpj,
-  validarTelefone, conferirEndereco, normalizarEndereco, somenteDigitos, type Endereco,
+  validarTelefone, conferirEndereco, normalizarEndereco, somenteDigitos,
+  type Endereco, type PortalTipo,
 } from './portal.ts';
-import { conferirMascara } from './admin-portais.ts';
+import { conferirMascara, semearPrecosDaPlataforma } from './admin-portais.ts';
 import {
   provedorAtual, novaReferencia,
   type MeioPagamento, type EventoPagamento,
@@ -40,13 +41,30 @@ import {
  */
 const limitePortais = () => Number(process.env.LIMITE_PORTAIS ?? 10);
 
+/**
+ * Tira só a pontuação do CNPJ, e não tudo que não é dígito: desde 2026 o
+ * CNPJ pode ter letras, e `somenteDigitos` apagaria metade dele.
+ */
+const semPontuacao = (cnpj: string) => cnpj.toUpperCase().replace(/[-./ ]/g, '');
+
 export interface DadosAssinatura {
   nome: string;
   email: string;
   senha: string;
   /** CNPJ do responsável — sem ele não há subconta (§5.10.2). */
   cnpj: string;
-  /** KYC do responsável — o gateway não abre a subconta sem (§8.2). */
+  /**
+   * §5.11 — o mesmo caminho serve aos dois produtos. O que muda é
+   * pequeno e está marcado ponto a ponto abaixo: a empresa não abre
+   * subconta (não vende), então não coleta KYC; escolhe entre dois
+   * planos, então informa qual; e o dono nasce 'gestor', não 'professor'.
+   * Um fluxo só, porque o caro aqui é a transação única e a idempotência
+   * do webhook — e duplicá-los seria duplicar o que pode divergir.
+   */
+  tipo?: PortalTipo;
+  /** Só EMPRESA: qual dos planos de empresa. O professor tem um só. */
+  planoId?: number;
+  /** KYC do responsável — o gateway não abre a subconta sem (§8.2). Só PROFESSOR. */
   telefone: string;
   rendaMensalCentavos: number;
   endereco: Endereco;
@@ -73,25 +91,52 @@ export interface PlanoAtivo {
   id: number; nome: string;
   licencaMensalCentavos: number; percentualBase: string;
   acrescimoIndicacaoPp: string;
+  /** Quanto o professor recebe quando NÓS vendemos o curso dele (§5.6.1). */
+  comissaoVitrinePp: string;
+  /** §5.11 — teto de contas do plano de empresa; null nos de professor. */
+  limiteContas: number | null;
   gbArmazenamento: number; gbBandaMes: number;
   centavosPorGbExcedente: number;
 }
 
+/** As condições que o contrato copia no aceite — um SELECT para os dois tipos. */
+const CAMPOS_PLANO = `
+  id, nome, licenca_mensal_centavos AS "licencaMensalCentavos",
+  percentual_base AS "percentualBase",
+  acrescimo_indicacao_pp AS "acrescimoIndicacaoPp",
+  comissao_vitrine_pp AS "comissaoVitrinePp",
+  limite_contas AS "limiteContas",
+  gb_armazenamento AS "gbArmazenamento",
+  gb_banda_mes AS "gbBandaMes",
+  centavos_por_gb_excedente AS "centavosPorGbExcedente"
+`;
+
 /**
- * O plano vendido na página pública: o mais barato entre os ativos. A
- * página lê DAQUI, nunca de número no código — mudar o preço no admin
- * muda o site (§5.10.3).
+ * O plano vendido em /para-professores: o mais barato ENTRE OS DE
+ * PROFESSOR. A página lê DAQUI, nunca de número no código — mudar o
+ * preço no admin muda o site (§5.10.3). O filtro por tipo é o que
+ * impede que semear um plano de empresa mude, em silêncio, o que a
+ * página do professor vende (§5.11).
  */
 export function planoDeLancamento() {
   return queryOne<PlanoAtivo>(
-    `SELECT id, nome, licenca_mensal_centavos AS "licencaMensalCentavos",
-            percentual_base AS "percentualBase",
-            acrescimo_indicacao_pp AS "acrescimoIndicacaoPp",
-            gb_armazenamento AS "gbArmazenamento",
-            gb_banda_mes AS "gbBandaMes",
-            centavos_por_gb_excedente AS "centavosPorGbExcedente"
-       FROM portal_plano WHERE ativo
+    `SELECT ${CAMPOS_PLANO} FROM portal_plano WHERE ativo AND tipo = 'PROFESSOR'
       ORDER BY licenca_mensal_centavos LIMIT 1`,
+  );
+}
+
+/**
+ * §5.11 — o plano de empresa que ela escolheu. Diferente do professor,
+ * que tem um só, aqui a pessoa decide entre Starter e Pro: sem `planoId`
+ * não há contratação, porque adivinhar qual plano alguém quis comprar é
+ * o tipo de palpite que vira estorno.
+ */
+export function planoDeEmpresaAtivo(planoId: number | undefined) {
+  if (!Number.isInteger(planoId)) throw new Error('Escolha um plano.');
+  return queryOne<PlanoAtivo>(
+    `SELECT ${CAMPOS_PLANO} FROM portal_plano
+      WHERE id = $1 AND ativo AND tipo = 'EMPRESA'`,
+    [planoId],
   );
 }
 
@@ -136,26 +181,40 @@ export async function assinarPortal(d: DadosAssinatura): Promise<AssinaturaCriad
     throw new Error('CNPJ inválido. O portal exige pessoa jurídica — é regra do Banco '
       + 'Central para a conta de recebimento, não escolha nossa.');
   }
-  if (!validarTelefone(d.telefone)) throw new Error('Telefone inválido — DDD e número.');
-  if (!Number.isInteger(d.rendaMensalCentavos) || d.rendaMensalCentavos <= 0) {
-    throw new Error('Informe sua renda mensal — o meio de pagamento exige para abrir '
-      + 'a conta de recebimento.');
+  const tipo: PortalTipo = d.tipo ?? 'PROFESSOR';
+  const empresa = tipo === 'EMPRESA';
+
+  // O KYC existe para abrir a subconta no gateway. A empresa não tem
+  // subconta — ela paga, não recebe —, então pedir renda e endereço
+  // seria coletar dado pessoal sem finalidade (§12.1).
+  if (tipo === 'PROFESSOR') {
+    if (!validarTelefone(d.telefone)) throw new Error('Telefone inválido — DDD e número.');
+    if (!Number.isInteger(d.rendaMensalCentavos) || d.rendaMensalCentavos <= 0) {
+      throw new Error('Informe sua renda mensal — o meio de pagamento exige para abrir '
+        + 'a conta de recebimento.');
+    }
+    const erroEndereco = conferirEndereco(d.endereco);
+    if (erroEndereco) throw new Error(erroEndereco);
   }
-  const erroEndereco = conferirEndereco(d.endereco);
-  if (erroEndereco) throw new Error(erroEndereco);
   if (d.meio !== 'PIX' && d.meio !== 'CARTAO') throw new Error('Meio de pagamento inválido.');
 
   // ---- teto regulatório (§5.10.2): fila de espera, não erro ----
-  const ocupacao = await queryOne<{ total: number }>(
-    `SELECT count(*)::int AS total FROM portal
-      WHERE id <> ${PORTAL_PLATAFORMA} AND status <> 'ENCERRADO'`,
-  );
-  if ((ocupacao?.total ?? 0) >= limitePortais()) {
-    throw new Error('Estamos no limite de novos portais deste período. Deixe seu e-mail '
-      + 'na lista de espera que avisamos assim que abrir a próxima turma.');
+  // O teto é do GATEWAY: 10 subcontas até a homologação. Portal de
+  // empresa não abre subconta nenhuma, e por isso não ocupa vaga.
+  if (tipo === 'PROFESSOR') {
+    const ocupacao = await queryOne<{ total: number }>(
+      `SELECT count(*)::int AS total FROM portal
+        WHERE id <> ${PORTAL_PLATAFORMA} AND tipo = 'PROFESSOR' AND status <> 'ENCERRADO'`,
+    );
+    if ((ocupacao?.total ?? 0) >= limitePortais()) {
+      throw new Error('Estamos no limite de novos portais deste período. Deixe seu e-mail '
+        + 'na lista de espera que avisamos assim que abrir a próxima turma.');
+    }
   }
 
-  const plano = await planoDeLancamento();
+  const plano = tipo === 'EMPRESA'
+    ? await planoDeEmpresaAtivo(d.planoId)
+    : await planoDeLancamento();
   if (!plano) throw new Error('Nenhum plano disponível no momento.');
 
   // A cobrança nasce no gateway ANTES da transação, como no checkout de
@@ -169,7 +228,9 @@ export async function assinarPortal(d: DadosAssinatura): Promise<AssinaturaCriad
     meio: d.meio,
     emailPagador: d.email.trim().toLowerCase(),
     documentoPagador: d.cnpj, nomePagador: d.nome.trim(),
-    descricao: `Portal do Professor — 1ª mensalidade (${d.nomeExibicao.trim()})`,
+    descricao: tipo === 'EMPRESA'
+      ? `Portal da Empresa — 1ª mensalidade (${d.nomeExibicao.trim()})`
+      : `Portal do Professor — 1ª mensalidade (${d.nomeExibicao.trim()})`,
   });
 
   return emTransacao(async (exec) => {
@@ -179,10 +240,11 @@ export async function assinarPortal(d: DadosAssinatura): Promise<AssinaturaCriad
     // para engraçadinho com o e-mail dos outros.
     const [conta] = await exec<{ id: number }>(
       `INSERT INTO usuario (portal_id, nome, email, senha_hash, papel)
-       VALUES (${PORTAL_PLATAFORMA}, $1, lower($2), $3, 'professor')
+       VALUES (${PORTAL_PLATAFORMA}, $1, lower($2), $3, $4::papel_usuario)
        ON CONFLICT (portal_id, lower(email)) DO NOTHING
        RETURNING id::int AS id`,
-      [d.nome.trim().slice(0, 120), d.email.trim(), await gerarHashSenha(d.senha)],
+      [d.nome.trim().slice(0, 120), d.email.trim(), await gerarHashSenha(d.senha),
+       tipo === 'EMPRESA' ? 'gestor' : 'professor'],
     );
     if (!conta) {
       throw new Error('Já existe uma conta com esse e-mail. Entre nela para contratar '
@@ -191,28 +253,50 @@ export async function assinarPortal(d: DadosAssinatura): Promise<AssinaturaCriad
 
     const mascara = await conferirMascara(exec, d.mascara);
 
+    // `professor_id` continua sendo a conta que CONTRATOU — na empresa, o
+    // responsável. É por ela que a cobrança encontra o dono; quem pode
+    // ENTRAR no painel é o vínculo em `portal_gestor`, logo abaixo.
     const [portal] = await exec<{ id: number }>(
       `INSERT INTO portal
-         (mascara, nome_exibicao, professor_id, plano_id, status,
+         (mascara, nome_exibicao, professor_id, plano_id, status, tipo,
           responsavel_nome, responsavel_doc, responsavel_email,
           responsavel_telefone, responsavel_renda_centavos, responsavel_endereco)
-       VALUES ($1, $2, $3, $4, 'RASCUNHO', $5, $6, lower($7), $8, $9, $10::jsonb)
+       VALUES ($1, $2, $3, $4, 'RASCUNHO', $11::portal_tipo, $5, $6, lower($7), $8, $9, $10::jsonb)
        RETURNING id::int AS id`,
       [mascara, d.nomeExibicao.trim(), conta.id, plano.id,
-       d.nome.trim(), d.cnpj.toUpperCase().replace(/[.\/\- ]/g, ''), d.email.trim(),
-       somenteDigitos(d.telefone), d.rendaMensalCentavos,
-       JSON.stringify(normalizarEndereco(d.endereco))],
+       d.nome.trim(), semPontuacao(d.cnpj), d.email.trim(),
+       empresa ? null : somenteDigitos(d.telefone),
+       empresa ? null : d.rendaMensalCentavos,
+       empresa ? null : JSON.stringify(normalizarEndereco(d.endereco)),
+       tipo],
     );
 
+    // §5.11 — quem contratou é o RESPONSAVEL, o único gestor que não pode
+    // ser removido. Os demais ele convida depois, no painel.
+    if (empresa) {
+      await exec(
+        `INSERT INTO portal_gestor (portal_id, usuario_id, papel_no_portal, criado_por)
+         VALUES ($1, $2, 'RESPONSAVEL', $3)`,
+        [portal.id, conta.id, d.email.trim().toLowerCase()],
+      );
+    }
+
     // Contrato copiado do plano NO ATO (§5.10): o plano pode mudar de
-    // preço amanhã; o que este professor aceitou hoje, não.
+    // preço amanhã; o que este cliente aceitou hoje, não.
+    //
+    // `comissao_vitrine_pp` passa a ser COPIADA, e não deixada no DEFAULT
+    // da tabela: os dois valiam 50 por coincidência, e mudar a comissão
+    // no plano não chegava a contrato nenhum. `limite_contas` entra pela
+    // mesma razão — é o teto que esta empresa comprou (§5.11).
     const [contrato] = await exec<{ id: number }>(
       `INSERT INTO portal_contrato
          (portal_id, plano_id, licenca_mensal_centavos, percentual_base,
-          acrescimo_indicacao_pp, vigente_de, aceito_em, aceito_ip, registrado_por)
-       VALUES ($1, $2, $3, $4, $5, current_date, now(), $6, $7) RETURNING id`,
+          acrescimo_indicacao_pp, comissao_vitrine_pp, limite_contas,
+          vigente_de, aceito_em, aceito_ip, registrado_por)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, current_date, now(), $8, $9) RETURNING id`,
       [portal.id, plano.id, plano.licencaMensalCentavos, plano.percentualBase,
-       plano.acrescimoIndicacaoPp, d.ip || null, d.email.trim().toLowerCase()],
+       plano.acrescimoIndicacaoPp, plano.comissaoVitrinePp, plano.limiteContas,
+       d.ip || null, d.email.trim().toLowerCase()],
     );
 
     // 1ª mensalidade: nasce FECHADA (pronta para pagar), não ABERTA — a
@@ -230,6 +314,11 @@ export async function assinarPortal(d: DadosAssinatura): Promise<AssinaturaCriad
                         linkPagamento: cobranca.linkPagamento ?? null })],
     );
 
+    // Sem tabela de preço o portal nasce sem poder vender: a página
+    // mostraria "R$ NaN" e o checkout recusaria a compra. Começa com a
+    // nossa tabela; o valor de cada produto é editável depois (§5.9).
+    await semearPrecosDaPlataforma(exec, portal.id, d.email.trim().toLowerCase());
+
     await auditar(exec, d.email.trim().toLowerCase(), 'portal.autosservico', 'portal',
       portal.id, { mascara, planoId: plano.id, referencia, meio: d.meio });
 
@@ -243,7 +332,8 @@ export async function assinarPortal(d: DadosAssinatura): Promise<AssinaturaCriad
 }
 
 export type ResultadoFatura =
-  | { ok: true; faturaId: number; portalId: number; portalAtivado: boolean; jaProcessado: boolean }
+  | { ok: true; faturaId: number; portalId: number; portalTipo: PortalTipo;
+      portalAtivado: boolean; jaProcessado: boolean }
   | { ok: false; motivo: string };
 
 /**
@@ -263,21 +353,24 @@ export async function confirmarPagamentoFatura(
       [provedorNome, evento.eventoId, evento.tipo, JSON.stringify(corpo)],
     );
     if (!registrado) {
-      const [f] = await exec<{ id: number; portalId: number; status: string }>(
-        `SELECT id, portal_id AS "portalId", status
-           FROM portal_fatura WHERE referencia = $1`, [evento.referencia],
+      const [f] = await exec<{ id: number; portalId: number; portalTipo: PortalTipo }>(
+        `SELECT f.id, f.portal_id AS "portalId", p.tipo AS "portalTipo"
+           FROM portal_fatura f JOIN portal p ON p.id = f.portal_id
+          WHERE f.referencia = $1`, [evento.referencia],
       );
       return {
         ok: true as const, faturaId: f?.id ?? 0, portalId: f?.portalId ?? 0,
+        portalTipo: f?.portalTipo ?? 'PROFESSOR',
         portalAtivado: false, jaProcessado: true as const,
       };
     }
 
-    const [fatura] = await exec<{ id: number; portalId: number; status: string }>(
-      `SELECT id, portal_id AS "portalId", status
-         FROM portal_fatura
-        WHERE referencia = $1 AND status IN ('FECHADA', 'EM_ATRASO')
-        FOR UPDATE`,
+    const [fatura] = await exec<{ id: number; portalId: number; portalTipo: PortalTipo }>(
+      `SELECT f.id, f.portal_id AS "portalId",
+              (SELECT tipo FROM portal WHERE id = f.portal_id) AS "portalTipo"
+         FROM portal_fatura f
+        WHERE f.referencia = $1 AND f.status IN ('FECHADA', 'EM_ATRASO')
+        FOR UPDATE OF f`,
       [evento.referencia],
     );
     if (!fatura) {
@@ -317,6 +410,7 @@ export async function confirmarPagamentoFatura(
 
     return {
       ok: true as const, faturaId: fatura.id, portalId: fatura.portalId,
+      portalTipo: fatura.portalTipo,
       portalAtivado: Boolean(portal), jaProcessado: false as const,
     };
   });

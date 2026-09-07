@@ -20,13 +20,15 @@ const SITUACOES = [
  * segundos. A conversão é do sistema, que é quem tem calculadora.
  */
 export default function FormAula({
-  acao, assuntos, portalId, aula, assuntoPadrao,
+  acao, assuntos, portalId, aula, assuntoPadrao, empresa = false,
 }: {
   acao: (e: EstadoAdmin, d: FormData) => Promise<EstadoAdmin>;
   assuntos: AssuntoAdmin[];
   portalId: number;
   aula?: AulaAdmin;
   assuntoPadrao?: number;
+  /** §5.11: rótulo "módulo", e sem amostra grátis nem trial — a empresa não vende. */
+  empresa?: boolean;
 }) {
   const [estado, enviar, pendente] = useActionState(acao, {});
   const total = aula?.duracaoSegundos ?? 0;
@@ -44,7 +46,7 @@ export default function FormAula({
           <input name="titulo" defaultValue={aula?.titulo} required maxLength={180} />
         </label>
         <label>
-          Assunto
+          {empresa ? 'Módulo' : 'Assunto'}
           <select name="assuntoId" defaultValue={aula?.assuntoId ?? assuntoPadrao ?? ''} required>
             <option value="" disabled>escolha…</option>
             {assuntos.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
@@ -105,7 +107,7 @@ export default function FormAula({
         </label>
       </div>
 
-      <div className="linha">
+      {!empresa && <div className="linha">
         <label className="marcador">
           <input type="checkbox" name="amostraGratuita" defaultChecked={aula?.amostraGratuita} />
           Amostra gratuita
@@ -116,7 +118,7 @@ export default function FormAula({
           Dentro do teste de 7 dias
           <span className="dica">A cota do trial é de ~20% do conteúdo — marque com parcimônia.</span>
         </label>
-      </div>
+      </div>}
 
       <div className="acoes">
         <button className="btn btn-primario" type="submit" disabled={pendente}>

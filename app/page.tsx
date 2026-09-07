@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Pagina, portalSuspenso, PortalSuspenso, Icone } from './componentes.tsx';
 import VideoHero from './VideoHero.tsx';
+import AnuncioDestaque from './AnuncioDestaque.tsx';
 import PaginaPortal from './PaginaPortal.tsx';
 import { listarAreasEmCache, listarMateriasEmCache } from '../lib/catalogo.ts';
 import { portalIdAtual } from '../lib/portal-consultas.ts';
@@ -72,6 +73,21 @@ const DEPOIMENTOS = [
   },
 ];
 
+/* Vitrine corporativa e peças de publicidade — TUDO INVENTADO.
+   Nenhuma dessas empresas é cliente, nenhum desses anunciantes contratou
+   espaço. Os nomes foram escolhidos para não coincidir com empresa real:
+   apresentar companhia existente como cliente sem contrato é, além de
+   propaganda enganosa, uso indevido de marca alheia. Enquanto for assim,
+   cada bloco carrega o .selo-ilustrativo. */
+const EMPRESAS = [
+  { nome: 'Vilhena & Aragão', tipo: 'Advogados associados' },
+  { nome: 'LEXATIVA',         tipo: 'Legal systems' },
+  { nome: 'Banco Meridiano',  tipo: 'Crédito e investimentos' },
+  { nome: 'Foro Digital',     tipo: 'Enterprise partner' },
+  { nome: 'Cumeeira',         tipo: 'Consultoria jurídica' },
+  { nome: 'NORMACORP',        tipo: 'Corporate advisory' },
+];
+
 const RECURSOS = [
   'aulas de 8 a 15 min', 'exercícios comentados', 'biblioteca de fontes',
   'trilhas por objetivo', 'progresso por área', 'certificado de conclusão',
@@ -120,7 +136,12 @@ export default async function Home() {
               ))}
             </ul>
 
-            <Link className="btn btn-primario btn-lg" href="/cadastrar">Começar teste grátis</Link>
+            <div className="acoes-linha">
+              <Link className="btn btn-primario btn-lg" href="/cadastrar">Começar teste grátis</Link>
+              <span className="nota nota-ok">
+                <Icone nome="check_circle" tamanho={16} /> Sem cartão de crédito agora
+              </span>
+            </div>
           </div>
 
           <div style={{ position: 'relative' }}>
@@ -135,7 +156,7 @@ export default async function Home() {
       </section>
 
       {/* ---------- 2. Prova em números ---------- */}
-      <section className="secao tinta" style={{ paddingBlock: 0 }}>
+      <section className="secao divisa" style={{ paddingBlock: 0 }}>
         <div className="container faixa-numeros">
           <div><b>{publicadas.length}</b><span>cursos no ar</span></div>
           <div><b>{aulas}</b><span>aulas publicadas</span></div>
@@ -155,15 +176,21 @@ export default async function Home() {
             </p>
           </div>
 
+          {/* Quatro colunas. Quando sobram três na última fileira, a terceira
+              ocupa duas — a fileira fecha em vez de deixar um buraco. */}
           <div className="grade-4">
-            {areas.map((area) => {
+            {areas.map((area, i) => {
+              const fecha = areas.length % 4 === 3 && i === areas.length - 1;
               const daArea = materias.filter((m) => m.areaSlug === area.slug);
               const noAr = daArea.filter((m) => m.status === 'publicado' && m.aulasPublicadas > 0);
               const pct = daArea.length ? Math.round((noAr.length / daArea.length) * 100) : 0;
               const primeira = noAr[0];
 
               return (
-                <Link className="cartao cartao-area" href={primeira ? `/materia/${primeira.slug}` : '/catalogo'} key={area.id}>
+                <Link
+                  className={'cartao cartao-area' + (fecha ? ' cartao-largo' : '')}
+                  href={primeira ? `/materia/${primeira.slug}` : '/catalogo'} key={area.id}
+                >
                   <h3>{area.nome}</h3>
                   <p>
                     {daArea.length
@@ -181,16 +208,43 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* ---------- 4. Recursos em pills ---------- */}
-      <section className="secao marca">
-        <div className="container">
-          <div className="secao-titulo">
+      {/* ---------- 4. Recursos + o app no celular ---------- */}
+      <section className="secao marca" id="recursos">
+        <div className="container vitrine-app">
+          <div className="vitrine-app-texto">
+            <span className="chip chip-primaria chip-sm">
+              <Icone nome="devices" tamanho={16} /> No computador, no celular, no tablet
+            </span>
             <h2>Tudo o que você precisa, <em>em um lugar só</em></h2>
-            <p>Sem plugin, sem planilha paralela, sem material solto em cinco pastas diferentes.</p>
+            <p>
+              Sem plugin, sem planilha paralela, sem material solto em cinco pastas diferentes.
+              A aula, o exercício e a fonte moram na mesma tela — e o progresso vai junto.
+            </p>
+            <ul className="pills-grade">
+              {RECURSOS.map((r) => (
+                <li className="chip" key={r}><Icone nome="check" tamanho={16} /> {r}</li>
+              ))}
+            </ul>
+            <div className="acoes-linha">
+              <Link className="btn btn-primario" href="/catalogo">Explorar os cursos</Link>
+              <span className="nota">Acesso completo durante os 7 dias grátis.</span>
+            </div>
           </div>
-          <div className="pills">
-            {RECURSOS.map((r) => <span className="chip" key={r}>{r}</span>)}
-          </div>
+          {/* A foto do app no celular. Mostra uma aula simulada, com professora
+              e nome inventados dentro da tela — por isso leva o selo de conteúdo
+              ilustrativo, como os retratos e os depoimentos mais abaixo. Ver
+              public/imagens/LEIA-ME.md para a procedência do arquivo. */}
+          <figure className="vitrine-app-figura">
+            <img
+              src="/imagens/app-no-celular.jpg"
+              alt="Celular na mão de um aluno, com uma videoaula aberta no aplicativo: o vídeo da professora, o título da aula e a barra de progresso."
+              width={765} height={1374} loading="lazy"
+            />
+            <figcaption className="selo-ilustrativo">
+              <Icone nome="info" tamanho={16} />
+              Tela ilustrativa do aplicativo
+            </figcaption>
+          </figure>
         </div>
       </section>
 
@@ -208,7 +262,7 @@ export default async function Home() {
               { i: 'quiz', t: 'Faça o exercício', p: 'Questão logo depois do conceito, com comentário item a item se você errar.' },
               { i: 'insights', t: 'Acompanhe o progresso', p: 'Você vê o que já domina e o que precisa revisar, por área e por semana.' },
             ].map((b) => (
-              <div className="icone-caixa" key={b.t}>
+              <div className="cartao icone-caixa" key={b.t}>
                 <span className="selo"><Icone nome={b.i} tamanho={22} /></span>
                 <div>
                   <h3>{b.t}</h3>
@@ -265,6 +319,40 @@ export default async function Home() {
         </div>
       </section>
 
+      {/* ---------- 7b. Espaço patrocinado (ILUSTRATIVO) ---------- */}
+      {/* Publicidade tem de se identificar como publicidade (CDC, art. 36):
+          a etiqueta vem antes do texto, não depois. */}
+      <section className="secao divisa" style={{ paddingBlock: 'clamp(28px, 3vw, 40px)' }}>
+        <div className="container">
+          <div className="anuncio-nativo">
+            <div className="anuncio-nativo-cabeca">
+              <span className="anuncio-rotulo">Publicidade</span>
+              <Link href="/planos#legal">Anuncie no portal</Link>
+            </div>
+            <div className="anuncio-nativo-corpo">
+              <span className="selo"><Icone nome="shield_person" tamanho={26} /></span>
+              <div className="anuncio-nativo-texto">
+                <span className="anuncio-nativo-tipo">Parceiro oficial · software jurídico e compliance</span>
+                <h2>Gestão inteligente de processos com automação por IA</h2>
+                <p>
+                  Feito para escritórios e departamentos jurídicos. Trinta dias de teste para quem
+                  estuda no Aprimore o Saber.
+                </p>
+              </div>
+              <Link className="btn btn-primario btn-sm" href="/planos#legal">
+                Ver a condição especial <Icone nome="arrow_forward" tamanho={16} />
+              </Link>
+            </div>
+          </div>
+          <p className="centro">
+            <span className="selo-ilustrativo">
+              <Icone nome="info" tamanho={16} />
+              Anunciante ilustrativo — o espaço existe, o contrato ainda não
+            </span>
+          </p>
+        </div>
+      </section>
+
       {/* ---------- 8. Especialistas (ILUSTRATIVO) ---------- */}
       <section className="secao clara" id="especialistas">
         <div className="container">
@@ -311,6 +399,41 @@ export default async function Home() {
         </div>
       </section>
 
+      {/* ---------- 9b. Soluções corporativas (ILUSTRATIVO) ---------- */}
+      <section className="secao" id="empresas">
+        <div className="container">
+          <div className="secao-titulo">
+            <span className="chip chip-primaria chip-sm">
+              <Icone nome="handshake" tamanho={16} /> Soluções corporativas e in-company
+            </span>
+            <h2>Times inteiros estudando <em>no mesmo lugar</em></h2>
+            <p>
+              Plano corporativo para escritórios e departamentos jurídicos, com uma fatura só e
+              acompanhamento do progresso por equipe.
+            </p>
+          </div>
+          <div className="empresas-grade">
+            {EMPRESAS.map((e) => (
+              <div className="empresa-cartao" key={e.nome}>
+                <strong>{e.nome}</strong>
+                <span>{e.tipo}</span>
+              </div>
+            ))}
+          </div>
+          <div className="centro" style={{ marginTop: 32 }}>
+            <Link className="btn btn-contorno" href="/planos#legal">
+              Conhecer os planos para empresas <Icone nome="arrow_forward" tamanho={16} />
+            </Link>
+          </div>
+          <p className="centro">
+            <span className="selo-ilustrativo">
+              <Icone nome="info" tamanho={16} />
+              Empresas ilustrativas — nenhuma delas é cliente da plataforma
+            </span>
+          </p>
+        </div>
+      </section>
+
       {/* ---------- 10. Depoimentos (ILUSTRATIVO) ---------- */}
       <section className="secao tinta">
         <div className="container">
@@ -345,19 +468,45 @@ export default async function Home() {
       {/* Só no site principal: dentro do portal de um professor, anunciar
           "monte o seu" seria vender concorrência na casa dele. */}
       {portalId === 0 && (
-        <section className="secao tinta" id="para-professores">
+        <section className="secao faixa-professores" id="para-professores">
+          <span className="bolha bolha-a" aria-hidden="true" />
+          <span className="bolha bolha-b" aria-hidden="true" />
           <div className="container">
-            <div className="chamada chamada-lado">
-              <span className="bolha bolha-a" aria-hidden="true" />
-              <span className="bolha bolha-b" aria-hidden="true" />
-              <div className="chamada-texto">
-                <h2>Professor? Tenha o seu próprio portal</h2>
-                <p>
-                  Site com o seu endereço, player protegido, checkout pronto e o dinheiro
-                  das vendas caindo direto na sua conta. Você ensina; a tecnologia é conosco.
-                </p>
-              </div>
-              <Link className="btn btn-primario btn-lg" href="/para-professores">Conhecer o Portal do Professor</Link>
+            <div className="secao-titulo">
+              <span className="chip chip-vidro chip-sm">
+                <Icone nome="school" tamanho={16} /> Para professores e criadores de conteúdo
+              </span>
+              <h2>Professor? Tenha o seu próprio portal completo e <em>lucre sem dor de cabeça</em></h2>
+              <p>
+                Site com o seu endereço, player protegido, checkout pronto e o dinheiro das vendas
+                caindo direto na sua conta. Você ensina; a tecnologia, a hospedagem e a cobrança
+                ficam com a gente.
+              </p>
+            </div>
+            {/* O que cada cartão promete é o que o produto faz hoje. Não há
+                DRM (ver lib/video.ts) nem boleto (lib/pagamento.ts só conhece
+                Pix e cartão), então nenhum dos dois é prometido aqui. */}
+            <div className="grade-4">
+              {[
+                { i: 'bolt', t: 'Zero dor de cabeça técnica',
+                  p: 'O portal nasce pronto, com o seu endereço e a sua marca. Sem fila, sem servidor para configurar.' },
+                { i: 'lock', t: 'Seu conteúdo protegido',
+                  p: 'Endereço de vídeo assinado, com prazo, e marca d\u2019água com o nome do aluno em cada aula.' },
+                { i: 'payments', t: 'Recebimento direto',
+                  p: 'Pix e cartão com checkout pronto. O valor é dividido no ato e a sua parte cai na sua conta.' },
+                { i: 'school', t: 'Área de aluno completa',
+                  p: 'A lei ao lado da aula, exercício comentado ao final e o progresso por área — na sua marca.' },
+              ].map((c) => (
+                <div className="cartao cartao-vidro" key={c.t}>
+                  <span className="selo"><Icone nome={c.i} tamanho={22} /></span>
+                  <h3>{c.t}</h3>
+                  <p>{c.p}</p>
+                </div>
+              ))}
+            </div>
+            <div className="acoes-linha centro">
+              <Link className="btn btn-primario" href="/para-professores">Conhecer o Portal do Professor</Link>
+              <Link className="btn btn-vidro" href="/planos#legal">Falar com um consultor</Link>
             </div>
           </div>
         </section>
@@ -375,6 +524,8 @@ export default async function Home() {
           </div>
         </div>
       </section>
+
+      <AnuncioDestaque />
     </Pagina>
   );
 }

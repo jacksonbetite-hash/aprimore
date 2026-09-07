@@ -113,6 +113,8 @@ export interface MateriaAdmin {
   status: StatusPublicacao; professor: string | null; ordem: number;
   naVitrinePlataforma: boolean;
   assuntos: number; aulas: number; aulasPublicadas: number;
+  /** §5.11: a trilha de empresa tem avaliação final; o curso da plataforma, não. */
+  avaliacaoPublicada: boolean;
 }
 
 export interface DadosMateria {
@@ -129,7 +131,9 @@ const CAMPOS_MATERIA = `
   (SELECT count(*)::int FROM aula au JOIN assunto s2 ON s2.id = au.assunto_id
     WHERE s2.materia_id = m.id) AS aulas,
   (SELECT count(*)::int FROM aula au JOIN assunto s3 ON s3.id = au.assunto_id
-    WHERE s3.materia_id = m.id AND au.status = 'publicado') AS "aulasPublicadas"
+    WHERE s3.materia_id = m.id AND au.status = 'publicado') AS "aulasPublicadas",
+  EXISTS (SELECT 1 FROM avaliacao av
+           WHERE av.materia_id = m.id AND av.status = 'publicado') AS "avaliacaoPublicada"
 `;
 
 export function listarMaterias(portalId = PORTAL_PLATAFORMA, busca = '') {
@@ -398,8 +402,36 @@ function video(d: DadosAula): [string | null, string | null] {
   return provedor && identificador ? [provedor, identificador] : [null, null];
 }
 
+/**
+ * §5.3, a regra de produto: "a aula sem exercício não é publicável".
+ *
+ * Vivia só em texto de tela ("sem pelo menos uma questão, a aula não vai
+ * ao ar") e num UPDATE de seed — a aplicação publicava aula vazia sem
+ * reclamar. Agora a conferência mora num lugar só e vale para os três
+ * caminhos: criar já publicada, editar para publicada e o botão Publicar.
+ */
+async function exigirExercicio(exec: Exec, aulaId: number) {
+  const [n] = await exec<{ questoes: number }>(
+    `SELECT count(*)::int AS questoes FROM questao q
+       JOIN exercicio e ON e.id = q.exercicio_id WHERE e.aula_id = $1`,
+    [aulaId],
+  );
+  if (n.questoes === 0) {
+    throw new Error(
+      'a aula não pode ser publicada sem exercício (§5.3): cadastre pelo menos uma questão '
+      + 'comentada e publique em seguida',
+    );
+  }
+}
+
 export async function criarAula(ator: string, portalId: number, d: DadosAula) {
   validarAula(d);
+  if (d.status === 'publicado') {
+    throw new Error(
+      'uma aula nova ainda não tem exercício, e aula sem exercício não vai ao ar (§5.3): '
+      + 'salve como rascunho, cadastre as questões e publique depois',
+    );
+  }
   return emTransacao(async (exec) => {
     const [s] = await exec<{ id: number }>(
       'SELECT id FROM assunto WHERE id = $1 AND portal_id = $2', [d.assuntoId, portalId],
@@ -433,6 +465,7 @@ export async function editarAula(ator: string, portalId: number, id: number, d: 
       'SELECT id FROM assunto WHERE id = $1 AND portal_id = $2', [d.assuntoId, portalId],
     );
     if (!s) throw new Error('o assunto escolhido não pertence a este portal');
+    if (d.status === 'publicado') await exigirExercicio(exec, id);
 
     const [linha] = await exec<{ id: number }>(
       `UPDATE aula SET assunto_id=$3, titulo=$4, duracao_segundos=$5, resumo=$6,
@@ -454,6 +487,7 @@ export async function mudarStatusAula(
   ator: string, portalId: number, id: number, status: StatusPublicacao,
 ) {
   return emTransacao(async (exec) => {
+    if (status === 'publicado') await exigirExercicio(exec, id);
     const [linha] = await exec<{ id: number }>(
       `UPDATE aula SET status = $3, atualizada_em = now()
         WHERE id = $1 AND portal_id = $2 RETURNING id`,
@@ -533,38 +567,64 @@ function validarQuestao(d: DadosQuestao) {
 export async function salvarQuestao(
   ator: string, portalId: number, aulaId: number, questaoId: number | null, d: DadosQuestao,
 ) {
-  validarQuestao(d);
-  const uteis = d.alternativas.filter((a) => a.texto.trim());
+  return salvarQuestaoDe(ator, portalId, { aulaId }, questaoId, d);
+}
 
-  return emTransacao(async (exec) => {
+/**
+ * De quem é a questão: do exercício de uma aula (§5.3) ou da avaliação
+ * final de uma trilha de empresa (§5.11). `questao_um_dono` no banco
+ * garante que é um ou outro; aqui a diferença é só a coluna que se
+ * preenche — o formulário, as alternativas e a regra do comentário são
+ * os mesmos, e é por isso que não nasceu um segundo editor de questões.
+ */
+export type DonoQuestao = { aulaId: number } | { avaliacaoId: number };
+
+async function resolverDono(exec: Exec, portalId: number, dono: DonoQuestao) {
+  if ('aulaId' in dono) {
     const [a] = await exec<{ id: number }>(
-      'SELECT id FROM aula WHERE id = $1 AND portal_id = $2', [aulaId, portalId],
+      'SELECT id FROM aula WHERE id = $1 AND portal_id = $2', [dono.aulaId, portalId],
     );
     if (!a) throw new Error('aula não encontrada neste portal');
-
     // O exercício é criado sob demanda: uma aula sem questão não precisa
     // de linha em `exercicio`, e a chave única por aula garante uma só.
     const [ex] = await exec<{ id: number }>(
       `INSERT INTO exercicio (aula_id) VALUES ($1)
        ON CONFLICT (aula_id) DO UPDATE SET aula_id = EXCLUDED.aula_id
        RETURNING id`,
-      [aulaId],
+      [dono.aulaId],
     );
+    return { coluna: 'exercicio_id', id: ex.id, rotulo: 'nesta aula' };
+  }
+  const [av] = await exec<{ id: number }>(
+    'SELECT id FROM avaliacao WHERE id = $1 AND portal_id = $2', [dono.avaliacaoId, portalId],
+  );
+  if (!av) throw new Error('avaliação não encontrada neste portal');
+  return { coluna: 'avaliacao_id', id: av.id, rotulo: 'nesta avaliação' };
+}
+
+export async function salvarQuestaoDe(
+  ator: string, portalId: number, dono: DonoQuestao, questaoId: number | null, d: DadosQuestao,
+) {
+  validarQuestao(d);
+  const uteis = d.alternativas.filter((a) => a.texto.trim());
+
+  return emTransacao(async (exec) => {
+    const alvo = await resolverDono(exec, portalId, dono);
 
     let id = questaoId;
     if (id) {
       const [q] = await exec<{ id: number }>(
         `UPDATE questao SET tipo=$3, enunciado=$4, origem=$5, dificuldade=$6, ordem=$7
-          WHERE id = $1 AND exercicio_id = $2 RETURNING id`,
-        [id, ex.id, d.tipo, d.enunciado.trim(), d.origem.trim() || 'autoral',
+          WHERE id = $1 AND ${alvo.coluna} = $2 RETURNING id`,
+        [id, alvo.id, d.tipo, d.enunciado.trim(), d.origem.trim() || 'autoral',
          d.dificuldade.trim() || 'introdutorio', d.ordem],
       );
-      if (!q) throw new Error('questão não encontrada nesta aula');
+      if (!q) throw new Error(`questão não encontrada ${alvo.rotulo}`);
     } else {
       const [nova] = await exec<{ id: number }>(
-        `INSERT INTO questao (exercicio_id, tipo, enunciado, origem, dificuldade, ordem)
+        `INSERT INTO questao (${alvo.coluna}, tipo, enunciado, origem, dificuldade, ordem)
          VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
-        [ex.id, d.tipo, d.enunciado.trim(), d.origem.trim() || 'autoral',
+        [alvo.id, d.tipo, d.enunciado.trim(), d.origem.trim() || 'autoral',
          d.dificuldade.trim() || 'introdutorio', d.ordem],
       );
       id = nova.id;
@@ -614,22 +674,35 @@ export async function salvarQuestao(
     }
 
     await auditar(exec, ator, questaoId ? 'questao.editada' : 'questao.criada', 'questao', id, {
-      portalId, aulaId, alternativas: uteis.length,
+      portalId, ...dono, alternativas: uteis.length,
     });
     return id;
   });
 }
 
 export async function excluirQuestao(ator: string, portalId: number, aulaId: number, id: number) {
+  return excluirQuestaoDe(ator, portalId, { aulaId }, id);
+}
+
+export async function excluirQuestaoDe(
+  ator: string, portalId: number, dono: DonoQuestao, id: number,
+) {
   return emTransacao(async (exec) => {
-    const [q] = await exec<{ id: number }>(
-      `SELECT q.id FROM questao q
-         JOIN exercicio e ON e.id = q.exercicio_id
-         JOIN aula a ON a.id = e.aula_id
-        WHERE q.id = $1 AND e.aula_id = $2 AND a.portal_id = $3`,
-      [id, aulaId, portalId],
-    );
-    if (!q) throw new Error('questão não encontrada nesta aula');
+    const [q] = 'aulaId' in dono
+      ? await exec<{ id: number }>(
+        `SELECT q.id FROM questao q
+           JOIN exercicio e ON e.id = q.exercicio_id
+           JOIN aula a ON a.id = e.aula_id
+          WHERE q.id = $1 AND e.aula_id = $2 AND a.portal_id = $3`,
+        [id, dono.aulaId, portalId],
+      )
+      : await exec<{ id: number }>(
+        `SELECT q.id FROM questao q
+           JOIN avaliacao av ON av.id = q.avaliacao_id
+          WHERE q.id = $1 AND av.id = $2 AND av.portal_id = $3`,
+        [id, dono.avaliacaoId, portalId],
+      );
+    if (!q) throw new Error('questão não encontrada aqui');
 
     // `resposta.questao_id` tem ON DELETE CASCADE: apagar a questão
     // levaria junto o histórico de quem a respondeu, e o caderno de erros
@@ -644,6 +717,29 @@ export async function excluirQuestao(ator: string, portalId: number, aulaId: num
       );
     }
     await exec('DELETE FROM questao WHERE id = $1', [id]);
-    await auditar(exec, ator, 'questao.excluida', 'questao', id, { portalId, aulaId });
+    await auditar(exec, ator, 'questao.excluida', 'questao', id, { portalId, ...dono });
   });
+}
+
+/** As questões de uma avaliação final (§5.11), na mesma forma das do exercício. */
+export async function questoesDaAvaliacao(portalId: number, avaliacaoId: number) {
+  const questoes = await query<Omit<QuestaoAdmin, 'alternativas'>>(
+    `SELECT q.id, q.tipo, q.enunciado, q.origem, q.dificuldade, q.ordem
+       FROM questao q JOIN avaliacao av ON av.id = q.avaliacao_id
+      WHERE q.avaliacao_id = $2 AND av.portal_id = $1
+      ORDER BY q.ordem, q.id`,
+    [portalId, avaliacaoId],
+  );
+  if (questoes.length === 0) return [];
+  const alternativas = await query<{
+    id: number; questaoId: number; texto: string; correta: boolean;
+    comentario: string; ordem: number;
+  }>(
+    `SELECT id, questao_id AS "questaoId", texto, correta, comentario, ordem
+       FROM alternativa WHERE questao_id = ANY($1::bigint[]) ORDER BY ordem, id`,
+    [questoes.map((q) => q.id)],
+  );
+  return questoes.map((q) => ({
+    ...q, alternativas: alternativas.filter((a) => a.questaoId === q.id),
+  })) as QuestaoAdmin[];
 }

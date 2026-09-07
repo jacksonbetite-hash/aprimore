@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { Icone } from '../../componentes.tsx';
+import { Icone, BotaoIcone, LinkIcone } from '../../ui.tsx';
 import { acaoStatusPost } from './acoes.ts';
 import { listarPosts, listarCategorias } from '../../../lib/admin-blog.ts';
 
@@ -95,32 +95,27 @@ export default async function BlogAdmin(
                 <td className="suave apertado">{DATA(p.atualizadoEm)}</td>
                 <td>
                   <div className="acoes-linha">
-                    {p.status === 'publicado' ? (
-                      <>
-                        <Link className="btn btn-contorno btn-sm" href={`/blog/${p.slug}`} target="_blank">
-                          Ver no site
-                        </Link>
-                        <form action={acaoStatusPost}>
-                          <input type="hidden" name="id" value={p.id} />
-                          <input type="hidden" name="slug" value={p.slug} />
-                          <input type="hidden" name="status" value="rascunho" />
-                          <button className="btn btn-contorno btn-sm" type="submit">Despublicar</button>
-                        </form>
-                      </>
-                    ) : (
-                      <form action={acaoStatusPost}>
-                        <input type="hidden" name="id" value={p.id} />
-                        <input type="hidden" name="slug" value={p.slug} />
-                        <input type="hidden" name="status" value="publicado" />
-                        <button className="btn btn-primario btn-sm" type="submit">Publicar</button>
-                      </form>
+                    <LinkIcone href={`/admin/blog/${p.id}`} icone="edit" rotulo="Editar" />
+                    {p.status === 'publicado' && (
+                      <LinkIcone href={`/blog/${p.slug}`} icone="open_in_new"
+                                 rotulo="Ver no site" externo />
                     )}
+                    <form action={acaoStatusPost}>
+                      <input type="hidden" name="id" value={p.id} />
+                      <input type="hidden" name="slug" value={p.slug} />
+                      <input type="hidden" name="status"
+                        value={p.status === 'publicado' ? 'rascunho' : 'publicado'} />
+                      <BotaoIcone
+                        icone={p.status === 'publicado' ? 'visibility_off' : 'visibility'}
+                        rotulo={p.status === 'publicado' ? 'Despublicar' : 'Publicar'}
+                        variante={p.status === 'publicado' ? 'contorno' : 'primario'} />
+                    </form>
                     {p.status !== 'arquivado' && (
                       <form action={acaoStatusPost}>
                         <input type="hidden" name="id" value={p.id} />
                         <input type="hidden" name="slug" value={p.slug} />
                         <input type="hidden" name="status" value="arquivado" />
-                        <button className="btn btn-contorno btn-sm" type="submit">Arquivar</button>
+                        <BotaoIcone icone="inventory_2" rotulo="Arquivar" />
                       </form>
                     )}
                   </div>

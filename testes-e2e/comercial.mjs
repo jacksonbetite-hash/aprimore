@@ -110,8 +110,15 @@ await p.goto(base + '/aula/clausulas-petreas', { waitUntil: 'load' });
 check(await p.locator('.alternativa').first().isVisible(),
   'a aula antes bloqueada abriu com a licença comprada');
 
-// e a licença de uma matéria NÃO abre outra
-await p.goto(base + '/aula/fontes-do-direito', { waitUntil: 'load' });
+// E a licença de uma matéria NÃO abre outra.
+//
+// A aula escolhida precisa cumprir três condições ao mesmo tempo: ser de
+// OUTRA matéria (Introdução ao Direito), não ser amostra gratuita, e
+// estar FORA da cota do teste de 7 dias — que esta conta ativou lá em
+// cima, na matéria padrão da lista. Se uma onda de conteúdo puser esta
+// aula no teste, o certo é trocar a aula aqui, não afrouxar a asserção:
+// o que está sob teste é o vazamento de licença, não a cota.
+await p.goto(base + '/aula/sete-dicas-para-quem-esta-comecando', { waitUntil: 'load' });
 check(!(await p.locator('.alternativa').first().isVisible().catch(() => false)),
   'licença de uma matéria não vaza para outra');
 

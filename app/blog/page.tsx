@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { Pagina, Icone } from '../componentes.tsx';
 import Newsletter from './Newsletter.tsx';
 import { assinar } from './acoes.ts';
+import { exigirPortalAberto } from '../guarda-empresa.ts';
 import {
   listarCategorias, listarPosts, ultimoDaCategoria, dataLonga, type Post,
 } from '../../lib/blog.ts';
@@ -44,6 +45,7 @@ const iconeDe = (slug: string) => ICONE[slug] ?? 'description';
 export default async function Blog(
   { searchParams }: { searchParams: Promise<{ categoria?: string }> },
 ) {
+  await exigirPortalAberto('/blog');
   const { categoria } = await searchParams;
   const categorias = await listarCategorias();
   // categoria inventada na URL não vira lista vazia: cai no "Todos".

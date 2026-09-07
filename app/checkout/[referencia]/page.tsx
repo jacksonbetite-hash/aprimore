@@ -7,11 +7,14 @@ import { alunoAtual } from '../../../lib/sessao.ts';
 import { buscarPedidoPorReferencia } from '../../../lib/checkout.ts';
 import { provedorAtual } from '../../../lib/pagamento.ts';
 import { brl } from '../../../lib/precos.ts';
+import { recusarNoPortalDeEmpresa } from '../../guarda-empresa.ts';
 
 export const metadata: Metadata = { title: 'Pagamento' };
 export const dynamic = 'force-dynamic';
 
 export default async function Checkout({ params }: { params: Promise<{ referencia: string }> }) {
+  // §5.11 — na empresa ninguém compra: quem libera acesso é o RH.
+  await recusarNoPortalDeEmpresa();
   const { referencia } = await params;
   const aluno = await alunoAtual();
   if (!aluno) redirect(`/entrar?destino=/checkout/${referencia}`);

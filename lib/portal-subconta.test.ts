@@ -80,7 +80,8 @@ async function montarLoja(portalId: number) {
     [portalId, area.id]);
   await query(
     `INSERT INTO preco (portal_id, produto, periodo, centavos, vigente_de)
-     VALUES ($1, 'MATERIA', 'mensal', 3990, '2026-01-01')`, [portalId]);
+     VALUES ($1, 'MATERIA', 'mensal', 3990, '2026-01-01')
+               ON CONFLICT DO NOTHING`, [portalId]);
   return { alunoId: aluno.id, materiaId: mat.id };
 }
 

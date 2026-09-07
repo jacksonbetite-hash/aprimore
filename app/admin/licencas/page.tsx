@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import FormConceder from './FormConceder.tsx';
+import { BotaoIcone } from '../../ui.tsx';
 import { acaoConcederLicenca, acaoEstender, acaoSuspender } from '../acoes.ts';
 import { listarLicencas, listarAlunos, listarMateriasSimples } from '../../../lib/admin.ts';
 
@@ -53,14 +54,15 @@ export default async function Licencas() {
                     <form action={acaoEstender}>
                       <input type="hidden" name="licencaId" value={l.id} />
                       <input type="hidden" name="dias" value="30" />
-                      <button className="btn btn-contorno btn-sm" type="submit">+30 dias</button>
+                      <BotaoIcone icone="more_time" rotulo="Estender por 30 dias" />
                     </form>
                     <form action={acaoSuspender}>
                       <input type="hidden" name="licencaId" value={l.id} />
                       <input type="hidden" name="status" value={l.status === 'SUSPENSA' ? 'ATIVA' : 'SUSPENSA'} />
-                      <button className="btn btn-contorno btn-sm" type="submit">
-                        {l.status === 'SUSPENSA' ? 'Reativar' : 'Suspender'}
-                      </button>
+                      <BotaoIcone
+                        icone={l.status === 'SUSPENSA' ? 'replay' : 'block'}
+                        rotulo={l.status === 'SUSPENSA' ? 'Reativar' : 'Suspender'}
+                        variante={l.status === 'SUSPENSA' ? 'contorno' : 'perigo'} />
                     </form>
                   </div>
                 </td>

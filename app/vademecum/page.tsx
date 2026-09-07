@@ -10,6 +10,8 @@ import {
 } from '../../lib/vademecum.ts';
 import { partirDispositivo, partirAgrupador, ultimoNivel } from '../../lib/vademecum-texto.ts';
 import { portalIdAtual } from '../../lib/portal-consultas.ts';
+import { exigirPortalAberto } from '../guarda-empresa.ts';
+import { tiposPorReferencia } from '../../lib/penas/catalogo/index.ts';
 
 export const metadata: Metadata = {
   title: 'Vade-mécum Digital',
@@ -30,6 +32,7 @@ export default async function VadeMecum(
     searchParams: Promise<{ q?: string; norma?: string; p?: string; artigo?: string }>;
   },
 ) {
+  await exigirPortalAberto('/vademecum');
   const { q = '', norma, p, artigo } = await searchParams;
   const termo = q.trim();
   const normas = await listarNormas();
@@ -163,6 +166,7 @@ export default async function VadeMecum(
                   dispositivo={d}
                   rotulo={`${d.normaSigla} · ${d.rotulo}`}
                   aulas={aulasPorDispositivo.get(d.id) ?? []}
+                  calculavel={tiposPorReferencia(d.normaSlug, d.rotulo)[0]?.id}
                 />
               ))
               : agruparPorTitulo(dispositivos).map((secao) => {
@@ -182,6 +186,7 @@ export default async function VadeMecum(
                         rotulo={d.rotulo}
                         destacado={String(d.id) === artigo}
                         aulas={aulasPorDispositivo.get(d.id) ?? []}
+                  calculavel={tiposPorReferencia(d.normaSlug, d.rotulo)[0]?.id}
                       />
                     ))}
                   </section>
@@ -214,11 +219,13 @@ export default async function VadeMecum(
 
 /** Um dispositivo como na página impressa: rótulo à margem, texto ao lado. */
 function Artigo(
-  { dispositivo, rotulo, aulas, destacado = false }: {
+  { dispositivo, rotulo, aulas, destacado = false, calculavel }: {
     dispositivo: Dispositivo;
     rotulo: string;
     aulas: { slug: string; titulo: string }[];
     destacado?: boolean;
+    /** Id do tipo na Calculadora Penal (§5.12), quando o artigo é um crime catalogado. */
+    calculavel?: string;
   },
 ) {
   const blocos = partirDispositivo(dispositivo.texto);
@@ -228,6 +235,12 @@ function Artigo(
       <div className="vade-rotulo">
         <strong>{rotulo}</strong>
         <span className="vade-acoes">
+          {/* §5.12 — a ponte do artigo para a calculadora: só nos crimes catalogados */}
+          {calculavel && (
+            <Link className="botao-icone" title="Calcular a pena" aria-label="Calcular a pena deste crime" href={`/calculadora-penal?tipo=${calculavel}`}>
+              <Icone nome="calculate" tamanho={18} />
+            </Link>
+          )}
           <span className="botao-icone" title="Favoritar"><Icone nome="star" tamanho={18} /></span>
           <span className="botao-icone" title="Anotar"><Icone nome="edit" tamanho={18} /></span>
         </span>

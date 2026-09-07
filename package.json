@@ -14,7 +14,10 @@
     "video": "node scripts/gerar-video-hero.mjs",
     "video:local": "node scripts/semear-video-local.mjs",
     "e2e": "node testes-e2e/autenticacao.mjs && node testes-e2e/comercial.mjs && node testes-e2e/administracao.mjs && node testes-e2e/retaguarda.mjs",
-    "confirmar-pagamento": "node scripts/confirmar-pagamento.mjs"
+    "e2e:empresa": "node testes-e2e/portal-empresa.mjs",
+    "confirmar-pagamento": "node scripts/confirmar-pagamento.mjs",
+    "e2e:calculadora": "node testes-e2e/calculadora-penal.mjs",
+    "penas:extrair": "node scripts/extrair-penas.mjs"
   },
   "dependencies": {
     "next": "^16.3.3",

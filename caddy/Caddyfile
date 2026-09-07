@@ -1,0 +1,65 @@
+# Caddy da VPS — sobe junto com o nginx no perfil `vps`:
+#
+#   docker compose --profile vps up -d
+#
+# Divisão de trabalho: o Caddy faz o HTTPS (certificados, renovação, o
+# redirecionamento de http para https) e passa tudo ao nginx, que segue
+# como está — entregando o vídeo por sendfile e transportando o upload.
+# Nada da aplicação muda; o nginx só deixa de ouvir a porta 80 da rua.
+#
+# Por que o Caddy, e não o certbot: o domínio próprio do professor
+# (§5.10, Fase 2) é um domínio de OUTRA pessoa — `cursos.profana.com.br`
+# — e precisa de certificado próprio. Com certbot seria um comando à mão
+# por professor; aqui o certificado nasce sozinho na primeira visita, e
+# renova sozinho para sempre. O mesmo vale para cada `<mascara>.<domínio>`.
+#
+# A LINHA QUE IMPORTA é `ask`: antes de pedir um certificado, o Caddy
+# pergunta à aplicação se aquele domínio é de um portal no ar
+# (app/api/dominio-permitido). Sem isso, qualquer DNS apontado para a VPS
+# consumiria a cota do Let's Encrypt em nosso nome.
+
+{
+  # E-mail do titular dos certificados (avisos de expiração do Let's Encrypt).
+  email {$ACME_EMAIL:contato@example.com}
+
+  on_demand_tls {
+    ask http://web:3000/api/dominio-permitido
+  }
+
+  servers {
+    # Upload de aula: um vídeo de 2 GB numa conexão doméstica leva minutos.
+    timeouts {
+      read_body   30m
+      read_header 30s
+      idle        5m
+    }
+  }
+}
+
+# Qualquer host: o certificado é emitido sob demanda, depois do `ask`.
+https:// {
+  tls {
+    on_demand
+  }
+
+  # O maior corpo que passa por aqui é o upload de aula (§5.10).
+  request_body {
+    max_size 2GB
+  }
+
+  # Host, X-Forwarded-For e X-Forwarded-Proto vão sozinhos — a aplicação
+  # lê o Proto para montar as URLs de volta para o navegador (proxy.ts).
+  # O corpo do upload flui sem parar em disco: o Caddy não bufferiza.
+  reverse_proxy nginx:80 {
+    transport http {
+      read_timeout  30m
+      write_timeout 30m
+    }
+  }
+}
+
+# http:// só existe para mandar para https:// (e para o desafio do ACME,
+# que o Caddy atende antes desta regra).
+http:// {
+  redir https://{host}{uri} permanent
+}

@@ -18,15 +18,18 @@ const SITUACOES = [
  * ela é o texto que decide a compra e o que o buscador lê.
  */
 export default function FormMateria({
-  acao, areas, portalId, materia, ehPlataforma,
+  acao, areas, portalId, materia, ehPlataforma, empresa = false,
 }: {
   acao: (e: EstadoAdmin, d: FormData) => Promise<EstadoAdmin>;
   areas: AreaAdmin[];
   portalId: number;
   materia?: MateriaAdmin;
   ehPlataforma: boolean;
+  /** §5.11: mesmo formulário, rótulos de empresa (trilha em vez de curso), sem onda nem vitrine. */
+  empresa?: boolean;
 }) {
   const [estado, enviar, pendente] = useActionState(acao, {});
+  const coisa = empresa ? 'trilha' : 'curso';
 
   return (
     <form action={enviar} className="form-editor">
@@ -37,9 +40,9 @@ export default function FormMateria({
 
       <div className="linha">
         <label>
-          Nome do curso
+          Nome {empresa ? 'da trilha' : 'do curso'}
           <input name="nome" defaultValue={materia?.nome} required maxLength={140}
-            placeholder="Noções de Direito Constitucional" />
+            placeholder={empresa ? 'Integração de novos colaboradores' : 'Noções de Direito Constitucional'} />
         </label>
         <label>
           Área
@@ -55,7 +58,9 @@ export default function FormMateria({
         <textarea name="ementa" defaultValue={materia?.ementa} required rows={6}
           placeholder="O que o aluno vai aprender, e para que isso serve na prática." />
         <span className="dica">
-          Mínimo de 60 caracteres. É o texto que decide a compra e o que o buscador lê.
+          {empresa
+            ? 'Mínimo de 60 caracteres. É o que o colaborador lê antes de começar: para que serve a trilha e o que se espera dele.'
+            : 'Mínimo de 60 caracteres. É o texto que decide a compra e o que o buscador lê.'}
         </span>
       </label>
 
@@ -67,21 +72,30 @@ export default function FormMateria({
           </select>
         </label>
         <label>
-          Professor
-          <input name="professor" defaultValue={materia?.professor ?? ''} placeholder="quem assina" />
+          {empresa ? 'Responsável pelo conteúdo' : 'Professor'}
+          <input name="professor" defaultValue={materia?.professor ?? ''}
+            placeholder={empresa ? 'Equipe de T&D' : 'quem assina'} />
         </label>
-        <label>
+        {!empresa && <label>
           Onda de lançamento
           <input name="onda" type="number" min={1} defaultValue={materia?.onda ?? ''}
-            placeholder="sem data" />
-        </label>
+            placeholder="em branco" />
+          <span className="dica">
+            O lote de lançamento a que este curso pertence: <strong>1</strong> = primeira
+            leva, <strong>2</strong> = a seguinte, e assim por diante. É só uma etiqueta — no
+            catálogo o cartão do curso mostra “1ª onda”, “2ª onda”… e, quando o campo fica{' '}
+            <strong>em branco, mostra “Em breve”</strong>. Não programa publicação nem muda o
+            acesso: quem coloca o curso no ar é a <em>situação</em>, ao lado. Se você lança
+            tudo de uma vez, escreva 1.
+          </span>
+        </label>}
         <label>
           Ordem
           <input name="ordem" type="number" defaultValue={materia?.ordem ?? 10} />
         </label>
       </div>
 
-      {!ehPlataforma && (
+      {!ehPlataforma && !empresa && (
         <label className="marcador">
           <input type="checkbox" name="naVitrinePlataforma"
             defaultChecked={materia?.naVitrinePlataforma} />
@@ -95,7 +109,7 @@ export default function FormMateria({
 
       <div className="acoes">
         <button className="btn btn-primario" type="submit" disabled={pendente}>
-          {pendente ? 'Salvando…' : materia ? 'Salvar curso' : 'Criar curso'}
+          {pendente ? 'Salvando…' : materia ? `Salvar ${coisa}` : `Criar ${coisa}`}
         </button>
       </div>
     </form>

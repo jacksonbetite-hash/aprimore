@@ -92,6 +92,43 @@ const CATALOGO = [
   { slug: 'lei-8213', curto: 'Benefícios da Previdência', sigla: 'L. 8.213/91', grupo: 'Leis', icone: 'elderly',
     nome: 'Lei 8.213/91 — Planos de Benefícios da Previdência Social', caminho: 'leis/l8213cons.htm',
     apelidos: '8213 beneficios benefícios previdencia previdência social aposentadoria inss' },
+
+  /* Leis penais que a Calculadora Penal (§5.12) cita em regime, progressão e
+     institutos despenalizadores. Sem elas no acervo, o link "ver o artigo"
+     do resultado não teria para onde apontar. */
+  { slug: 'hediondos', curto: 'Crimes Hediondos', sigla: 'L. 8.072/90', grupo: 'Leis penais', icone: 'report',
+    nome: 'Lei 8.072/90 — Crimes Hediondos', caminho: 'leis/l8072.htm',
+    apelidos: '8072 hediondos hediondo crimes hediondos' },
+  { slug: 'lei-9099', curto: 'Juizados Especiais', sigla: 'L. 9.099/95', grupo: 'Leis penais', icone: 'balance',
+    nome: 'Lei 9.099/95 — Juizados Especiais Cíveis e Criminais', caminho: 'leis/l9099.htm',
+    apelidos: '9099 juizados especiais jecrim transacao transação penal suspensao suspensão condicional processo' },
+  { slug: 'tortura', curto: 'Lei de Tortura', sigla: 'L. 9.455/97', grupo: 'Leis penais', icone: 'shield_person',
+    nome: 'Lei 9.455/97 — Crimes de Tortura', caminho: 'leis/l9455.htm',
+    apelidos: '9455 tortura' },
+  { slug: 'ctb', curto: 'Código de Trânsito', sigla: 'CTB', grupo: 'Leis penais', icone: 'policy',
+    nome: 'Lei 9.503/97 — Código de Trânsito Brasileiro', caminho: 'leis/l9503compilado.htm',
+    apelidos: 'ctb codigo código transito trânsito embriaguez volante' },
+  { slug: 'ambiental', curto: 'Crimes Ambientais', sigla: 'L. 9.605/98', grupo: 'Leis penais', icone: 'public',
+    nome: 'Lei 9.605/98 — Crimes Ambientais', caminho: 'leis/l9605.htm',
+    apelidos: '9605 ambiental ambientais meio ambiente crimes ambientais' },
+  { slug: 'lavagem', curto: 'Lavagem de Dinheiro', sigla: 'L. 9.613/98', grupo: 'Leis penais', icone: 'payments',
+    nome: 'Lei 9.613/98 — Lavagem de Dinheiro', caminho: 'leis/l9613compilado.htm',
+    apelidos: '9613 lavagem dinheiro capitais ocultacao ocultação bens' },
+  { slug: 'desarmamento', curto: 'Estatuto do Desarmamento', sigla: 'L. 10.826/03', grupo: 'Leis penais', icone: 'lock',
+    nome: 'Lei 10.826/03 — Estatuto do Desarmamento', caminho: 'leis/2003/l10.826compilado.htm',
+    apelidos: '10826 desarmamento arma armas fogo porte posse' },
+  { slug: 'organizacao-criminosa', curto: 'Organização Criminosa', sigla: 'L. 12.850/13', grupo: 'Leis penais', icone: 'group',
+    nome: 'Lei 12.850/13 — Organização Criminosa', caminho: '_ato2011-2014/2013/lei/l12850.htm',
+    apelidos: '12850 organizacao organização criminosa orcrim colaboracao colaboração premiada' },
+  { slug: 'abuso-de-autoridade', curto: 'Abuso de Autoridade', sigla: 'L. 13.869/19', grupo: 'Leis penais', icone: 'admin_panel_settings',
+    nome: 'Lei 13.869/19 — Abuso de Autoridade', caminho: '_ato2019-2022/2019/lei/l13869.htm',
+    apelidos: '13869 abuso autoridade' },
+  { slug: 'contravencoes', curto: 'Contravenções Penais', sigla: 'LCP', grupo: 'Leis penais', icone: 'gavel',
+    nome: 'Decreto-Lei 3.688/41 — Lei das Contravenções Penais', caminho: 'decreto-lei/del3688.htm',
+    apelidos: 'lcp contravencao contravenção contravencoes contravenções penais vias de fato' },
+  { slug: 'racismo', curto: 'Lei do Racismo', sigla: 'L. 7.716/89', grupo: 'Leis penais', icone: 'group',
+    nome: 'Lei 7.716/89 — Crimes de Preconceito de Raça ou de Cor', caminho: 'leis/l7716.htm',
+    apelidos: '7716 racismo preconceito raca raça cor injuria injúria racial' },
 ];
 
 const pool = new pg.Pool({

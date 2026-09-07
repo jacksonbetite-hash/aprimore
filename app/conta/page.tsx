@@ -3,8 +3,12 @@ import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { Icone } from '../componentes.tsx';
 import LateralAluno from '../LateralAluno.tsx';
+import FormPerfil from '../FormPerfil.tsx';
+import { acaoSalvarPerfil } from '../acoes-perfil.ts';
 import { acaoCancelar, acaoReembolsar } from '../acoes-comerciais.ts';
 import { alunoAtual, licencasDo } from '../../lib/sessao.ts';
+import { portalIdAtual } from '../../lib/portal-consultas.ts';
+import { lerPerfil } from '../../lib/perfil.ts';
 import { pedidosDo, assinaturasDo } from '../../lib/checkout.ts';
 import { licencaVigente } from '../../lib/licenca.ts';
 import { brl } from '../../lib/precos.ts';
@@ -21,8 +25,9 @@ export default async function Conta() {
   const aluno = await alunoAtual();
   if (!aluno) redirect('/entrar?destino=/conta');
 
-  const [licencas, pedidos, assinaturas] = await Promise.all([
+  const [licencas, pedidos, assinaturas, perfil] = await Promise.all([
     licencasDo(aluno.id), pedidosDo(aluno.id), assinaturasDo(aluno.id),
+    lerPerfil(aluno.id, await portalIdAtual()),
   ]);
   const agora = new Date();
 
@@ -40,6 +45,16 @@ export default async function Conta() {
         </div>
 
         <div className="miolo">
+          {/* Nome, e-mail e senha: a conta de acesso. Antes só se podia
+              olhar — corrigir o próprio nome exigia suporte. */}
+          {perfil && (
+            <div className="cartao">
+              <h2 className="headline-md" style={{ marginBottom: 16 }}>Meus dados de acesso</h2>
+              <FormPerfil acao={acaoSalvarPerfil} nome={perfil.nome} email={perfil.email}
+                          temSenha={perfil.temSenha} />
+            </div>
+          )}
+
           <div className="cartao">
             <h2 className="headline-md" style={{ marginBottom: 16 }}>Assinaturas</h2>
             {assinaturas.length === 0 ? (

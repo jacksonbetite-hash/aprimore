@@ -86,8 +86,14 @@ export function podeAcessar(espectador: Espectador, aula: AulaAlvo, agora = new 
     return { libera: true, motivo: 'LICENCA_CATALOGO', licencaId: catalogo.id };
   }
 
+  // A comparação é numérica de propósito. O driver do Postgres devolve
+  // BIGINT como TEXTO, e nem toda consulta faz `::int` — bastava uma
+  // ponta castada e a outra não para o acesso falhar em silêncio, com a
+  // licença certa no banco. Falha fechada é o comportamento desejado
+  // (§15.14), mas não por acidente de tipo.
+  const mesmaMateria = (a: unknown, b: unknown) => Number(a) === Number(b);
   const daMateria = vigentes.filter(
-    (l) => l.escopo === 'MATERIA' && l.materiaId === aula.materiaId,
+    (l) => l.escopo === 'MATERIA' && mesmaMateria(l.materiaId, aula.materiaId),
   );
 
   // Licença paga/promocional/cortesia da matéria libera a matéria inteira.

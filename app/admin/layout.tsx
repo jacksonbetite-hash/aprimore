@@ -20,6 +20,7 @@ const GRUPOS: GrupoLateral[] = [
   {
     itens: [
       { href: '/admin', icone: 'dashboard', texto: 'Visão geral' },
+      { href: '/admin/perfil', icone: 'person', texto: 'Meu perfil' },
     ],
   },
   {
@@ -37,6 +38,7 @@ const GRUPOS: GrupoLateral[] = [
       { href: '/admin/licencas', icone: 'verified_user', texto: 'Licenças' },
       { href: '/admin/alunos', icone: 'group', texto: 'Alunos' },
       { href: '/admin/portais', icone: 'public', texto: 'Portais de professor' },
+      { href: '/admin/empresas', icone: 'handshake', texto: 'Empresas & RH' },
     ],
   },
   {

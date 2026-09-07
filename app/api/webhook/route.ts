@@ -58,8 +58,9 @@ export async function POST(req: Request) {
     // Portal recém-ativado já sai pedindo a subconta: é o passo que o
     // separa de poder vender. Falha aqui não derruba o webhook — a
     // ativação valeu, e a abertura é idempotente (dá para repetir).
+    // §5.11 — portal de empresa não abre subconta: ele paga, não recebe.
     let subconta: string | undefined;
-    if (r.portalAtivado) {
+    if (r.portalAtivado && r.portalTipo !== 'EMPRESA') {
       try {
         subconta = (await abrirSubconta(r.portalId)).situacao;
       } catch (err) {

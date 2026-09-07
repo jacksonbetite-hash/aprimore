@@ -1,0 +1,142 @@
+{
+  "area": "Ferramentas de trabalho",
+  "trilha": {
+    "nome": "Excel para o dia a dia",
+    "ementa": "Planilhas sem medo: a janela do Excel, células e endereços, a barra de fórmulas e as primeiras contas que resolvem controle de estoque, escala de equipe e fechamento de caixa na loja."
+  },
+  "modulo": {
+    "nome": "Primeiros passos"
+  },
+  "aula": {
+    "titulo": "Conhecendo o Excel",
+    "resumo": "O Excel faz parte do pacote Office da Microsoft, ao lado do Word, do PowerPoint e do Outlook. Você o encontra pela pesquisa do Windows, pelo menu Iniciar (na letra E ou no grupo da Microsoft) ou fixando o ícone na barra de tarefas com o botão direito. Ao abrir, a tela inicial oferece uma pasta de trabalho em branco e alguns modelos prontos; nesta aula, começamos pela pasta em branco. A janela é parecida com a do Word: botões de fechar, restaurar, maximizar e minimizar; a barra de título, que mostra Pasta1 enquanto o arquivo não foi salvo; a barra de acesso rápido no canto esquerdo, que você pode personalizar; as guias Arquivo, Página Inicial, Inserir e as demais, até Ajuda; e o campo de pesquisa, onde você digita, por exemplo, fonte, e o Excel mostra as ferramentas relacionadas. Dentro de cada guia, as ferramentas ficam organizadas em grupos, como Área de Transferência, Fonte, Alinhamento e Número.\n\nA grande diferença para o Word está na área de edição: em vez de uma folha em branco, o Excel mostra células, os retângulos da grade. Cada célula tem um endereço formado pela letra da coluna e pelo número da linha: a célula na coluna K e na linha 9 é a K9. Ao clicar em uma célula, esse endereço aparece na caixa de nome, no canto esquerdo, logo acima da grade.\n\nAo lado da caixa de nome fica a barra de fórmulas, que mostra o que foi digitado dentro da célula selecionada. Se em A2 você digita =5+5, a célula exibe 10, mas a barra de fórmulas continua mostrando =5+5. Ao editar, aparecem um X (cancelar) e um sinal de certo (inserir), que fazem o mesmo que a tecla Enter. O botão inserir função, o fx, abre a lista de funções do Excel, como SOMA, MÉDIA, SE e HIPERLINK. São centenas de funções; o curso vai mostrar as que mais se usam.\n\nNa parte de baixo ficam as guias de planilha (Planilha1, Planilha2 e o botão de mais), que servem para organizar conteúdos diferentes no mesmo arquivo: uma planilha de clientes, outra de produtos, outra de contas a pagar. As setas ao lado navegam entre elas, e as barras de rolagem horizontal e vertical percorrem colunas e linhas. Na Aurora, é assim que a supervisora monta a escala da semana numa aba e o controle de quebras de estoque em outra, dentro do mesmo arquivo.\n\nResumindo o que é o Excel: um editor de planilhas eletrônicas, isto é, tabelas que trazem resultados. Você lança os 20 funcionários da loja e o que pagou a cada um, e o Excel devolve a soma, a média ou qualquer cálculo no fim da linha e da coluna. Tudo o que você digita pode virar resultado; na próxima aula, colocamos a mão na massa criando as primeiras fórmulas.\n\nVídeo: \"Excel 2019 - Aula 01 - Conhecendo o Excel\", canal Bruno Uaitec (YouTube), licença Creative Commons Atribuição (CC BY). Reproduzido com os créditos ao autor.",
+    "minutos": 10,
+    "segundos": 30
+  },
+  "questoes": [
+    {
+      "enunciado": "Na célula A2 você digitou =5+5 e pressionou Enter. O que aparece na barra de fórmulas quando A2 está selecionada?",
+      "tipo": "multipla_escolha",
+      "origem": "Autoral",
+      "dificuldade": "introdutorio",
+      "alternativas": [
+        { "texto": "10", "correta": false, "comentario": "Errada. O 10 é o resultado, e ele aparece dentro da célula. A barra de fórmulas mostra o que foi digitado, não o resultado." },
+        { "texto": "=5+5", "correta": true, "comentario": "Correta. A barra de fórmulas sempre exibe o conteúdo digitado na célula; por isso, ao clicar em A2, você vê =5+5 ali e 10 na célula." },
+        { "texto": "A2", "correta": false, "comentario": "Errada. A2 é o endereço da célula, e ele aparece na caixa de nome, ao lado da barra de fórmulas." },
+        { "texto": "5", "correta": false, "comentario": "Errada. Nenhum dos dois lugares mostra apenas 5: a célula mostra 10 e a barra de fórmulas mostra =5+5." }
+      ]
+    },
+    {
+      "enunciado": "Qual é o endereço da célula que está na coluna K e na linha 9?",
+      "tipo": "multipla_escolha",
+      "origem": "Autoral",
+      "dificuldade": "introdutorio",
+      "alternativas": [
+        { "texto": "9K", "correta": false, "comentario": "Errada. A ordem é sempre coluna e depois linha: a letra vem antes do número." },
+        { "texto": "K9", "correta": true, "comentario": "Correta. Colunas são letras e linhas são números; o endereço junta os dois, letra primeiro. É o que a caixa de nome mostra ao clicar na célula." },
+        { "texto": "K-9", "correta": false, "comentario": "Errada. O Excel não usa hífen no endereço; é a letra da coluna colada ao número da linha." },
+        { "texto": "Linha 9", "correta": false, "comentario": "Errada. Isso identifica a linha inteira, e não uma célula. A célula precisa da coluna também." }
+      ]
+    },
+    {
+      "enunciado": "Para que servem as guias Planilha1, Planilha2 e o botão de mais na parte de baixo da janela?",
+      "tipo": "multipla_escolha",
+      "origem": "Autoral",
+      "dificuldade": "introdutorio",
+      "alternativas": [
+        { "texto": "Para organizar conteúdos diferentes dentro do mesmo arquivo, como clientes, produtos e contas a pagar.", "correta": true, "comentario": "Correta. É o exemplo da aula: cada planilha guarda um assunto e mostra só o que está dentro dela, tudo no mesmo arquivo." },
+        { "texto": "Para trocar a fonte e o tamanho do texto.", "correta": false, "comentario": "Errada. Fonte e tamanho ficam no grupo Fonte, na guia Página Inicial." },
+        { "texto": "Para abrir um documento do Word dentro do Excel.", "correta": false, "comentario": "Errada. As guias de planilha não abrem outros programas; elas alternam entre as planilhas do mesmo arquivo." },
+        { "texto": "Para mudar o idioma do Excel.", "correta": false, "comentario": "Errada. Idioma é configuração do programa, não das planilhas. As guias servem para organizar o conteúdo." }
+      ]
+    },
+    {
+      "enunciado": "Qual afirmação sobre o Excel está de acordo com a aula?",
+      "tipo": "multipla_escolha",
+      "origem": "Autoral",
+      "dificuldade": "introdutorio",
+      "alternativas": [
+        { "texto": "É um editor de planilhas eletrônicas: tabelas que trazem resultados a partir de cálculos.", "correta": true, "comentario": "Correta. É a definição que fecha a aula, com o exemplo da folha de pagamento: lança os funcionários e o Excel devolve a soma no fim." },
+        { "texto": "É um editor de textos, como o Word, só que com mais cores.", "correta": false, "comentario": "Errada. A janela é parecida com a do Word, mas a área de edição é de células, não de texto corrido." },
+        { "texto": "Serve apenas para programadores e cálculos avançados.", "correta": false, "comentario": "Errada. A aula diz que algumas funções são mais usadas por quem programa, mas o principal serve a qualquer pessoa: soma, média, controle de contas." },
+        { "texto": "Precisa ser comprado separadamente do pacote Office.", "correta": false, "comentario": "Errada. O Excel faz parte do pacote Office, junto com Word, PowerPoint e Outlook." }
+      ]
+    },
+    {
+      "enunciado": "Julgue: \"No Excel, as colunas são representadas por números e as linhas por letras.\"",
+      "tipo": "certo_errado",
+      "origem": "Autoral",
+      "dificuldade": "introdutorio",
+      "alternativas": [
+        { "texto": "Certo", "correta": false, "comentario": "Errado. Está invertido: colunas são letras (A, B, C...) e linhas são números (1, 2, 3...). Por isso a célula é D2, e não 2D." },
+        { "texto": "Errado", "correta": true, "comentario": "Certo. Colunas recebem letras e linhas recebem números; o endereço da célula junta a letra da coluna com o número da linha." }
+      ]
+    }
+  ],
+  "avaliacao": {
+    "titulo": "Avaliação — Excel para o dia a dia",
+    "descricao": "Cinco questões sobre a janela do Excel, endereços de célula, barra de fórmulas e o que uma planilha eletrônica faz. Nota mínima 70, até três tentativas.",
+    "notaMinima": 70,
+    "maxTentativas": 3,
+    "questoes": [
+      {
+        "enunciado": "Você abriu uma pasta de trabalho em branco e ainda não salvou. Onde aparece o nome Pasta1?",
+        "tipo": "multipla_escolha",
+        "origem": "Autoral",
+        "dificuldade": "introdutorio",
+        "alternativas": [
+          { "texto": "Na barra de título, no alto da janela.", "correta": true, "comentario": "Correta. Enquanto o arquivo não é salvo, a barra de título mostra Pasta1, indicando o Excel aberto com um arquivo novo." },
+          { "texto": "Na caixa de nome, ao lado da barra de fórmulas.", "correta": false, "comentario": "Errada. A caixa de nome mostra o endereço da célula selecionada, como K9, e não o nome do arquivo." },
+          { "texto": "Na barra de fórmulas.", "correta": false, "comentario": "Errada. A barra de fórmulas mostra o conteúdo digitado na célula selecionada." },
+          { "texto": "Na guia Inserir.", "correta": false, "comentario": "Errada. As guias reúnem ferramentas; o nome do arquivo fica na barra de título." }
+        ]
+      },
+      {
+        "enunciado": "O que faz o botão inserir função (fx), ao lado da barra de fórmulas?",
+        "tipo": "multipla_escolha",
+        "origem": "Autoral",
+        "dificuldade": "introdutorio",
+        "alternativas": [
+          { "texto": "Abre a lista de funções do Excel, como SOMA, MÉDIA, SE e HIPERLINK.", "correta": true, "comentario": "Correta. É o que a aula mostra: o fx lista todas as funções disponíveis, e o curso vai se concentrar nas mais usadas." },
+          { "texto": "Cria uma nova planilha no arquivo.", "correta": false, "comentario": "Errada. Nova planilha se cria pelo botão de mais, ao lado das guias Planilha1, Planilha2, na parte de baixo." },
+          { "texto": "Salva o arquivo com um nome.", "correta": false, "comentario": "Errada. Salvar fica na guia Arquivo ou na barra de acesso rápido, não no fx." },
+          { "texto": "Fixa o Excel na barra de tarefas do Windows.", "correta": false, "comentario": "Errada. Fixar na barra de tarefas se faz com o botão direito no ícone do programa, fora da janela do Excel." }
+        ]
+      },
+      {
+        "enunciado": "Segundo a aula, quais são as formas de confirmar uma fórmula que você acabou de digitar em uma célula?",
+        "tipo": "multipla_escolha",
+        "origem": "Autoral",
+        "dificuldade": "introdutorio",
+        "alternativas": [
+          { "texto": "Pressionar Enter ou clicar no sinal de certo (inserir) na barra de fórmulas.", "correta": true, "comentario": "Correta. A aula mostra os dois caminhos e diz para usar o que for mais fácil: Enter ou o botão de certo." },
+          { "texto": "Somente fechando e reabrindo o arquivo.", "correta": false, "comentario": "Errada. Fechar o arquivo sem confirmar pode até perder o que foi digitado; a confirmação é o Enter ou o botão inserir." },
+          { "texto": "Clicando no X que aparece ao lado da barra de fórmulas.", "correta": false, "comentario": "Errada. O X é o cancelar: ele descarta o que você estava digitando." },
+          { "texto": "Clicando na guia Página Inicial.", "correta": false, "comentario": "Errada. Trocar de guia não confirma a fórmula; a confirmação é o Enter ou o botão de certo." }
+        ]
+      },
+      {
+        "enunciado": "A supervisora de uma loja da Aurora quer uma lista com um funcionário por linha, o valor pago a cada um e o total no fim. Pela aula, qual ferramenta resolve isso?",
+        "tipo": "multipla_escolha",
+        "origem": "Autoral",
+        "dificuldade": "introdutorio",
+        "alternativas": [
+          { "texto": "Uma planilha eletrônica no Excel, com uma fórmula de soma no fim da coluna.", "correta": true, "comentario": "Correta. É o exemplo da folha de pagamento da aula: lança os 20 funcionários e o Excel devolve a soma de tudo." },
+          { "texto": "Um documento do Word com a lista digitada.", "correta": false, "comentario": "Errada. O Word guarda a lista, mas não calcula o total. Para resultado automático, o lugar é a planilha." },
+          { "texto": "Uma apresentação do PowerPoint.", "correta": false, "comentario": "Errada. O PowerPoint serve para apresentar; não é feito para tabelas com cálculo." },
+          { "texto": "Um e-mail no Outlook com os valores.", "correta": false, "comentario": "Errada. O Outlook envia mensagens; o cálculo do total é trabalho de planilha eletrônica." }
+        ]
+      },
+      {
+        "enunciado": "Julgue: \"A caixa de nome mostra o endereço da célula selecionada, e a barra de fórmulas mostra o que foi digitado dentro dela.\"",
+        "tipo": "certo_errado",
+        "origem": "Autoral",
+        "dificuldade": "introdutorio",
+        "alternativas": [
+          { "texto": "Certo", "correta": true, "comentario": "Certo. É exatamente a divisão mostrada na aula: clicou em K9, a caixa de nome exibe K9; digitou =5+5, a barra de fórmulas exibe =5+5 enquanto a célula mostra 10." },
+          { "texto": "Errado", "correta": false, "comentario": "Errado. A afirmativa está correta. Caixa de nome é endereço; barra de fórmulas é conteúdo digitado." }
+        ]
+      }
+    ]
+  }
+}

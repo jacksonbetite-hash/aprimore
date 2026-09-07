@@ -47,6 +47,8 @@ async function limparRastros() {
   await query(`DELETE FROM materia WHERE portal_id IN (${meus})`);
   await query(`DELETE FROM area    WHERE portal_id IN (${meus})`);
   await query(`DELETE FROM usuario WHERE portal_id IN (${meus})`);
+  // `preco` não tem ON DELETE CASCADE, e o portal agora nasce com tabela.
+  await query(`DELETE FROM preco   WHERE portal_id IN (${meus})`);
   await query(`DELETE FROM portal  WHERE mascara LIKE 'teste-apu-%'`);
   await query(`DELETE FROM usuario WHERE email LIKE 'teste-apu-%@exemplo.com' OR email LIKE 'aluno-apu-%@exemplo.com'`);
   await query(`DELETE FROM evento_gateway WHERE evento_id LIKE 'ev-apu-%'`);

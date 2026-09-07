@@ -508,7 +508,7 @@ O custo é baixo e quase todo fixo (escrow + infra + suporte ≈ R$ 45); o víde
 
 **Margem no preço escolhido (R$ 149 + 10%):** portal médio rende R$ 468/mês contra custo de R$ 76–163; o portal pequeno — o cliente típico do lançamento — rende R$ 228 contra R$ 64–77, e sozinho cobre a escrow da conta-pai. A conta fecha até no pior caso de banda em todos os cenários.
 
-**Domínio próprio — exemplos de preço (04/09/2026, decisão em aberto).** O custo direto é quase zero: certificado gratuito (Let's Encrypt, emitido pelo Caddy sob demanda), nenhum tráfego a mais — o que pesa é o operacional (suporte a DNS mal configurado, um certificado a mais para vigiar) e o posicionamento. Referências: Hotmart e Kiwify incluem domínio próprio nas áreas de membros sem cobrar; construtores de site (Wix, Hostinger) cobram R$ 20–40/mês pelo degrau que libera domínio próprio; SaaS white-label costuma tratar como recurso do plano superior.
+**Domínio próprio — exemplos de preço (04/09/2026; decidido: opção B, decisão 18 do §16, aplicada por `db/030`).** O custo direto é quase zero: certificado gratuito (Let's Encrypt, emitido pelo Caddy sob demanda), nenhum tráfego a mais — o que pesa é o operacional (suporte a DNS mal configurado, um certificado a mais para vigiar) e o posicionamento. Referências: Hotmart e Kiwify incluem domínio próprio nas áreas de membros sem cobrar; construtores de site (Wix, Hostinger) cobram R$ 20–40/mês pelo degrau que libera domínio próprio; SaaS white-label costuma tratar como recurso do plano superior.
 
 | Exemplo | Preço | Leitura |
 |---|---|---|
@@ -545,12 +545,11 @@ Qualquer um deles entra sem código: campo "Domínio próprio (R$/mês)" do plan
 - **CPF do aluno na compra (§12.1)** ✅ — pedido uma vez, no ato da compra, só a quem ainda não tem: campo nos dois formulários de compra (`/planos` e o curso do parceiro), validado pelos dígitos verificadores (`validarCpf`) e guardado em `usuario.cpf`; o pedido passa ao gateway como `documentoPagador`. Com o provedor simulado a compra segue sem CPF; com o Asaas, `garantirCpf` recusa antes de criar a cobrança.
 - **KYC do professor no cadastro (§8.2)** ✅ — o formulário de contratação coleta celular, renda mensal, CEP, logradouro, número, complemento e bairro (o que `/accounts` exige; cidade e UF o gateway tira do CEP). Validados em `assinarPortal`, normalizados e guardados em `portal.responsavel_telefone / responsavel_renda_centavos / responsavel_endereco` (db/028); `abrirSubconta` repassa tudo ao provedor.
 
-- **Domínio próprio (Fase 2)** ✅ — o portal responde também em `cursos.dominiodele.com.br`. Mecânica: o `proxy.ts` marca todo Host que não é nosso nem subdomínio nosso (`x-portal-dominio`, apagado se vier da rua); `portalAtual` resolve por `portal.dominio_proprio`, **só depois de verificado**. O professor cadastra o domínio no painel (Minha página), aponta o CNAME para `<mascara>.<nosso domínio>` e pede a verificação (`verificarDominio`, consulta CNAME real; DNS ainda não propagado é "ainda não", não erro). O preço mora no plano (`portal_plano.centavos_dominio_proprio`; **NULL = o plano não oferece**, e o painel diz isso) e entra na fatura como linha própria só depois de verificado. Índice único por domínio; trocar zera a verificação; o admin, ao definir pelo cadastro do portal, já vale como verificado (db/029). **Infra pendente, fora do código:** certificado HTTPS por domínio de terceiro — o curinga nosso não cobre; emitir por Caddy (on-demand TLS) ou certbot por domínio depois da verificação. **Decisão pendente:** o preço — hoje o plano de lançamento está com NULL (não oferece).
+- **Domínio próprio (Fase 2)** ✅ — o portal responde também em `cursos.dominiodele.com.br`. Mecânica: o `proxy.ts` marca todo Host que não é nosso nem subdomínio nosso (`x-portal-dominio`, apagado se vier da rua); `portalAtual` resolve por `portal.dominio_proprio`, **só depois de verificado**. O professor cadastra o domínio no painel (Minha página), aponta o CNAME para `<mascara>.<nosso domínio>` e pede a verificação (`verificarDominio`, consulta CNAME real; DNS ainda não propagado é "ainda não", não erro). O preço mora no plano (`portal_plano.centavos_dominio_proprio`; **NULL = o plano não oferece**, e o painel diz isso) e entra na fatura como linha própria só depois de verificado. Índice único por domínio; trocar zera a verificação; o admin, ao definir pelo cadastro do portal, já vale como verificado (db/029). **HTTPS (04/09/2026):** o Caddy entrou no perfil `vps` na frente do nginx (`caddy/Caddyfile`), com certificado **sob demanda** para qualquer host — subdomínio de portal ou domínio próprio — emitido na primeira visita e renovado sozinho. Antes de emitir, ele pergunta a `GET /api/dominio-permitido?domain=`, que só diz sim para a plataforma, para subdomínio de portal no ar e para domínio próprio verificado (cobertura no e2e do funil). Na VPS: `docker compose --profile vps up -d`, com `ACME_EMAIL` no `.env`; o nginx deixa de ouvir a porta 80 da rua e nada mais muda. O certbot deixa de ser necessário. **Preço decidido (04/09/2026):** R$ 29,90/mês no plano de lançamento (`db/030`); incluído no plano C quando ele existir.
 
 **Ainda não feito:**
 
 - Transcodificação/CDN (Bunny) para o vídeo do portal — hoje o arquivo enviado é servido como está, pelo nosso volume; o adaptador CDN é o `case 'BUNNY'` de `lib/video.ts`.
-- HTTPS para domínio próprio de terceiro (infra: Caddy on-demand TLS ou certbot por domínio).
 
 #### Fora do escopo deste modelo (por ora)
 
@@ -559,6 +558,335 @@ E-mail no domínio do professor · editor livre de layout · app · múltiplos p
 #### Riscos específicos
 
 Consolidados nos itens 14 a 17 do §15.
+### 5.11 Portal da Empresa — universidade corporativa em autosserviço (planejamento de 04/09/2026)
+
+O §12-B.1 previu as licenças patrocinadas como "Fase 3, por proposta". A vitrine de `/empresas` (db/032) já capta o interesse — e a decisão desta rodada é que a empresa **não espere proposta**: assim como o professor, ela se cadastra, paga e opera sozinha. O que ela opera é diferente do que o professor opera, e é isso que este plano descreve.
+
+**A promessa ao cliente:** "a universidade corporativa da sua empresa no ar em um dia: você sobe os vídeos, cadastra a equipe, libera as trilhas e acompanha quem concluiu — no seu endereço, com a sua marca."
+
+#### O que se reaproveita e o que muda
+
+O portal do professor já é um *tenant* completo: endereço próprio, acervo próprio, base de usuários própria, upload de vídeo, exercícios, progresso, faturamento por competência e isolamento garantido pelo banco (§5.10). A empresa é **o mesmo tenant com outro regime de acesso**. A tabela abaixo é a espinha do plano — cada linha "muda" vira trabalho; cada linha "igual" é o que se herda sem código.
+
+| Tema | Portal do professor | Portal da empresa |
+|---|---|---|
+| Endereço | `<mascara>.aprimoreosaber.com.br`, domínio próprio como upgrade | **Igual, sem código novo.** Máscara escolhida na contratação (etapa 1); domínio próprio cadastrado em Minha página (etapa 2) com o mesmo CNAME + verificação + certificado sob demanda do Caddy. Incluído no Pro; no Starter, ver §16.19 |
+| Quem opera | 1 professor, conta na plataforma (portal 0), painel em `/professor` | **1 responsável + N gestores**, contas na plataforma, painel em `/empresa` |
+| Quem consome | Aluno que se cadastra sozinho e compra | **Colaborador cadastrado ou convidado pela empresa**; não compra nada |
+| Página pública | Vitrine com acervo, amostra gratuita e preços | **Fechada**: marca + login. Sem amostra, sem preço, sem trial, sem cadastro aberto (salvo domínio de e-mail autorizado) |
+| Acesso ao conteúdo | Licença por compra, trial, cortesia | **Licença de origem `B2B`**, concedida pela empresa por pessoa ou por setor, com prazo de conclusão |
+| Teto | Cota de GB | Cota de GB **+ teto de contas ativas** do plano |
+| Dinheiro | Mensalidade + % das vendas, subconta, split, escrow, apuração | **Só mensalidade** (+ excedente de GB e domínio). Sem subconta, sem split, sem apuração |
+| Conteúdo | Área → curso → assunto → aula → questão | **Igual, com outros nomes na tela**: trilha → módulo → aula → questão. Ganha **avaliação final** com nota mínima |
+| Conclusão | Progresso por aula | Progresso + **aprovação na avaliação + certificado com a chancela da empresa** |
+| Vitrine compartilhada | Opcional por curso | **Nunca** (CHECK no banco) |
+| Relatórios | Alunos, licenças, extrato de vendas | **Progresso por pessoa e por trilha, resultados, exportação CSV** |
+
+#### Decisões tomadas neste plano
+
+| Tema | Decisão | Por quê |
+|---|---|---|
+| **Modelagem** | `portal.tipo` (`PROFESSOR` \| `EMPRESA`) na mesma tabela, e não uma entidade `contrato_b2b` à parte | Tudo o que separa tenants (chaves compostas, proxy, sessão por portal, cota, fatura) já está pronto para `portal`. Uma segunda entidade duplicaria o isolamento — e o §15.14 diz que isolamento duplicado é isolamento que uma hora diverge |
+| **Gestores** | Contas na **plataforma** (portal 0), papel novo `gestor`, painel em `/empresa` no site principal; vínculo N:N em `portal_gestor` | Espelha o professor: reaproveita `assinarPortal`, a tela de pagamento, o `dono()` e o layout do painel. O endereço da empresa fica só para o colaborador |
+| **Colaborador** | Papel `aluno` dentro do portal da empresa (sem papel novo) | Toda consulta de progresso, sessão e licença já filtra `papel = 'aluno'`. Um papel novo espalharia `OR` por 30 consultas para não ganhar nada |
+| **Liberação de acesso** | Licença com origem nova **`B2B`**, escopo `MATERIA` (uma trilha) ou `CATALOGO` (todas), `fim_em` = fim do contrato ou prazo da atribuição | O `podeAcessar` não muda: origem ≠ TRIAL já libera a matéria inteira (§6.3). Suspender o colaborador é cancelar a licença — mesmo mecanismo do admin |
+| **Portal nasce pagando** | Igual ao professor: transação única, RASCUNHO até o webhook confirmar a 1ª mensalidade | Sem isso, "portal grátis por 14 dias" vira fila de suporte de portal abandonado. O teste gratuito da empresa fica como decisão pendente (§16.20) |
+| **Planos** | Starter e Pro em autosserviço, lidos de `portal_plano` (tipo EMPRESA); Enterprise continua por proposta via `interesse_empresa` | O `lib/empresas.ts` já avisa: preço de referência de produto sem checkout não é preço vigente. Quando vira produto, entra na tabela de todo mundo |
+| **Convite sem e-mail** | O convite é um **link com token** que o gestor copia e manda por onde quiser; e-mail transacional entra como tarefa transversal e passa a enviar o mesmo link | O sistema ainda não envia e-mail (§5.10, "Ainda não feito"). Depender disso travaria a etapa 4 inteira |
+| **Avaliação** | `questao` ganha `avaliacao_id` (alternativo a `exercicio_id`, um ou outro); tabela `avaliacao` por trilha com nota mínima e tentativas; `tentativa_avaliacao` guarda nota e respostas | Reaproveita o formulário de questão do painel e a tabela `alternativa` com comentário obrigatório; não nasce um segundo editor de questões |
+| **Certificado** | Página `/certificado/<codigo>` verificável, imprimível em PDF pelo navegador; chancela = nome, logo e responsável do portal; carga horária = soma da duração dos vídeos | Certificado de curso livre (§12.6), sem MEC. Verificável por código para o RH auditar; sem biblioteca de PDF no servidor |
+
+#### Modelo de dados (migração `db/033_portal_empresa.sql`)
+
+```
+portal
+  + tipo                 ENUM portal_tipo ('PROFESSOR','EMPRESA') NOT NULL DEFAULT 'PROFESSOR'
+  + dominios_email       TEXT[]     -- autocadastro só com e-mail destes domínios (vazio = só por convite)
+  CHECK: tipo = 'EMPRESA' → gateway_wallet_id IS NULL e subconta_situacao = 'PENDENTE'
+
+portal_plano
+  + tipo                 portal_tipo NOT NULL DEFAULT 'PROFESSOR'
+  + limite_contas        INT        -- NULL = sem teto (Enterprise)
+  CHECK: tipo = 'EMPRESA' → percentual_base = 0 e comissao_vitrine_pp = 0
+
+portal_contrato
+  + limite_contas        INT        -- copiado do plano no aceite, como o preço
+
+portal_gestor (portal_id, usuario_id, papel_no_portal 'RESPONSAVEL'|'GESTOR', criado_em)
+  usuario.papel ganha 'gestor'; usuario do gestor vive no portal 0
+
+materia
+  CHECK: na_vitrine_plataforma = false quando o portal é EMPRESA (função SQL portal_tipo(portal_id))
+
+licenca.origem            + 'B2B'
+usuario
+  + setor_id             BIGINT REFERENCES setor
+  + matricula            TEXT       -- identificador interno da empresa, opcional
+setor (id, portal_id, nome, ordem)  UNIQUE (portal_id, nome)
+
+convite (id, portal_id, email, nome, setor_id, token_hash, trilhas BIGINT[], prazo_dias,
+         criado_por, criado_em, expira_em, aceito_em, usuario_id)
+  -- o link carrega o token; o banco guarda só o hash, como a sessão (§10)
+
+atribuicao (id, portal_id, materia_id, alvo_usuario_id | alvo_setor_id, obrigatoria BOOL,
+            prazo_em DATE, criada_por, criada_em)
+  -- é a INTENÇÃO do RH; a licença B2B é a materialização por pessoa
+  -- (setor novo recebe as atribuições do setor no ato do cadastro)
+
+avaliacao (id, portal_id, materia_id UNIQUE, titulo, nota_minima INT 0..100,
+           max_tentativas INT, embaralhar BOOL, status status_publicacao)
+questao   + avaliacao_id (exercicio_id passa a ser NULL-able; CHECK exatamente um dos dois)
+tentativa_avaliacao (id, usuario_id, avaliacao_id, iniciada_em, entregue_em, nota INT,
+                     aprovada BOOL, respostas JSONB)
+conclusao (id, usuario_id, materia_id, concluida_em, nota, codigo_certificado TEXT UNIQUE,
+           carga_horaria_min INT)   UNIQUE (usuario_id, materia_id)
+```
+
+Todas as filhas novas apontam para `(id, portal_id)` por chave composta, como em `db/018`. A suíte adversarial de isolamento ganha os casos novos: convite do portal 7 não cria conta no 3; atribuição não pendura trilha alheia; gestor do 7 não lê progresso do 3.
+
+#### Sequência de construção
+
+| # | Etapa | Entrega | Depende de |
+|---|---|---|---|
+| **0** | **Fundação do tenant-empresa** | `db/033` acima · `portal.tipo` lido em `portalAtual` · páginas públicas do portal (`PaginaPortal`, catálogo, aula, `/planos`, `/checkout`, `/cadastrar`) passam a **exigir sessão** e a não mostrar preço nem amostra quando o portal é EMPRESA · `semearPrecosDaPlataforma` não roda para empresa · plano Starter e Pro semeados em `portal_plano` (preços do `lib/empresas.ts` viram linhas, e a vitrine passa a ler do banco) · testes de isolamento ampliados | — |
+| **1** | **Contratação em autosserviço** | `/empresas/contratar`: responsável, CNPJ, e-mail, senha, máscara, nome de exibição, plano (Starter/Pro), aceite do contrato · `assinarPortal` generalizado por `tipo` (sem KYC de renda/endereço — não há subconta) · webhook `PF-` ativa igual · `/empresas/pagamento/[ref]` · Enterprise segue pelo formulário de interesse · admin: `/admin/portais` ganha o filtro por tipo e a coluna de contas ativas × teto | 0 |
+| **2** | **Painel da empresa `/empresa`** | Layout com barra lateral (Visão geral · Minha página · Trilhas · Colaboradores · Acompanhamento · Financeiro · Gestores) · visão geral com checklist honesta (portal no ar → marca preenchida → 1ª trilha publicada com aula → 1º colaborador ativo → 1ª atribuição) · Minha página: logo, cor, mensagem de boas-vindas, domínios de e-mail autorizados, domínio próprio · Gestores: convidar/remover (o responsável não se remove) | 1 |
+| **3** | **Trilhas, vídeos e avaliação** | Mesmos formulários de área/curso/assunto/aula/questão com rótulos de empresa (trilha/módulo/aula) · upload de vídeo pelo mesmo `/api/upload` · **avaliação final** por trilha (questões, nota mínima, tentativas) · **pré-visualizar como colaborador** (o gestor abre a trilha no endereço do portal com uma sessão de visualização, sem gerar progresso) · sem opção de vitrine | 2 |
+| **4** | **Colaboradores e liberação de acesso** | Cadastro individual (nome, e-mail, setor, matrícula) · **importação por CSV** com prévia de erros linha a linha · setores · **convite por link** (copiar; e-mail quando o envio existir) · autocadastro por domínio autorizado, caindo nas atribuições do setor "padrão" · **atribuição** de trilha por pessoa ou por setor, obrigatória ou não, com prazo → licença B2B · desativar/reativar (libera a vaga no teto) · **teto de contas** do contrato aplicado no cadastro e no convite, com aviso e link para o upgrade · aviso LGPD: a empresa é a controladora | 2 |
+| **5** | **Ambiente do colaborador** | Home do portal EMPRESA = marca + login · `/painel` corporativo: **minhas trilhas** (obrigatórias primeiro, prazo e pendência em destaque), retomar de onde parou, avaliação quando as aulas terminam, certificado ao aprovar · aula com **sequência obrigatória** opcional por trilha (a próxima abre quando a anterior conclui) · `/certificado/<codigo>` público e imprimível · sem Planos, sem Minha conta financeira, sem caderno de erros da plataforma (fica o da trilha) | 3, 4 |
+| **6** | **Acompanhamento para o RH** | Por trilha: atribuídos, iniciados, concluídos, aprovados, atrasados · por pessoa: trilhas, %, nota, data · filtros por setor e situação · **exportação CSV** · registro de quem liberou o quê (`log_auditoria`, já existente) | 5 |
+| **7** | **Financeiro da empresa** | Faturas por competência (mensalidade + GB excedente + domínio), pagar por Pix/cartão, régua de atraso e suspensão **reaproveitadas** (`lib/portal-financeiro.ts`) · em portal suspenso o colaborador com licença continua, o gestor não cadastra · troca de plano (Starter → Pro) por novo contrato com vigência | 1 |
+| **T** | **Transversal: e-mail** | Adaptador de e-mail transacional (interface `Remetente`, provedor simulado em desenvolvimento, SES/Resend em produção) · usos: convite, lembrete de prazo (D-7 e D-1), certificado emitido · o mesmo adaptador serve à régua de renovação do aluno (§6.4) e ao esqueci-minha-senha, hoje inexistentes | pode andar em paralelo a 3–4 |
+
+Estimativa grosseira, no ritmo do §14 (5 a 15 h/semana): etapas 0–2 em 3 a 4 semanas; 3–4 em 4 a 5; 5–6 em 3 a 4; 7 e T em 2. **Doze a quinze semanas**, com a etapa 5 sendo a que mais se vê e a 4 a que mais se testa.
+
+#### Verificação exigida por etapa
+
+- **Unidade**: teto de contas, aceitação de convite (expirado, já aceito, portal errado), cálculo de nota e aprovação, sequência obrigatória, materialização de atribuição por setor.
+- **Integração** (com `DATABASE_URL`): contratação → pagamento → portal ATIVO sem subconta; convite → conta → licença B2B; desativar libera vaga; suíte de isolamento com os casos novos.
+- **Ponta a ponta** (`testes-e2e/portal-empresa.mjs`): RH contrata, sobe um vídeo, cria a avaliação, convida alguém; o colaborador entra pelo link no subdomínio, assiste, é aprovado, imprime o certificado; o RH vê a conclusão no relatório. E o visitante anônimo no endereço da empresa **não vê aula nenhuma**.
+
+#### Estado da implantação (04/09/2026)
+
+**Etapa 0 — Fundação do tenant-empresa ✅**
+
+- `db/033_empresa_enums.sql` e `db/034_portal_empresa.sql`. Os dois arquivos existem separados por uma regra do PostgreSQL, não por gosto: `ALTER TYPE ... ADD VALUE` roda em transação, mas o valor novo não pode ser usado antes do COMMIT — e o migrador envolve cada arquivo numa transação.
+- `portal.tipo` (`PROFESSOR` | `EMPRESA`), lido em `portalAtual` e propagado a `Portal`. **A plataforma é sempre PROFESSOR, por CHECK**: não porque seja de um professor, mas porque a coluna decide "aberto ou fechado", e um UPDATE errado não pode fechar o site inteiro atrás de um login.
+- **Curso de empresa nunca vai à vitrine, e quem garante é o banco.** `materia.portal_tipo` com chave estrangeira composta para `portal (id, tipo)` mais CHECK; um gatilho preenche a coluna, para que a aplicação não precise lembrar. Se o gatilho sumisse, a chave estrangeira continuaria recusando — ela é a trava, ele é a comodidade.
+- Toda tabela nova carrega `portal_id` e aponta para o par `(id, portal_id)`, como no `db/018`: `portal_gestor`, `setor`, `convite`, `atribuicao`, `avaliacao`, `tentativa_avaliacao`, `conclusao`.
+- **A guarda de acesso** (`app/guarda-empresa.ts`): num portal de empresa, visitante sem sessão não vê nada. Chamada no topo de catálogo, curso, aula, biblioteca, blog e vagas; `recusarNoPortalDeEmpresa` fecha planos, checkout e cadastro para todo mundo. `Pagina` repete a guarda como segunda linha de defesa, para o dia em que uma rota nova esquecer de chamá-la.
+- Planos `Empresa Starter` (R$ 380, 50 contas) e `Empresa Pro` (R$ 890, 250 contas, domínio próprio incluído) semeados em `portal_plano`; a vitrine passou a ler preço, teto e preço de domínio do banco. `planoDeLancamento` ganhou `AND tipo = 'PROFESSOR'` — sem o filtro, semear um plano de empresa mais barato mudaria em silêncio o que a página do professor vende.
+
+**Etapa 1 — Contratação em autosserviço ✅**
+
+- `assinarPortal` passou a servir aos dois produtos em vez de ganhar um gêmeo. O que muda é pequeno e está marcado ponto a ponto: a empresa não coleta KYC (não abre subconta, então renda e endereço seriam coleta sem finalidade, §12.1), escolhe entre dois planos, e o dono nasce `gestor` com vínculo `RESPONSAVEL`. O caro — transação única e webhook idempotente — continua sendo um só.
+- `abrirSubconta` recusa portal de empresa **na fonte**, e não só em quem chama: o webhook abre subconta de todo portal que ativa, e uma subconta em nome de quem nunca vai vender é KYC pedido à toa e uma vaga a menos no teto regulatório do §8.2. Pelo mesmo motivo, o teto de 10 portais passou a contar só os de professor.
+- `/empresas/contratar` e `/empresas/pagamento/[referencia]`. A vitrine `/empresas` ganhou o caminho de compra e manteve o formulário de interesse para o Enterprise.
+- **Correção de passagem:** `portal_contrato` não copiava `comissao_vitrine_pp` do plano — ficava no DEFAULT da tabela. Os dois valiam 50 por coincidência, e mudar a comissão no plano não chegava a contrato nenhum. Agora é copiada, junto do teto de contas.
+
+**Etapa 2 — Painel da empresa ✅**
+
+- `/empresa` com barra lateral, visão geral e checklist honesta (cada passo mostra o número que veio do banco, não uma promessa), cartão de ocupação do plano e fatura em aberto.
+- `/empresa/site`: marca da empresa, política de quem cria conta sozinho e domínio próprio — as três coisas juntas porque respondem à mesma pergunta do gestor, "como a minha equipe chega aqui?".
+- `/empresa/gestores`: o RH tem mais de uma pessoa, e sem esta tela o portal ficaria refém de quem assinou o contrato. O responsável não se remove; conta de outro papel não vira gestora por um formulário.
+- **Domínio de e-mail autorizado** (`validarDominiosEmail`): a lista vazia é o padrão e o mais fechado. Correio público (gmail, hotmail, uol e afins) é recusado com o motivo — ali "ter um e-mail do domínio" não prova vínculo com empresa nenhuma.
+- O cabeçalho, o rodapé e a tela de login se ajustam ao portal fechado: sem Planos, sem ferramentas, sem "criar conta grátis" — e o rodapé legal diz que a **empresa é a controladora** dos dados e a plataforma a operadora.
+
+**Verificação:** 277 testes de unidade e integração passando (17 novos em `lib/empresa.test.ts`), e `testes-e2e/portal-empresa.mjs` com **34 checagens no navegador**, da vitrine ao painel. As dez últimas são a varredura que mais importa: toda rota pública, anonimamente, no endereço da empresa, exigindo destino correto **e** ausência de preço, oferta de cadastro e conteúdo editorial.
+
+**Correções de passagem em código existente:** a limpeza do e2e do professor não apagava `preco` antes do portal e deixava portal de teste no banco, ocupando o teto regulatório; e dois testes de preço mexiam na tabela de todo portal em vez da do portal 0 — passavam só enquanto a plataforma era o único portal com preço.
+
+**Etapas 3 a 7 ✅ (07/09/2026)** — o portal da empresa passou a existir inteiro.
+
+- **Etapa 3, trilhas e avaliação.** Os formulários de área/curso/assunto/aula da retaguarda ganharam um modo de empresa (`empresa` em `FormMateria`, `FormAssunto`, `FormAula`): mesmos campos, rótulos de trilha/módulo, e sem o que não existe ali — vitrine da plataforma, amostra gratuita e teste de 7 dias saem da tela, porque a empresa não vende nada. A **avaliação final** reaproveita a tabela `questao` e o editor de questões pelo caminho que o §5.11 previu: `salvarQuestaoDe` passou a receber o dono (`{aulaId}` ou `{avaliacaoId}`) em vez de só a aula, e nasceu **um** editor, não dois.
+- **A regra do §5.3 virou código.** "Aula sem exercício não é publicável" vivia em texto de tela e num UPDATE de seed; a aplicação publicava aula vazia sem reclamar. Agora `criarAula`, `editarAula` e `mudarStatusAula` conferem, e o botão Publicar devolve o motivo na tela quando recusa. A mesma regra vale para a avaliação: sem questão, não publica.
+- **Etapa 4, equipe (`lib/empresa-equipe.ts`).** Setores, cadastro individual com senha provisória, **convite por link** (token nominal, uso único, 7 dias, guardado só como hash), **importação por CSV** com prévia linha a linha, autocadastro por domínio autorizado, e a **atribuição** — a peça que faltava para `origem_licenca = 'B2B'' deixar de ser um valor de enum que ninguém escrevia. Atribuir a um setor alcança quem entrar depois; tirar a atribuição cancela as licenças que **ela** criou, e só elas (`licenca.atribuicao_id`, `db/038`).
+- **Etapa 5, o colaborador.** `/painel` reconhece o portal de empresa e mostra "minhas trilhas" — obrigatórias primeiro, prazo em destaque, atrasadas em vermelho — em vez da jornada de quem compra curso. A prova (`/prova/[slug]`) corrige **no servidor**: o gabarito não vai ao navegador antes da entrega. Aprovado, sai a `conclusao` com o código do certificado, e `/certificado/[codigo]` é público e imprimível, com a chancela e o CNPJ da empresa.
+- **Etapa 6, acompanhamento.** Por trilha (atribuídos, iniciados, concluídos, atrasados) e por pessoa, com filtros e **exportação CSV** que respeita os filtros. Nenhum número é contador guardado: tudo deriva da licença, do progresso e da conclusão.
+- **Etapa 7, financeiro.** Metade do do professor, e é essa a diferença do produto: mensalidade, excedente de GB e o teto de contas. Sem extrato de vendas, sem subconta, sem apuração — a empresa paga, não recebe.
+
+**Verificação:** 347 testes de unidade e integração (24 novos em `lib/empresa-equipe.test.ts`, cobrindo teto de contas, convite, atribuição, nota e certificado), e o roteiro `scripts/demo/portal-empresa.mjs` com **41 passos no navegador** — da contratação ao certificado conferido por quem está de fora, terminando na varredura das rotas públicas no endereço da empresa.
+
+**Quatro defeitos encontrados ao percorrer o fluxo, e corrigidos:**
+
+1. **Toda prova saía zerada.** O driver do Postgres devolve BIGINT como texto; a correção comparava o id marcado (número, vindo do formulário) com o id da alternativa (texto). `5 === '5'` é falso, e o gabarito certo no banco não salvava ninguém. `::int` nas duas consultas de `lib/avaliacao.ts`, e a comparação de matéria em `podeAcessar` passou a ser numérica pelo mesmo motivo.
+2. **Ninguém conseguia responder a prova.** O rádio invisível levava `pointer-events: none`, e com isso o Chrome deixa de encaminhar ao controle o clique feito no rótulo. A alternativa não marcava, e o botão de entregar ficava desabilitado para sempre.
+3. **O RH não conseguia enviar imagem nenhuma.** `/api/upload` só aceitava professor e admin, enquanto `/empresa/site` pedia "cole aqui o endereço da imagem que você enviou" sem oferecer lugar para enviá-la. O gestor entrou na rota (com o portal vindo do vínculo, nunca da requisição) e a tela ganhou o enviador.
+4. **Quem passava na prova perdia a correção.** Terminada a ação de servidor, o Next re-renderiza a rota, e a página — vendo a trilha agora concluída — trocava o resultado recém-calculado por um resumo. A escolha entre "resultado desta tentativa" e "resumo de quem já passou" mudou-se para o cliente, que é quem sabe se houve entrega agora.
+
+**Ainda pendente:** a transversal de e-mail (o convite continua sendo link copiado à mão), a sequência obrigatória entre aulas de uma trilha, e a troca de plano em autosserviço.
+
+#### Fora do escopo desta rodada
+
+SSO (SAML/Google Workspace) · API de RH · múltiplas unidades e centros de custo · relatório agregado anonimizado (§12-B.1) · gamificação · trilhas por cargo com pré-requisito entre trilhas · transcodificação/CDN (pendência já listada no §5.10) · nota fiscal automática da mensalidade. Tudo isso é Enterprise, e Enterprise fecha por proposta.
+
+#### Riscos específicos
+
+| Risco | Impacto | Mitigação |
+|---|---|---|
+| Página do portal EMPRESA vazar conteúdo por uma rota esquecida (catálogo, aula, `/api/video`, sitemap) | Crítico | A regra "EMPRESA exige sessão" mora em um ponto só (`espectadorAtual` / guarda de rota), e o e2e tenta cada rota anonimamente |
+| Convite por link compartilhado com quem não devia | Médio | Token de uso único, expira em 7 dias, preso ao e-mail informado; aceitar exige criar a senha naquele e-mail |
+| Teto de contas contornado por conta "desativada e reativada" | Baixo | O teto conta contas ATIVAS; reativar passa pela mesma conferência |
+| Empresa sair e exigir os dados (LGPD, art. 18) | Médio | Exportação CSV de colaboradores e progresso desde a etapa 6; prazo de retenção pós-encerramento vai ao contrato (§16.16 vale para empresa também) |
+
+---
+
+### 5.12 Calculadora Penal — dosimetria, prescrição, decadência e perempção (planejamento de 05/09/2026)
+
+Terceira ferramenta do menu **Ferramentas**, ao lado do vade-mécum e do mural de vagas. O vade-mécum responde "o que a lei diz"; a calculadora responde "o que a lei dá neste caso" — e mostra, passo a passo, de onde cada número saiu.
+
+**A promessa ao aluno:** "escolha a lei e o crime, descreva o caso, e veja a pena calculada nas três fases do art. 68 do CP com o artigo ao lado, a regra usada em cada passo e os prazos de prescrição, decadência e perempção — cada número com o dispositivo que o sustenta e a aula que o explica."
+
+Para quem: o aluno de Direito Penal e Processo Penal, o candidato à OAB e a concursos (dosimetria e prescrição caem em toda prova de segunda fase penal) e o advogado em início de carreira que precisa conferir uma sentença. É ferramenta de **estudo e conferência**, e a tela diz isso: não substitui a análise do caso nem a jurisprudência do tribunal local.
+
+#### O que o aluno faz (fluxo em uma página)
+
+| Passo | O que acontece | Base legal mostrada |
+|---|---|---|
+| **1. Lei e crime** | Escolhe a norma (só as que têm tipos penais catalogados) e o tipo penal — por nome ("roubo"), por número ("157") ou pelo texto, com a mesma busca do vade-mécum. Escolhe a forma: caput, qualificadora, privilégio, § específico. O artigo do acervo aparece ao lado com o bloco **Pena** em destaque (o `partirDispositivo` já o reconhece) | O próprio artigo, com o carimbo "texto conferido em" |
+| **2. O caso** | Data do fato · **nascimento do agente** (menor de 18 é inimputável, art. 27: a tela para e aponta o ECA) · **nascimento da vítima** (agravante do art. 61, II, h; majorantes como a do art. 121, § 4º; termo inicial do art. 111, V) · reincidência: data do trânsito da condenação anterior **e** data em que aquela pena foi cumprida ou extinta, para a temporariedade de cinco anos do art. 64, I · prisão provisória (detração) · datas processuais: recebimento da denúncia, pronúncia, sentença condenatória recorrível, trânsito para a acusação e para ambos · conhecimento da autoria (decadência) · último ato do querelante (perempção). Cada data é opcional: o que não for informado deixa o cálculo correspondente marcado como "falta dado" | arts. 2º, 10, 42, 63 e 64 CP |
+| **3. Primeira fase** | As oito circunstâncias do art. 59, marcadas como desfavoráveis quando for o caso. Fração por circunstância configurável: **1/8 do intervalo entre mínimo e máximo** (padrão, critério do STJ) ou 1/6 da pena mínima. A pena-base nunca sai dos limites do tipo | art. 59 CP |
+| **4. Segunda fase** | Agravantes (arts. 61 e 62) e atenuantes (arts. 65 e 66), fração padrão de 1/6. Aplica a preponderância do art. 67, a compensação reincidência × confissão (Tema 585 STJ) e a Súmula 231 do STJ (atenuante não leva abaixo do mínimo) | arts. 61 a 67 CP |
+| **5. Terceira fase** | Causas gerais — tentativa (art. 14), arrependimento posterior (art. 16), semi-imputabilidade (art. 26, p. ún.), participação de menor importância (art. 29, § 1º), concurso formal (art. 70), continuidade (art. 71, com a tabela por número de crimes) — e as **específicas do tipo**, vindas do catálogo (art. 157, § 2º e § 2º-A; art. 33, § 4º e art. 40 da Lei de Drogas etc.). Podem sair dos limites. Ordem: parte especial antes da geral; incidência em cascata (padrão) ou somada; concurso de causas do art. 68, p. ún. | arts. 14, 16, 26, 29, 68, 70 e 71 CP |
+| **6. Outros crimes** | Botão "adicionar crime": material soma (art. 69); formal e continuado exasperam a maior; unificação pelo teto do art. 75 (40 anos para fato a partir de 23/01/2020; 30 antes) | arts. 69 a 76 CP |
+| **7. Resultado** | Tudo o que está na seção abaixo, numa página com endereço próprio | — |
+
+#### O que a tela devolve
+
+- **Pena definitiva** em anos, meses e dias, e **multa** em dias-multa × valor do dia (arts. 49 e 60), com a **memória de cálculo**: uma linha por operação, cada uma com o dispositivo, o link para ele no vade-mécum e o "explicado na aula" (reaproveita `aulasQueExplicam`).
+- **Regime inicial** (art. 33, §§ 2º e 3º; Súmulas 718 e 719 do STF, 440 do STF e 269 do STJ), já considerada a detração para esse fim (art. 387, § 2º, CPP).
+- **Substituição por restritiva de direitos** (art. 44, com a Súmula 588 do STJ na violência doméstica) e **sursis** (art. 77, inclusive etário e humanitário).
+- **Institutos despenalizadores**, que dependem só da pena em abstrato e por isso saem de graça: infração de menor potencial ofensivo (pena máxima ≤ 2 anos, art. 61 da Lei 9.099/95), suspensão condicional do processo (mínima ≤ 1 ano, art. 89) e acordo de não persecução penal (mínima < 4 anos, sem violência ou grave ameaça, art. 28-A CPP).
+- **Execução**: fração de **progressão** (art. 112 da LEP — 1/6, 2/5 e 3/5 para fato anterior a 23/01/2020; os percentuais de 16% a 70% depois; feminicídio pela Lei 14.994/24, a conferir na etapa 2) e de **livramento condicional** (art. 83), com as datas estimadas quando a data da prisão for informada.
+- **Prescrição**, em linha do tempo: pretensão punitiva em abstrato (art. 109, pela máxima com a maior majorante e a menor minorante; termo inicial do art. 111), redução pela metade (art. 115: agente **menor de 21 anos na data do fato** ou **maior de 70 na data da sentença** — a idade sai da data de nascimento, e a tela mostra a conta), interrupções (art. 117) e suspensões (art. 116); retroativa e intercorrente pela pena aplicada (art. 110, § 1º, com a vedação da Lei 12.234/10 para fato posterior a 05/05/2010); pretensão executória (art. 110, caput, acrescida de 1/3 se reincidente — **só nela**: o acréscimo não alcança a retroativa nem a intercorrente, Súmula 220 do STJ; termo inicial do art. 112 com o Tema 788 do STF, que exige o trânsito para ambas as partes); **multa** (art. 114: dois anos quando é a única pena cominada ou aplicada; quando cumulada com a privativa, prescreve junto com ela, no mesmo prazo); **imprescritibilidade** marcada no catálogo, tipo a tipo (racismo e injúria racial, ação de grupos armados contra a ordem constitucional — CF, art. 5º, XLII e XLIV; Lei 14.532/23): para esses tipos a linha do tempo não tem vencimento, e a tela diz por quê.
+- **Linha do tempo do processo**, que é o que justifica qual prescrição está correndo. Ela vai do fato à execução em trechos — fato → recebimento da denúncia → (pronúncia → confirmação) → sentença condenatória → trânsito para a acusação → trânsito para ambos → execução — e em cada trecho escreve **qual modalidade corre ali** e por quê: até a sentença, a punitiva em abstrato pela pena máxima; da sentença em diante, com trânsito para a acusação, a retroativa (olhando para trás) e a intercorrente (olhando para frente) pela pena aplicada; após o trânsito para ambos, a executória. Cada trecho traz o prazo aplicável, o vencimento e, com as datas informadas, **em que fase o processo está hoje**, quanto tempo já correu naquela fase e quanto falta. Trecho já vencido acende em vermelho com o dispositivo; data que falta aparece como "informe para calcular". Decadência e perempção entram na mesma linha, antes da denúncia e durante a ação privada.
+- **Ficha do caso**: as informações derivadas que o aluno precisa enxergar para conferir as premissas — idade do agente na data do fato e na data da sentença (e o que cada uma disparou: art. 115, atenuante do art. 65, I, sursis etário do art. 77, § 2º); idade da vítima na data do fato (e o que disparou); se há reincidência e até quando ela vale (art. 64, I); qual redação da lei estava vigente na data do fato; quanto tempo decorreu desde o fato; espécie de ação penal e prazo de representação. Sem a ficha, um erro de data passa despercebido e o resultado inteiro sai errado sem ninguém ver.
+- **Decadência** (art. 103 CP e art. 38 CPP): só quando a ação for privada ou pública condicionada — o catálogo sabe a espécie de ação de cada tipo. Seis meses do conhecimento da autoria, contados como prazo **penal** (art. 10 CP: o dia do começo conta, o prazo não se prorroga, não se interrompe nem se suspende). Avisa a retratação da representação (art. 25 CPP; art. 16 da Lei Maria da Penha só em audiência) e a Súmula 542 do STJ (lesão leve doméstica é pública incondicionada).
+- **Perempção** (art. 60 CPP): só na ação privada exclusiva — não na subsidiária (art. 29 CPP). Trinta dias sem andamento; sessenta dias após a morte do querelante sem habilitação; os incisos III e IV explicados como hipóteses de ato, não de prazo. Contagem **processual** (art. 798 CPP: o dia do começo não conta, prorroga para o dia útil).
+- **"Não se aplica, porque"**: cada instituto que não couber no caso aparece com o motivo (decadência não corre em ação pública incondicionada; perempção não existe em ação pública). Ensinar pela negativa é metade do valor da ferramenta em prova.
+
+#### Decisões tomadas neste plano
+
+| Tema | Decisão | Por quê |
+|---|---|---|
+| **Motor** | Módulo puro em `lib/penas/`, sem banco e sem React: `tempo.ts` (dias ↔ anos/meses/dias, arts. 10 e 11 CP, prazo processual do art. 798 CPP), `dosimetria.ts`, `regime.ts`, `execucao.ts`, `prescricao.ts`, `decadencia.ts`, `perempcao.ts`. Pena representada em **dias inteiros**; frações de dia desprezadas ao fim de cada operação (art. 11 CP) | É a parte que erra caro e a que mais muda: precisa rodar em `node --test` sem navegador nem `DATABASE_URL`, como `navegacao.ts` e `vademecum-texto.ts`. Ponto flutuante em pena é fonte de "3 anos, 11 meses e 29 dias" onde a lei dá 4 anos |
+| **Catálogo de regras em código, não em tabela** | `lib/penas/catalogo/cp.ts`, `drogas.ts`, `maria-da-penha.ts`… tipados, com `conferidoEm` por norma. Cada tipo e cada causa apontam para o acervo por `(normaSlug, rotulo)`; o **texto legal vem da tabela `dispositivo`** em tempo de execução. Não nasce tabela de regras nem tela de admin para elas | Regra jurídica exige revisão humana, histórico e diff — o git faz isso; um formulário de admin não. E o acervo continua sendo a única fonte do texto da lei, com o mesmo carimbo de conferência do vade-mécum |
+| **Lei no tempo** | Toda regra do catálogo tem `vigenciaDe` e `vigenciaAte`; a **data do fato** escolhe a versão (CF, art. 5º, XL; art. 2º CP). Quando a lei nova é mais benéfica só em parte, a tela avisa que não se combinam (Súmula 501 STJ) | Pacote Anticrime (23/01/2020), Lei 12.234/10, Lei 13.718/18, Lei 14.994/24 e Lei 14.811/24 mudaram exatamente as regras que a calculadora aplica. Sem a data do fato, metade dos resultados estaria errada para metade dos casos |
+| **Critério jurisprudencial parametrizado** | Onde há divergência (fração da 1ª fase, cascata × soma na 3ª, compensação reincidência × confissão, termo inicial da executória), o padrão é o majoritário do STJ e o aluno pode trocar. A tela sempre diz qual critério usou | A calculadora não pode se apresentar como "a resposta" — em prova, quem sabe justificar o critério ganha o ponto; na prática, o tribunal local decide |
+| **Resultado é uma URL** | O estado do cálculo vive nos `searchParams`; o resultado é renderizado no servidor, como o vade-mécum. Permalink, imprimível pelo navegador, sem sessão. O formulário é componente de cliente com prévia da pena ao vivo | O aluno cola o link no grupo de estudo e o professor cola na aula; e a tela de resultado indexa. Salvar exige sessão — `calculo_pena` |
+| **Gratuita e pública** | Aberta como o vade-mécum (§5.4): a lei é pública, e a ferramenta é porta de entrada e SEO. Histórico salvo só logado. Disponível também no portal do professor (ferramenta de estudo, como a biblioteca); no portal de empresa, atrás da guarda de `app/guarda-empresa.ts` | Mesma regra do `Cabecalho`: no portal do professor o menu Ferramentas perde só o mural de vagas |
+| **Escopo de normas da v1** | Lista **fechada** de tipos: Código Penal (os mais cobrados — homicídio e feminicídio, lesão corporal inclusive doméstica, furto, roubo, extorsão, estelionato, receptação, estupro e estupro de vulnerável, peculato, corrupção ativa e passiva, ameaça, perseguição, entre 40 e 60 tipos), Lei de Drogas (arts. 28, 33, 33 § 4º, 35 e 40) e Lei Maria da Penha (via art. 129, §§ 9º e 13, art. 147-B CP e art. 24-A). Uma norma entra quando todos os seus tipos catalogados passam pela conferência | Catalogar o Código Penal inteiro são 300+ tipos revisados à mão. Melhor 50 certos que 300 duvidosos — o aluno percebe o erro no crime que ele estuda |
+| **Acervo cresce junto** | Entram no `CATALOGO` do `scripts/importar-leis.mjs`: Lei 8.072/90 (hediondos), 9.099/95 (juizados), 9.455/97 (tortura), 9.503/97 (CTB), 9.605/98 (ambiental), 9.613/98 (lavagem), 10.826/03 (desarmamento), 12.850/13 (organização criminosa), 13.869/19 (abuso de autoridade) e DL 3.688/41 (contravenções) | A calculadora cita a Lei de Hediondos em todo regime e progressão; sem ela no acervo, o link "ver o artigo" quebra. As demais são as próximas normas com tipos penais |
+| **Extrator de penas** | `scripts/extrair-penas.mjs` lê os blocos `pena` do acervo ("reclusão, de seis a vinte anos, e multa") e gera um **rascunho** do catálogo para revisão — não grava nada sozinho | O parser já isola a linha da pena; converter "seis a vinte anos" em dias é regra fechada. O que não é fechado — espécie de ação penal, hediondez, causas específicas — fica para a revisão humana |
+| **Menu** | Item **Calculadora Penal** em `FERRAMENTAS` (`app/componentes.tsx`), chave `calculadora-penal`, rota `/calculadora-penal`, ícone `calculate`, sem `naBarra` | Segue a regra do `MenuFerramentas`: quem mora só no submenu acende o gatilho |
+
+#### Modelo de dados
+
+Banco só para o que é do aluno; a regra fica no código.
+
+```
+calculo_pena (id, usuario_id, portal_id, titulo, entrada JSONB, resultado JSONB,
+              versao_catalogo TEXT, criado_em)
+  -- `versao_catalogo` é o conferidoEm do catálogo usado: um cálculo salvo em
+  -- 2026 continua legível em 2028, e a tela avisa se a regra mudou desde então
+```
+
+Tipos do catálogo (TypeScript, em `lib/penas/tipos.ts`):
+
+```
+TipoPenal   { id 'cp-157-2', norma 'cp', rotulo 'Art. 157', forma '§ 2º', nome,
+              especie RECLUSAO|DETENCAO|PRISAO_SIMPLES, penaMinDias, penaMaxDias, multa,
+              acaoPenal PUBLICA_INCONDICIONADA|PUBLICA_CONDICIONADA|PRIVADA,
+              elemento DOLOSO|CULPOSO|PRETERDOLOSO, violenciaOuGraveAmeaca,
+              hediondo NAO|HEDIONDO|EQUIPARADO, imprescritivel: boolean, vigenciaDe, vigenciaAte?,
+              causasEspecificas: CausaId[], observacoes }
+Causa       { id, fase 2|3, sinal +|-, fracaoMin, fracaoMax (iguais quando fixa),
+              base { norma, rotulo }, escopo GERAL | tipo(s), preponderante?, vigenciaDe, vigenciaAte? }
+Caso        { tipos: [{ tipoId, circunstancias59[], agravantes[], atenuantes[], causas[] }],
+              concurso MATERIAL|FORMAL|CONTINUADO, datas {...},
+              agente { nascimento, reincidente, transitoAnterior?, extincaoAnterior? },
+              vitima { nascimento? }, criterios {...} }
+Resultado   { penas por crime e unificada, memoria: Passo[], regime, substituicao, sursis,
+              despenalizadores, execucao, prescricao: Marco[], decadencia, perempcao,
+              linhaDoTempo: Trecho[]  -- fase, modalidade que corre, prazo, vencimento, situação hoje
+              ficha: Derivado[]        -- idade do agente/vítima e o que dispararam, reincidência, lei vigente
+              avisos[] }
+```
+
+#### Sequência de construção
+
+| # | Etapa | Entrega | Depende de |
+|---|---|---|---|
+| **0** | **Motor de tempo e de pena** | `lib/penas/tempo.ts` e `dosimetria.ts` com as três fases, limites, cascata, concurso de crimes, art. 75 por data do fato, detração e multa · testes com **casos-referência de acórdãos publicados** (pena informada no voto = pena calculada) | — |
+| **1** | **Catálogo v1 e acervo** | Tipos do CP, da Lei de Drogas e da Maria da Penha · `scripts/extrair-penas.mjs` · as dez normas novas no `importar-leis.mjs` · teste de integração (com `DATABASE_URL`): todo `(norma, rotulo)` do catálogo existe no acervo e a pena catalogada bate com o bloco `pena` extraído | 0 |
+| **2** | **Consequências da pena** | `regime.ts` (regime inicial, substituição, sursis, despenalizadores) e `execucao.ts` (progressão e livramento por data do fato, com conferência das frações da Lei 14.994/24) | 0, 1 |
+| **3** | **Extinção da punibilidade** | `prescricao.ts` (abstrata, retroativa, intercorrente, executória, multa, imprescritibilidade, com marcos para a linha do tempo), `decadencia.ts` e `perempcao.ts` | 0, 1 |
+| **4** | **Tela** | `/calculadora-penal`: seleção do tipo com a busca do acervo · formulário por fases (cliente, com prévia ao vivo) · resultado renderizado no servidor a partir da URL · artigo ao lado com "explicado na aula" · linha do tempo da prescrição · imprimir · item no menu Ferramentas · guarda de empresa · `testes-e2e/calculadora-penal.mjs` | 2, 3 |
+| **5** | **Histórico e pontes** | Salvar cálculo (logado) e listar em `/conta` · botão **"Calcular a pena"** no vade-mécum em todo artigo que tenha bloco `pena` e esteja no catálogo · link "reportar erro neste cálculo" (abre e-mail ou formulário simples com a URL do cálculo) | 4 |
+
+Estimativa no ritmo do §14 (5 a 15 h/semana): etapas 0 e 1 em 2 a 3 semanas (a 1 é a mais demorada: é leitura de lei, não código); 2 e 3 em 2 a 3; 4 em 2 a 3; 5 em 1. **Sete a dez semanas.** A etapa 1 pode ser fatiada por norma: o CP sozinho já entrega a ferramenta.
+
+#### Verificação exigida por etapa
+
+- **Unidade** (sem banco): conversão dias ↔ anos/meses/dias e desprezo de fração (art. 11); pena-base presa aos limites; Súmula 231; preponderância do art. 67; cascata × soma na 3ª fase; tabela da continuidade; art. 75 por data do fato; tabela do art. 109 nas duas versões (antes e depois da Lei 12.234/10); art. 115 nas duas pontas (20 anos na data do fato reduz; 21 completos no dia do fato não reduz; 70 na data da sentença reduz, 70 completados depois dela não) e o mesmo nascimento disparando a atenuante do art. 65, I; menor de 18 na data do fato interrompe o cálculo; temporariedade do art. 64, I (reincidência caduca cinco anos após a extinção da pena anterior); sequência de interrupções do art. 117 recomeçando o prazo; +1/3 da executória para reincidente **e ausência do acréscimo** na retroativa e na intercorrente (Súmula 220); multa do art. 114 isolada (dois anos) e cumulada (acompanha a privativa); tipo imprescritível nunca vence, qualquer que seja a data; linha do tempo: com as mesmas datas, a fase apontada e a modalidade que corre em cada trecho, inclusive quando faltam datas; decadência em prazo penal (fato conhecido em 15/03 decai em 14/09; o dia do começo conta; 31/08 + 6 meses cai em 28/02); perempção em prazo processual (feriado e fim de semana prorrogam); **casos-referência**: pelo menos dez dosimetrias de acórdãos do STJ com os números publicados, reproduzidas ao dia.
+- **Integração** (com `DATABASE_URL`): catálogo × acervo (rótulo existe; pena bate com o texto); `calculo_pena` salvo só com sessão e só lido pelo dono.
+- **Ponta a ponta**: o aluno escolhe roubo majorado tentado, preenche o caso, confere pena, regime e prescrição na tela, abre o artigo no vade-mécum pelo link, imprime; anônimo no endereço de uma empresa não vê a ferramenta.
+
+#### Melhorias avaliadas além do pedido
+
+O pedido foi: cálculo por lei escolhida, artigo, regra de cálculo, prescrição, decadência e perempção. O que segue foi avaliado e dividido em duas listas — o que entra na v1 porque custa pouco e muda o produto, e o que fica para depois.
+
+**Entram na v1 (custo baixo, valor alto):**
+
+1. **Memória de cálculo pedagógica** — cada operação com o dispositivo e o link; é o que transforma a calculadora em aula.
+2. **Institutos despenalizadores** (IMPO, suspensão condicional do processo, ANPP) — saem da pena em abstrato, que já está no catálogo; três linhas de regra, e são pergunta certa de prova.
+3. **Regime, substituição, sursis, progressão e livramento** — o aluno que calculou a pena quer saber "e daí?"; sem isso a ferramenta para no meio da história.
+4. **Linha do tempo do processo** — as fases desenhadas, com a modalidade de prescrição que corre em cada uma, o vencimento e a fase atual; a prescrição é o assunto que o aluno menos entende em texto e mais entende em desenho, e é a fase do processo que justifica qual prazo se aplica.
+5. **Lei no tempo** — versão da regra pela data do fato, com o aviso de qual lei foi aplicada. É requisito de correção, não enfeite, mas merece a etiqueta "compare antes e depois do Pacote Anticrime" na tela.
+6. **"Não se aplica, porque"** — explicar a negativa.
+7. **Permalink e impressão** — do desenho da tela, sem custo adicional.
+8. **Ponte com o vade-mécum e com as aulas** — botão no artigo e "explicado na aula" no resultado; é o método da casa (§5.4, deep link bidirecional).
+9. **Reportar erro** — regra jurídica muda e a calculadora vai errar em algum caso; o aluno que avisa é o revisor mais barato.
+
+**Ficam para depois (anotadas para não se perder):**
+
+- **Calculadora de execução penal completa** — data-base, remição (art. 126 LEP), unificação de várias condenações, falta grave, comutação e indulto pelo decreto do ano. É a extensão natural e o que o advogado criminalista mais usa; vale uma rodada própria.
+- **Modo prova** — o aluno faz a dosimetria do caso e o sistema corrige passo a passo; vira o "caso prático discursivo com espelho" do §5.5 v2 sem custo novo de conteúdo.
+- **Comparação lado a lado** — duas dosimetrias do mesmo caso (tese da defesa × da acusação); útil na prática e na segunda fase da OAB.
+- **Família de calculadoras** — prazos processuais (CPC e CPP, com feriados), prescrição civil (arts. 205 e 206 CC), trabalhista (CF, art. 7º, XXIX), tributária (arts. 173 e 174 CTN). O item do menu vira "Calculadoras" quando houver a segunda. O `tempo.ts` desta rodada já nasce servindo a todas.
+- **Páginas por crime para busca** — "pena do art. 157 do CP" como página estática com o artigo, a pena, o regime possível e a prescrição em abstrato; é a porta de entrada orgânica que o §10 pede do Next.js.
+- **Medidas socioeducativas do ECA e Código Penal Militar** — outro regime, outro motor; fora até haver matéria correspondente no catálogo.
+- **Telemetria de uso** — quais tipos são mais calculados orienta que aula produzir primeiro.
+
+#### Estado da implantação (05/09/2026)
+
+**Etapas 0 a 5 implantadas na mesma rodada.** O que o plano previa em sete a dez semanas coube num dia porque o motor é puro e o acervo já existia; o que NÃO coube foi a revisão jurídica externa (§16.25), que continua pendente — a ferramenta está no ar marcada como "estudo e conferência".
+
+- **Motor** em `lib/penas/`: `tempo.ts` (pena em dias, prazo penal do art. 10 e processual do art. 798, feriados, idade), `dosimetria.ts` (três fases, Súmula 231, Tema 585, art. 68 p. ún., cascata × soma, concurso, art. 75 por data, multa), `regime.ts` (regime, substituição, sursis, IMPO, suspensão do processo, ANPP), `execucao.ts` (progressão e livramento em **quatro redações da LEP**), `prescricao.ts` (abstrata, retroativa, intercorrente, executória, multa, imprescritibilidade, art. 111 V, art. 115 com a exceção da Lei 15.160/25, Súmula 220, Lei 12.234/10, Tema 788 — e a **linha do tempo por fase**), `extincao.ts` (decadência, inclusive os 12 meses da Lei 15.438/26; perempção), `calcular.ts` (orquestra e monta a **ficha do caso**), `url.ts` (o caso vira URL, saneado na volta). Nada disso toca banco: 46 testes rodam sem `DATABASE_URL`.
+- **Catálogo** em `lib/penas/catalogo/`: 78 tipos (Código Penal, Lei de Drogas, Maria da Penha e Lei do Racismo), com **versões por data do fato** onde a pena mudou — furto, roubo, latrocínio, receptação e estelionato (Lei 15.397/26), lesão doméstica e art. 24-A (Lei 14.994/24) — e 60 causas de aumento e diminuição. As datas das leis de 2024–2026 foram conferidas no Planalto, e as penas foram lidas do acervo: o teste de integração `penas-catalogo.test.ts` confere, tipo a tipo, que a pena catalogada continua igual ao bloco "Pena" do texto oficial. **Achado da rodada:** o acervo, conferido em 03/09/2026, traz redações mais novas do que qualquer manual — a LEP foi reescrita em março e maio de 2026 (Leis 15.358 e 15.402: progressão de 1/6 a 85%), o roubo passou a 6 a 10 anos e o § 5º do estelionato foi revogado. Sem o acervo como fonte, o catálogo teria nascido errado.
+- **Acervo ampliado** com onze leis penais pelo `importar-leis.mjs` (hediondos, Lei 9.099/95, tortura, CTB, ambiental, lavagem, desarmamento, organização criminosa, abuso de autoridade, contravenções e Lei 7.716/89 — 834 dispositivos), para que todo artigo citado no resultado tenha link.
+- **Extrator** `scripts/extrair-penas.mjs` (`npm run penas:extrair -- cp 155 157`): lê os blocos "Pena" do acervo e imprime o rascunho do catálogo para revisão humana.
+- **Tela** `/calculadora-penal` (item "Calculadora Penal" no menu Ferramentas): formulário de cliente com prévia ao vivo, resultado renderizado no servidor a partir da URL (permalink, impressão), memória de cálculo com o artigo ao lado de cada passo e "explicado na aula", cartões de regime/substituição/sursis/despenalizadores/execução, **linha do tempo do processo** com a modalidade que corre em cada trecho e a fase atual, decadência e perempção com o "não se aplica, porque", e a **ficha do caso** com as idades e o que cada uma disparou. Guarda de portal de empresa aplicada.
+- **Histórico** (`db/035_calculo_pena.sql`, `lib/calculo-pena.ts`): o aluno logado guarda o cálculo com um nome e o reabre; cada registro leva a versão do catálogo, e a lista avisa quando a regra mudou desde então.
+- **Ponte com o vade-mécum**: todo artigo do acervo que é um crime catalogado ganhou o botão "Calcular a pena", que abre a calculadora com o tipo escolhido.
+- **Verificação:** 323 testes de unidade e integração (46 novos, entre eles os casos de borda pedidos: 21 anos no dia do fato, 70 na sentença, Súmula 220, art. 114 isolado e cumulado, imprescritível, art. 64 I, reincidência × confissão, art. 75 por data, 111 V) e `testes-e2e/calculadora-penal.mjs` com 26 checagens no navegador — do menu ao vade-mécum e de volta.
+
+**Pendências desta rodada:** revisão por profissional de Penal antes de tirar o selo de conferência (§16.25); art. 28 da Lei de Drogas (sem pena privativa: pede um caminho próprio no motor); art. 147-B do CP, que o importador do Planalto colou dentro do 147-A; contravenções, CTB, Desarmamento e Lei de Tortura entraram no acervo, mas ainda não no catálogo; e o e-mail de "reportar erro" aponta para um endereço genérico até existir o adaptador de e-mail transversal do §5.11.
+
+#### Fora do escopo desta rodada
+
+Penas de pessoa jurídica (Lei 9.605/98) · Justiça Militar · ECA · remição, indulto e comutação · atualização monetária da multa · unificação de execuções com datas distintas · jurisprudência por tribunal · cálculo de pena para o júri com quesitos.
+
+#### Riscos específicos
+
+| Risco | Impacto | Mitigação |
+|---|---|---|
+| Erro jurídico numa regra (fração, tabela, termo inicial) | Alto — o aluno leva o erro para a prova, o advogado para a petição | Casos-referência de acórdãos nos testes; `conferidoEm` por norma na tela; "reportar erro"; **revisão por profissional de Direito Penal antes de sair do beta** (§16.25) |
+| Mudança legislativa depois do lançamento | Médio | Vigência por data em toda regra; rotina de revisão trimestral do catálogo, junto da reimportação do acervo |
+| Divergência entre STF, STJ e tribunais | Médio | Critérios parametrizados com o padrão declarado; nunca uma única "resposta certa" |
+| Escopo do catálogo crescer sem fim | Médio | Lista fechada por rodada; extrator gera rascunho, humano confirma; uma norma só entra inteira |
+| Ferramenta usada como parecer | Baixo, mas de reputação | Aviso permanente "ferramenta de estudo e conferência"; a memória de cálculo mostra as premissas, e premissas erradas são visíveis |
+
 ---
 
 ## 6. Regras de negócio — licenciamento
@@ -785,7 +1113,8 @@ Escolhida para caber no seu ambiente atual (Docker Compose no WSL2, ao lado das 
 | **Repasse** | `contrato_professor` (modelo cachê/comissão, percentual, vigência), `apuracao`, `apuracao_item` (venda a venda), `repasse`, `nota_fiscal_professor` |
 | **Publicidade** | `anunciante`, `campanha_publicitaria`, `peca` (criativo, formato), `insercao` (posição × período), `metrica_peca` (impressões, cliques) |
 | **Vagas** | `vaga` (status: `rascunho → em_moderacao → publicada → pausada → expirada → removida`; `publicada_em`, `expira_em` ≤ 3 meses), `denuncia_vaga` |
-| **Futuro previsto** | `contrato_b2b` (licenças patrocinadas), `afiliado` + origem no `pedido` (§12-B) |
+| **Empresa (§5.11)** | `portal.tipo`, `portal_gestor`, `setor`, `convite`, `atribuicao`, `avaliacao`, `tentativa_avaliacao`, `conclusao`, licença de origem `B2B` |
+| **Futuro previsto** | `afiliado` + origem no `pedido` (§12-B) |
 | **Governança** | `log_auditoria`, `solicitacao_titular` (LGPD), `consentimento` |
 
 **Entidade `licenca` — o coração do sistema:**
@@ -877,6 +1206,8 @@ Soluções propostas além do escopo original, aprovadas para o discovery. Todas
 
 ### B.1 Licenças patrocinadas (B2B)
 Faculdade, empresa ou patrocinador compra **lotes de licenças** para seus alunos/funcionários. Painel do parceiro com convites por e-mail/código, relatório agregado de uso (sem dados individuais além do consentido) e renovação por contrato. É a ponte natural entre a publicidade (§5.7) e o licenciamento (§6): o anunciante de hoje é o comprador B2B de amanhã. Tecnicamente é a entidade `licenca` com origem nova (`B2B`) + entidade `contrato_b2b` — por isso vale prever agora. **Fase 3.**
+
+**Atualização de 04/09/2026:** promovida a produto em autosserviço — o **Portal da Empresa** (§5.11), que reaproveita o tenant do portal do professor em vez de criar `contrato_b2b`. Enterprise continua por proposta.
 
 ### B.2 Programa de afiliados
 Alunos, professores e influenciadores divulgam com link/cupom próprio e ganham comissão por venda. **Reutiliza integralmente o motor de fechamento de contas do professor** (§5.6.1): apuração mensal, extrato, mínimo de saque, NF. Prevista no modelo: entidade `afiliado` + rastreio de origem no `pedido`. **Fase 2–3**, após o fechamento estar rodando bem para professores.
@@ -976,6 +1307,16 @@ Estas travam o detalhamento e precisam de resposta antes da Fase 1:
 15. **Política da máscara** — regras de escolha do subdomínio (lista de nomes proibidos, colisão com rotas do sistema, marcas de terceiros), se há aprovação manual, e o que acontece com o endereço após o encerramento (prazo de reserva e destino da URL antiga).
 16. **Saída do professor** — prazo para exportar vídeos e base de alunos, prazo até a eliminação definitiva no nosso lado, e o que acontece com os alunos de licença vigente quando o portal encerra. Precisa estar no contrato antes do primeiro cliente, não depois.
 17. **Comissão do professor na venda pela NOSSA vitrine (§5.10.2, etapa 5)** — quanto ele recebe quando um aluno da plataforma compra o curso dele. O sistema nasceu com **50%** (`portal_plano.comissao_vitrine_pp`, copiada ao contrato no aceite) como hipótese: nós arcamos com gateway, marketing e suporte, ele com a produção. A faixa de mercado do §16.11 (20 a 50%) vale de referência. Definir antes de o primeiro curso compartilhado ir à vitrine.
+    **Proposta de 04/09/2026 (para ser mais atraente que Hotmart e Udemy):** **60% para o professor** na venda pela vitrine, e **70% nos 3 primeiros meses** do piloto (contrato com vigência de 90 dias, trocado depois por um de 60% — o admin já registra contratos com vigência; não há código). Comparação que se põe na mesa: a Udemy paga **37%** ao instrutor quando a venda vem do marketplace dela; na Hotmart, o produtor que depende de afiliado para vender cede 40–50% ao afiliado e ainda paga 9,9% + R$ 1 — fica com ~40–45%. Aqui, quem traz o aluno somos nós, e ele ainda fica com 60%. Margem nossa numa venda de R$ 39,90 por Pix: R$ 13,97 (35%) a 60%; R$ 9,98 a 70% — o tráfego do vídeo é do portal dele (cota que ele já paga). O argumento completo para o professor: **90% no portal dele** (Hotmart 90,1% − R$ 1, Udemy 97% mas sem site próprio, sem player protegido e sem exercícios) **e 60% quando a plataforma vende por ele**, pago até o dia 15 do mês seguinte com extrato venda a venda.
+18. **Preço do domínio próprio — DECIDIDO em 04/09/2026:** opção B do §5.10.3 — R$ 29,90/mês no plano de lançamento, incluído no plano C. Aplicado por `db/030`; muda-se no admin (Planos), sem código.
+19. **Planos da empresa em autosserviço (§5.11)** — Starter (R$ 380/mês, até 50 contas) e Pro (R$ 890/mês, até 250 contas, domínio próprio incluído) são os valores de referência da vitrine; confirmar antes de semear em `portal_plano`. Cotas de GB sugeridas iguais às do professor (100 GB + 300 GB/mês). **Endereço:** todo portal tem subdomínio, inclusive o Starter (a vitrine hoje anuncia "subdomínio exclusivo" só no Pro — corrigir). Decidir se o Starter oferece domínio próprio como extra pago (R$ 29,90, como o professor) ou não oferece; o Pro inclui.
+20. **Teste gratuito para empresa** — o plano nasce pagando, como o professor. Se a conversão pedir, um período de avaliação de 14 dias sem cartão entra depois; decidir com os primeiros leads de `interesse_empresa`.
+21. **Carga horária e validade do certificado corporativo** — soma da duração dos vídeos, arredondada para cima em horas, sem validade; confirmar com o primeiro cliente se o RH precisa de reciclagem periódica (validade + reatribuição automática).
+22. **Provedor de e-mail transacional** — SES ou Resend; decidir antes da etapa 4 do §5.11, que o usa para convites e lembretes.
+23. **Tipos penais da v1 da Calculadora Penal (§5.12)** — fechar a lista de 40 a 60 tipos do Código Penal que entram primeiro, com a Lei de Drogas e a Maria da Penha. Sugestão: os tipos das aulas de Penal já publicadas mais os dez mais cobrados na 2ª fase da OAB.
+24. ~~**Nome da ferramenta**~~ **RESPONDIDA na implantação (05/09/2026): "Calculadora Penal"**, em `/calculadora-penal`. Muda-se num lugar só (`FERRAMENTAS`, em `app/componentes.tsx`) se a decisão for outra.
+25. **Revisão jurídica externa antes do lançamento** — quem confere o catálogo e os casos-referência: um professor de Penal da casa, em troca de crédito na tela, ou revisão paga. Decide se a ferramenta sai como "beta" ou como produto.
+26. **Gratuita ou parte do plano** — o plano parte de gratuita e pública (porta de entrada, como o vade-mécum), com o histórico salvo só para quem tem conta. A alternativa é liberar só o resultado resumido ao visitante e a memória de cálculo ao assinante — decidir com os primeiros números de uso.
 
 ---
 

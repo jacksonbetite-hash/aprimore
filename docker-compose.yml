@@ -78,14 +78,36 @@ services:
       - ./nginx/aprimoreosaber.conf:/etc/nginx/conf.d/default.conf:ro
       # Somente leitura: o nginx entrega aula, nunca grava.
       - midia:/midia:ro
-    ports:
-      - "${PORTA_HTTP:-80}:80"
+    # Quem ouve a rua é o Caddy; o nginx só atende dentro da rede do Compose.
+    expose:
+      - "80"
     depends_on:
       web:
         condition: service_healthy
     restart: unless-stopped
 
+  # HTTPS de tudo — inclusive do domínio próprio de cada professor (§5.10,
+  # Fase 2), com certificado emitido sob demanda. Ver caddy/Caddyfile.
+  caddy:
+    profiles: ["vps"]
+    image: caddy:2-alpine
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL:-}
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Certificados e chaves: perder este volume é reemitir tudo.
+      - caddy-dados:/data
+      - caddy-config:/config
+    ports:
+      - "${PORTA_HTTP:-80}:80"
+      - "${PORTA_HTTPS:-443}:443"
+    depends_on:
+      - nginx
+    restart: unless-stopped
+
 volumes:
+  caddy-dados:
+  caddy-config:
   dados-postgres:
   # Mídia das aulas. Volume nomeado, e não bind mount, para não depender do
   # layout de pastas do host — mas com um aviso que vale repetir: este

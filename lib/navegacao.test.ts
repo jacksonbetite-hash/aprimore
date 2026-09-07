@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { itemAtivo } from './navegacao.ts';
+import { itemAtivo, paginaInicial } from './navegacao.ts';
 
 /**
  * O defeito que estes testes travam: com o realce fixado no código, o
@@ -49,4 +49,35 @@ test('rota fora do menu não acende nada', () => {
 test('item raiz "/" não sequestra o menu inteiro', () => {
   assert.equal(itemAtivo('/admin/precos', ['/', '/admin/precos']), '/admin/precos');
   assert.equal(itemAtivo('/', ['/', '/admin']), '/');
+});
+
+
+/**
+ * Depois de entrar, o administrador caía em "Minha jornada" — a área do
+ * aluno — e tinha de achar sozinho o atalho da retaguarda. Estes testes
+ * travam a regra nova e, sobretudo, a guarda contra redirecionamento
+ * aberto: `destino` que aponta para fora é ignorado.
+ */
+test('cada papel cai no painel dele', () => {
+  assert.equal(paginaInicial('admin', 0), '/admin');
+  assert.equal(paginaInicial('professor', 0), '/professor');
+  assert.equal(paginaInicial('aluno', 0), '/painel');
+  assert.equal(paginaInicial('revisor', 0), '/painel');
+});
+
+test('dentro do portal de um professor, papel de operação não vale', () => {
+  assert.equal(paginaInicial('admin', 7), '/painel');
+  assert.equal(paginaInicial('professor', 7), '/painel');
+});
+
+test('destino interno vence o padrão do papel', () => {
+  assert.equal(paginaInicial('aluno', 0, '/conta'), '/conta');
+  assert.equal(paginaInicial('admin', 0, '/admin/precos'), '/admin/precos');
+});
+
+test('destino para fora do site é ignorado — nada de redirecionamento aberto', () => {
+  assert.equal(paginaInicial('aluno', 0, 'https://phishing.exemplo'), '/painel');
+  assert.equal(paginaInicial('aluno', 0, '//phishing.exemplo'), '/painel');
+  assert.equal(paginaInicial('admin', 0, ''), '/admin');
+  assert.equal(paginaInicial('admin', 0, null), '/admin');
 });

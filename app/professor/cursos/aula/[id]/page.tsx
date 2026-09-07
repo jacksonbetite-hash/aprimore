@@ -8,7 +8,7 @@ import { acaoEditarAula, acaoStatusAula, acaoSalvarQuestao, acaoExcluirQuestao }
 import { buscarAula, listarAssuntos, exercicioDaAula } from '../../../../../lib/admin-cursos.ts';
 import { alunoAtual } from '../../../../../lib/sessao.ts';
 import { portalDoProfessor } from '../../../../../lib/professor.ts';
-import { dominioBase } from '../../../../../lib/portal.ts';
+import { enderecoDoPortal } from '../../../../../lib/portal-consultas.ts';
 
 export const metadata: Metadata = { title: 'Aula — Painel do professor' };
 
@@ -27,7 +27,7 @@ export default async function AulaDoProfessor(
   const [assuntos, questoes] = await Promise.all([
     listarAssuntos(portal.id, aula.materiaId), exercicioDaAula(portal.id, aulaId),
   ]);
-  const endereco = `http://${portal.mascara}.${dominioBase()}`;
+  const endereco = await enderecoDoPortal(portal.mascara);
 
   return (
     <>

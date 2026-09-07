@@ -10,8 +10,9 @@ import { conferirDominio, dominioBase, PORTAL_PLATAFORMA, type Portal } from './
  */
 export function buscarPortalPorDominio(dominio: string) {
   return queryOne<Portal>(
-    `SELECT id::int AS id, mascara, nome_exibicao AS "nomeExibicao", status, personalizacao,
-            responsavel_nome AS "responsavelNome", responsavel_doc AS "responsavelDoc"
+    `SELECT id::int AS id, mascara, nome_exibicao AS "nomeExibicao", status, tipo, personalizacao,
+            responsavel_nome AS "responsavelNome", responsavel_doc AS "responsavelDoc",
+            dominios_email AS "dominiosEmail"
        FROM portal
       WHERE lower(dominio_proprio) = lower($1) AND dominio_verificado_em IS NOT NULL
         AND status IN ('ATIVO', 'SUSPENSO')`,

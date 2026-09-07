@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import ConteudoAula from './ConteudoAula.tsx';
 import { buscarAula } from '../../../lib/catalogo.ts';
 import { portalIdAtual } from '../../../lib/portal-consultas.ts';
+import { exigirPortalAberto } from '../../guarda-empresa.ts';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,5 +19,6 @@ export async function generateMetadata(
 /** Aula do próprio portal em que se está. A tela mora em ConteudoAula. */
 export default async function PaginaAula({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
+  await exigirPortalAberto(`/aula/${slug}`);
   return <ConteudoAula slug={slug} portalDoCurso={await portalIdAtual()} base="" oferta={null} />;
 }

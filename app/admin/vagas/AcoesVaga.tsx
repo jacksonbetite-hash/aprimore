@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { BotaoIcone } from '../../ui.tsx';
 import { DIAS_MAXIMOS, type StatusVaga } from '../../../lib/vagas-rotulos.ts';
 
 type Acao = (dados: FormData) => Promise<void>;
@@ -32,9 +33,9 @@ export default function AcoesVaga({
           style={{ width: '100%', padding: '8px 10px', borderRadius: 8,
                    border: '1px solid var(--outline-variant)' }} />
         <div className="acoes-linha">
-          <button className="btn btn-primario btn-sm" type="submit">Confirmar recusa</button>
-          <button className="btn btn-contorno btn-sm" type="button"
-            onClick={() => setRecusando(false)}>Cancelar</button>
+          <BotaoIcone icone="check" rotulo="Confirmar recusa" variante="primario" />
+          <BotaoIcone icone="close" rotulo="Cancelar" tipo="button"
+            aoClicar={() => setRecusando(false)} />
         </div>
       </form>
     );
@@ -49,35 +50,34 @@ export default function AcoesVaga({
             aria-label="Dias de vigência" title={`Máximo de ${DIAS_MAXIMOS} dias (§5.7.1)`}
             style={{ width: 68, padding: '6px 8px', borderRadius: 8,
                      border: '1px solid var(--outline-variant)' }} />
-          <button className="btn btn-primario btn-sm" type="submit">Aprovar</button>
+          <BotaoIcone icone="check_circle" rotulo="Aprovar e publicar" variante="primario" />
         </form>
       )}
 
       {vaga.status === 'publicada' && (
         <form action={pausar}>
           <input type="hidden" name="id" value={vaga.id} />
-          <button className="btn btn-contorno btn-sm" type="submit">Pausar</button>
+          <BotaoIcone icone="pause" rotulo="Pausar" />
         </form>
       )}
 
       {vaga.status === 'pausada' && (
         <form action={retomar}>
           <input type="hidden" name="id" value={vaga.id} />
-          <button className="btn btn-contorno btn-sm" type="submit">Retomar</button>
+          <BotaoIcone icone="play_arrow" rotulo="Retomar" />
         </form>
       )}
 
       {(vaga.status === 'expirada' || vaga.status === 'removida') && (
         <form action={repor}>
           <input type="hidden" name="id" value={vaga.id} />
-          <button className="btn btn-contorno btn-sm" type="submit">Repor na fila</button>
+          <BotaoIcone icone="replay" rotulo="Repor na fila" />
         </form>
       )}
 
       {vaga.status !== 'removida' && (
-        <button className="btn btn-contorno btn-sm" type="button" onClick={() => setRecusando(true)}>
-          {naFila ? 'Recusar' : 'Remover'}
-        </button>
+        <BotaoIcone icone="block" rotulo={naFila ? 'Recusar' : 'Remover'} variante="perigo"
+          tipo="button" aoClicar={() => setRecusando(true)} />
       )}
 
       {vaga.moderadaPor && (

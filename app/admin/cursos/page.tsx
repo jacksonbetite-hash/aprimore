@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { Icone } from '../../componentes.tsx';
+import { Icone, BotaoIcone, LinkIcone, EdicaoNaLinha } from '../../ui.tsx';
 import SeletorPortal from './SeletorPortal.tsx';
 import FormArea from './FormArea.tsx';
 import {
@@ -60,32 +60,26 @@ export default async function Cursos(
         </p>
         <FormArea acao={acaoSalvarArea} portalId={portalId} />
         <table className="tabela" style={{ marginTop: 16 }}>
-          <thead><tr><th>Área</th><th>Endereço</th><th>Cursos</th><th>Ordem e ações</th></tr></thead>
+          <thead><tr><th>Área</th><th>Endereço</th><th>Ordem</th><th>Cursos</th><th>Ações</th></tr></thead>
           <tbody>
             {areas.map((a) => (
               <tr key={a.id}>
                 <td><strong>{a.nome}</strong></td>
                 <td className="suave mono">{a.slug}</td>
+                <td className="apertado">{a.ordem}</td>
                 <td>{a.materias || <span className="suave">nenhum</span>}</td>
                 <td>
                   <div className="acoes-linha">
-                    <form action={acaoEditarAreaLinha} className="acoes-linha">
+                    <EdicaoNaLinha acao={acaoEditarAreaLinha} nome={a.nome} ordem={a.ordem}
+                                   oQue={`a área ${a.nome}`}>
                       <input type="hidden" name="portalId" value={portalId} />
                       <input type="hidden" name="id" value={a.id} />
-                      <input name="nome" defaultValue={a.nome} aria-label={`Nome de ${a.nome}`}
-                        style={{ width: 170, padding: '6px 10px', borderRadius: 8,
-                                 border: '1px solid var(--outline-variant)' }} />
-                      <input name="ordem" type="number" defaultValue={a.ordem}
-                        aria-label={`Ordem de ${a.nome}`}
-                        style={{ width: 72, padding: '6px 10px', borderRadius: 8,
-                                 border: '1px solid var(--outline-variant)' }} />
-                      <button className="btn btn-contorno btn-sm" type="submit">Salvar</button>
-                    </form>
+                    </EdicaoNaLinha>
                     {a.materias === 0 && (
                       <form action={acaoExcluirArea}>
                         <input type="hidden" name="portalId" value={portalId} />
                         <input type="hidden" name="id" value={a.id} />
-                        <button className="btn btn-contorno btn-sm" type="submit">Excluir</button>
+                        <BotaoIcone icone="delete" rotulo="Excluir" variante="perigo" />
                       </form>
                     )}
                   </div>
@@ -93,7 +87,7 @@ export default async function Cursos(
               </tr>
             ))}
             {areas.length === 0 && (
-              <tr><td colSpan={4}><div className="vazio">Nenhuma área ainda — comece por uma.</div></td></tr>
+              <tr><td colSpan={5}><div className="vazio">Nenhuma área ainda — comece por uma.</div></td></tr>
             )}
           </tbody>
         </table>
@@ -134,23 +128,18 @@ export default async function Cursos(
                 <td><span className={`chip chip-sm ${CHIP[m.status]}`}>{m.status.replace('_', ' ')}</span></td>
                 <td>
                   <div className="acoes-linha">
-                    {m.status === 'publicado' ? (
-                      <form action={acaoStatusMateria}>
-                        <input type="hidden" name="portalId" value={portalId} />
-                        <input type="hidden" name="id" value={m.id} />
-                        <input type="hidden" name="status" value="rascunho" />
-                        <button className="btn btn-contorno btn-sm" type="submit">Despublicar</button>
-                      </form>
-                    ) : (
-                      <form action={acaoStatusMateria}>
-                        <input type="hidden" name="portalId" value={portalId} />
-                        <input type="hidden" name="id" value={m.id} />
-                        <input type="hidden" name="status" value="publicado" />
-                        <button className="btn btn-primario btn-sm" type="submit">Publicar</button>
-                      </form>
-                    )}
-                    <Link className="btn btn-contorno btn-sm"
-                      href={`/admin/cursos/${m.id}?portal=${portalId}`}>Aulas</Link>
+                    <LinkIcone href={`/admin/cursos/${m.id}?portal=${portalId}`}
+                      icone="menu_book" rotulo="Assuntos e aulas" />
+                    <form action={acaoStatusMateria}>
+                      <input type="hidden" name="portalId" value={portalId} />
+                      <input type="hidden" name="id" value={m.id} />
+                      <input type="hidden" name="status"
+                        value={m.status === 'publicado' ? 'rascunho' : 'publicado'} />
+                      <BotaoIcone
+                        icone={m.status === 'publicado' ? 'visibility_off' : 'visibility'}
+                        rotulo={m.status === 'publicado' ? 'Despublicar' : 'Publicar'}
+                        variante={m.status === 'publicado' ? 'contorno' : 'primario'} />
+                    </form>
                   </div>
                 </td>
               </tr>

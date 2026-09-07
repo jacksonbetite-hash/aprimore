@@ -64,7 +64,8 @@ async function lojaPronta() {
     `INSERT INTO materia (portal_id, area_id, slug, nome, ementa, status)
      VALUES ($1, $2, 'm', 'Matéria', 'e', 'publicado') RETURNING id`, [r.portalId, area.id]);
   await query(`INSERT INTO preco (portal_id, produto, periodo, centavos, vigente_de)
-               VALUES ($1, 'MATERIA', 'mensal', 20000, '2026-01-01')`, [r.portalId]);
+               VALUES ($1, 'MATERIA', 'mensal', 20000, '2026-01-01')
+               ON CONFLICT DO NOTHING`, [r.portalId]);
   const email = `aluno-indic-${n}@exemplo.com`;
   const comprar = () => abrirPedido(r.portalId, aluno.id, email, 'MATERIA', 'mensal', mat.id, 'PIX');
   return { portalId: r.portalId, alunoId: aluno.id, comprar };

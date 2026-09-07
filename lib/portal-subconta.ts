@@ -31,12 +31,12 @@ export const MOTIVO_SEM_SUBCONTA =
  */
 export async function abrirSubconta(portalId: number) {
   const portal = await queryOne<{
-    id: number; situacao: string; nome: string | null;
+    id: number; tipo: string; situacao: string; nome: string | null;
     email: string | null; cnpj: string | null;
     telefone: string | null; renda: number | null;
     endereco: DadosSubconta['endereco'];
   }>(
-    `SELECT id, subconta_situacao AS situacao, responsavel_nome AS nome,
+    `SELECT id, tipo, subconta_situacao AS situacao, responsavel_nome AS nome,
             responsavel_email AS email, responsavel_doc AS cnpj,
             responsavel_telefone AS telefone, responsavel_renda_centavos AS renda,
             responsavel_endereco AS endereco
@@ -44,6 +44,12 @@ export async function abrirSubconta(portalId: number) {
     [portalId],
   );
   if (!portal) throw new Error('portal não encontrado');
+  // §5.11 — a empresa PAGA, não recebe: não há split, não há escrow e
+  // não há subconta. A recusa mora aqui, na fonte, e não só em quem
+  // chama: o webhook abre a subconta de todo portal que ativa, e uma
+  // subconta aberta em nome de um cliente que nunca vai vender é KYC
+  // pedido à toa e uma vaga a menos no teto regulatório do §8.2.
+  if (portal.tipo === 'EMPRESA') return { situacao: portal.situacao, criada: false };
   if (portal.situacao !== 'PENDENTE') return { situacao: portal.situacao, criada: false };
   if (!portal.cnpj || !portal.email) {
     throw new Error('o portal não tem CNPJ e e-mail do responsável — sem eles não há subconta');

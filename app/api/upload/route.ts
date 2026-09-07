@@ -6,6 +6,7 @@ import path from 'node:path';
 import { NextResponse } from 'next/server';
 import { alunoAtual } from '../../../lib/sessao.ts';
 import { portalDoProfessor } from '../../../lib/professor.ts';
+import { portalDaEmpresa } from '../../../lib/empresa.ts';
 import { query, queryOne } from '../../../lib/db.ts';
 import { medirArmazenamento } from '../../../lib/portal-financeiro.ts';
 import {
@@ -56,6 +57,14 @@ export async function POST(req: Request) {
   if (u.papel === 'admin' && pedido !== null) {
     portalId = Number(pedido);
     if (!Number.isInteger(portalId) || portalId < 0) return erro(400, 'portal inválido');
+  } else if (u.papel === 'gestor') {
+    // §5.11 — o RH envia o vídeo da aula da trilha e a logo do portal. O
+    // portal vem do VÍNCULO em portal_gestor, nunca da requisição: é a
+    // mesma regra do professor, e é ela que impede o gestor de uma
+    // empresa escrever no volume de outra.
+    const portal = await portalDaEmpresa(u.id);
+    if (!portal) return erro(403, 'você ainda não administra uma empresa');
+    portalId = portal.id;
   } else {
     if (u.papel !== 'professor' && u.papel !== 'admin') return erro(403, 'sem permissão');
     const portal = await portalDoProfessor(u.id);

@@ -72,7 +72,10 @@ export async function criarSessao(usuarioId: number, userAgent?: string): Promis
 
 export interface UsuarioSessao {
   id: number; nome: string; email: string;
-  papel: 'aluno' | 'professor' | 'revisor' | 'admin';
+  // §5.11 — 'gestor' opera o portal de uma empresa. Vive no portal 0,
+  // como o professor, e alcança /empresa pelo vínculo em portal_gestor:
+  // o papel diz o que a pessoa é, o vínculo diz de QUAL empresa.
+  papel: 'aluno' | 'professor' | 'revisor' | 'admin' | 'gestor';
   statusConta: 'ATIVA' | 'INATIVA_AVISO' | 'BLOQUEADA_INATIVIDADE' | 'ENCERRADA';
 }
 
@@ -131,8 +134,10 @@ export async function cadastrar(portalId: number, nome: string, email: string, s
 }
 
 export async function autenticar(portalId: number, email: string, senha: string) {
-  const u = await queryOne<{ id: number; senhaHash: string | null; statusConta: string }>(
-    `SELECT id, senha_hash AS "senhaHash", status_conta AS "statusConta"
+  const u = await queryOne<{
+    id: number; senhaHash: string | null; statusConta: string; papel: UsuarioSessao['papel'];
+  }>(
+    `SELECT id, senha_hash AS "senhaHash", status_conta AS "statusConta", papel
        FROM usuario WHERE portal_id = $1 AND lower(email) = lower($2)`,
     [portalId, email.trim()],
   );
@@ -143,5 +148,5 @@ export async function autenticar(portalId: number, email: string, senha: string)
   const confere = await conferirSenha(senha, referencia);
   if (!u || !confere) return { ok: false as const, motivo: 'credenciais' as const };
   if (u.statusConta === 'ENCERRADA') return { ok: false as const, motivo: 'encerrada' as const };
-  return { ok: true as const, usuarioId: u.id, statusConta: u.statusConta };
+  return { ok: true as const, usuarioId: u.id, statusConta: u.statusConta, papel: u.papel };
 }

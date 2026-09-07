@@ -263,3 +263,29 @@ export function dispositivosDaAula(aulaId: number) {
     [aulaId],
   );
 }
+
+/**
+ * Os artigos que a Calculadora Penal cita (§5.12), por (norma, rótulo).
+ *
+ * O catálogo da calculadora guarda só a referência; o TEXTO da lei continua
+ * vindo daqui, com o carimbo de conferência. Uma consulta para o resultado
+ * inteiro: um cálculo cita vinte artigos, e vinte idas ao banco por página
+ * seriam o custo errado.
+ */
+export async function dispositivosPorReferencia(refs: { norma: string; rotulo: string }[]) {
+  const mapa = new Map<string, Dispositivo>();
+  if (refs.length === 0) return mapa;
+  const chaves = [...new Set(refs.map((r) => `${r.norma}|${r.rotulo}`))];
+  const normas = chaves.map((k) => k.split('|')[0]);
+  const rotulos = chaves.map((k) => k.split('|')[1]);
+  const linhas = await query<Dispositivo>(
+    `SELECT d.id, d.rotulo, d.texto, d.agrupador, d.numero,
+            n.sigla AS "normaSigla", n.slug AS "normaSlug"
+       FROM unnest($1::text[], $2::text[]) AS pedido(slug, rotulo)
+       JOIN norma n ON n.slug = pedido.slug
+       JOIN dispositivo d ON d.norma_id = n.id AND d.rotulo = pedido.rotulo`,
+    [normas, rotulos],
+  );
+  for (const d of linhas) mapa.set(`${d.normaSlug}|${d.rotulo}`, d);
+  return mapa;
+}

@@ -81,7 +81,12 @@ try {
   await p.fill('input[name=corPrimaria]', '#0f766e');
   await p.click('form.form-editor button[type=submit]');
   await p.waitForTimeout(1500);
-  check((await p.locator('.alerta-ok').textContent() ?? '').includes('salva'), 'página personalizada salva');
+  // `.first()`: o FormSite repete o aviso no topo E no rodapé de
+  // propósito (o formulário é longo, e confirmação só no topo passa
+  // despercebida). Sem isso, o modo estrito do Playwright reclama de dois
+  // elementos e derruba o teste por um acerto do produto.
+  check((await p.locator('.alerta-ok').first().textContent() ?? '').includes('salva'),
+    'página personalizada salva');
 
   // foto de apresentação, pelo painel (PNG mínimo válido: 1×1)
   const png = Buffer.from(
@@ -187,8 +192,17 @@ try {
   await b.close();
   const { rows: [pt] } = await pool.query(`SELECT id FROM portal WHERE mascara = $1`, [MASCARA]);
   if (pt) {
+    // A ordem segue as chaves estrangeiras, e `preco` precisa sair antes
+    // do portal: `semearPrecosDaPlataforma` cria uma tabela de preço em
+    // todo portal novo, e sem apagá-la a limpeza falhava — escondendo,
+    // no `finally`, o erro que de fato derrubou o teste.
+    await pool.query(`DELETE FROM aula WHERE portal_id = $1`, [pt.id]);
+    await pool.query(`DELETE FROM assunto WHERE portal_id = $1`, [pt.id]);
     await pool.query(`DELETE FROM materia WHERE portal_id = $1`, [pt.id]);
     await pool.query(`DELETE FROM area WHERE portal_id = $1`, [pt.id]);
+    await pool.query(`DELETE FROM preco WHERE portal_id = $1`, [pt.id]);
+    await pool.query(`DELETE FROM portal_fatura WHERE portal_id = $1`, [pt.id]);
+    await pool.query(`DELETE FROM portal_contrato WHERE portal_id = $1`, [pt.id]);
     await pool.query(`DELETE FROM usuario WHERE portal_id = $1`, [pt.id]);
     await pool.query(`DELETE FROM portal WHERE id = $1`, [pt.id]);
   }

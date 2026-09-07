@@ -24,7 +24,14 @@ const talvez = { skip: temBanco ? false : 'banco não disponível' };
 const dia = (offset: number) =>
   new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
 
-/** Isola cada teste num produto/período que a aplicação não usa. */
+/**
+ * Isola cada teste num produto/período que a aplicação não usa.
+ *
+ * As preparações abaixo escopam por `portal_id = 0` de propósito: desde
+ * que existem portais de professor e de empresa, um UPDATE sem escopo
+ * alcança a tabela de preço deles — e encerrar hoje um preço que nasceu
+ * hoje bate no CHECK `vigente_ate > vigente_de`.
+ */
 async function limpar() {
   await query("DELETE FROM preco WHERE criado_por LIKE 'teste-%'");
 }
@@ -35,7 +42,7 @@ test('preço novo encerra o anterior e mantém o histórico', talvez, async () =
   // garante um só vigente por produto × período
   await query(
     `UPDATE preco SET vigente_ate = $1
-      WHERE produto='CATALOGO' AND periodo='semestral' AND vigente_ate IS NULL`, [dia(-30)],
+      WHERE portal_id = 0 AND produto='CATALOGO' AND periodo='semestral' AND vigente_ate IS NULL`, [dia(-30)],
   );
   await query(
     `INSERT INTO preco (produto, periodo, centavos, vigente_de, criado_por)
@@ -57,7 +64,7 @@ test('preço novo encerra o anterior e mantém o histórico', talvez, async () =
   await limpar();
   await query(
     `UPDATE preco SET vigente_ate = NULL
-      WHERE produto='CATALOGO' AND periodo='semestral' AND vigente_ate = $1`, [dia(-30)],
+      WHERE portal_id = 0 AND produto='CATALOGO' AND periodo='semestral' AND vigente_ate = $1`, [dia(-30)],
   );
 });
 
@@ -65,7 +72,7 @@ test('correção no mesmo dia atualiza a linha em vez de criar duração zero', 
   await limpar();
   await query(
     `UPDATE preco SET vigente_ate = $1
-      WHERE produto='CATALOGO' AND periodo='trimestral' AND vigente_ate IS NULL`, [dia(0)],
+      WHERE portal_id = 0 AND produto='CATALOGO' AND periodo='trimestral' AND vigente_ate IS NULL`, [dia(0)],
   );
   await alterarPreco('teste-admin', 'CATALOGO', 'trimestral', 9900, dia(0));
   // digitou errado e corrige no mesmo dia
@@ -80,7 +87,7 @@ test('correção no mesmo dia atualiza a linha em vez de criar duração zero', 
   await limpar();
   await query(
     `UPDATE preco SET vigente_ate = NULL
-      WHERE produto='CATALOGO' AND periodo='trimestral' AND vigente_ate = $1`, [dia(0)],
+      WHERE portal_id = 0 AND produto='CATALOGO' AND periodo='trimestral' AND vigente_ate = $1`, [dia(0)],
   );
 });
 

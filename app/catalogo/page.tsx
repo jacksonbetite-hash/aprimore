@@ -9,6 +9,7 @@ import { brl } from '../../lib/precos.ts';
 import { tabelaVigente } from '../../lib/precos-consultas.ts';
 import FiltroCursos, { Cartao, type CursoCartao } from './FiltroCursos.tsx';
 import { portalIdAtual } from '../../lib/portal-consultas.ts';
+import { exigirPortalAberto } from '../guarda-empresa.ts';
 
 export const metadata: Metadata = {
   title: 'Catálogo',
@@ -17,6 +18,9 @@ export const metadata: Metadata = {
 export const dynamic = 'force-dynamic';
 
 export default async function Catalogo() {
+  // §5.11 — no portal de uma empresa o catálogo é interno: quem não tem
+  // sessão não vê nem o nome das trilhas.
+  await exigirPortalAberto('/catalogo');
   const portalId = await portalIdAtual();
   // §5.10 — portal suspenso por inadimplência: visitante não vê o catálogo;
   // quem está logado passa (a licença vigente dele continua valendo).

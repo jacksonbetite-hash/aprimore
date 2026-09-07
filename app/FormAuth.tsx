@@ -7,10 +7,21 @@ import type { EstadoForm } from './acoes-auth.ts';
 
 type Acao = (estado: EstadoForm, dados: FormData) => Promise<EstadoForm>;
 
-export function FormEntrar({ acao }: { acao: Acao }) {
+/**
+ * `semCadastro` — §5.11: no portal de uma empresa ninguém cria conta
+ * sozinho, e /cadastrar redireciona. Oferecer "criar conta grátis" ali
+ * seria mandar o colaborador para uma porta que não abre, e sugerir que
+ * o acesso é dele para pedir quando quem libera é o RH.
+ */
+export function FormEntrar(
+  { acao, destino, semCadastro }: { acao: Acao; destino?: string; semCadastro?: boolean },
+) {
   const [estado, enviar, pendente] = useActionState(acao, {});
   return (
     <form action={enviar} className="formulario">
+      {/* Para onde voltar depois de entrar. Quando não vem nada, quem
+          decide é o papel do usuário (lib/navegacao.ts). */}
+      {destino && <input type="hidden" name="destino" value={destino} />}
       {estado.erro && <p className="alerta alerta-erro" role="alert"><Icone nome="error" tamanho={20} /> {estado.erro}</p>}
       <label>
         E-mail
@@ -23,9 +34,15 @@ export function FormEntrar({ acao }: { acao: Acao }) {
       <button className="btn btn-primario" type="submit" disabled={pendente}>
         {pendente ? 'Entrando…' : 'Entrar'}
       </button>
-      <p className="rodape-form">
-        Ainda não tem conta? <Link href="/cadastrar">Criar conta grátis</Link>
-      </p>
+      {semCadastro ? (
+        <p className="rodape-form">
+          Sem acesso ainda? Quem libera é o setor responsável pelo treinamento na sua empresa.
+        </p>
+      ) : (
+        <p className="rodape-form">
+          Ainda não tem conta? <Link href="/cadastrar">Criar conta grátis</Link>
+        </p>
+      )}
     </form>
   );
 }

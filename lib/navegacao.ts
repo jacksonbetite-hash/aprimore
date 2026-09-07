@@ -45,3 +45,33 @@ export function itemAtivo(caminho: string, enderecos: readonly string[]): string
   }
   return vencedor;
 }
+
+/**
+ * Para onde vai quem acabou de entrar — parte pura, testável.
+ *
+ * Mandar todo mundo para `/painel` fazia o administrador cair na área do
+ * aluno ("Minha jornada") e ter de procurar o atalho da retaguarda no
+ * menu, a cada login. Quem tem papel de operação vai direto ao painel do
+ * papel; o aluno continua na jornada dele.
+ *
+ * Duas guardas:
+ *
+ *  - `destino` só é aceito se for caminho interno (começa com uma barra e
+ *    não com duas). Sem isso, `/entrar?destino=https://outro.site` viraria
+ *    redirecionamento aberto — o clássico do phishing.
+ *  - fora da plataforma (portal de professor), papel de operação não
+ *    significa nada: lá a base de usuários é a do portal, e `/admin` e
+ *    `/professor` sequer respondem. Todo mundo vai para `/painel`.
+ */
+export function paginaInicial(
+  papel: string, portalId: number, destino?: string | null,
+): string {
+  if (destino && destino.startsWith('/') && !destino.startsWith('//')) return destino;
+  if (portalId !== 0) return '/painel';
+  if (papel === 'admin') return '/admin';
+  if (papel === 'professor') return '/professor';
+  // §5.11 — o gestor opera o portal da empresa de fora dele, na
+  // plataforma, como o professor.
+  if (papel === 'gestor') return '/empresa';
+  return '/painel';
+}

@@ -31,6 +31,10 @@ const dados = () => ({
 });
 
 async function limparRastros() {
+  // O portal agora nasce com tabela de preço copiada da plataforma
+  // (semearPrecosDaPlataforma); `preco` não tem ON DELETE CASCADE,
+  // então sai antes do portal.
+  await query(`DELETE FROM preco WHERE portal_id IN (SELECT id FROM portal WHERE mascara LIKE 'teste-dom-%')`);
   await query(`DELETE FROM portal WHERE mascara LIKE 'teste-dom-%'`);
   await query(`DELETE FROM usuario WHERE email LIKE 'teste-dom-%@exemplo.com'`);
   await query(`DELETE FROM evento_gateway WHERE evento_id LIKE 'ev-dom-%'`);

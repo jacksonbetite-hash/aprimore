@@ -107,12 +107,19 @@ await p.goto(`http://${MASCARA}.localhost:${porta}/`, { waitUntil: 'load' });
 check((await p.title()).includes('Aprimore o Saber'),
   'portal não pago cai no site principal — invisível até pagar');
 
+check((await fetch(`${base}/api/dominio-permitido?domain=${MASCARA}.localhost`)).status === 403,
+  'o Caddy não emite certificado para portal que ainda não pagou');
+
 // ---------- pagamento confirma e o portal nasce ----------
 const rf = await webhook({
   eventoId: 'e2e-fat-' + sufixo, tipo: 'pagamento.confirmado', referencia, centavos: 14900,
 });
 check(rf.processado && rf.portalAtivado, 'webhook de pagamento ativou o portal');
 check(rf.subconta === 'EM_ANALISE', 'a subconta foi pedida sozinha, em análise');
+check((await fetch(`${base}/api/dominio-permitido?domain=${MASCARA}.localhost`)).status === 200,
+  'portal no ar: o Caddy pode emitir o certificado do subdomínio');
+check((await fetch(`${base}/api/dominio-permitido?domain=invasor.exemplo.com`)).status === 403,
+  'domínio desconhecido não ganha certificado');
 
 await p.goto(`${base}/para-professores/pagamento/${referencia}`, { waitUntil: 'load' });
 const depois = await p.locator('.cartao-auth').textContent() ?? '';
@@ -142,6 +149,11 @@ await ctx.close();
 await b.close();
 
 // ---------- limpeza: o funil não deixa rastro no banco ----------
+// O portal nasce com tabela de preço copiada da plataforma
+// (semearPrecosDaPlataforma), e `preco` não tem ON DELETE CASCADE: sem
+// esta linha a limpeza falha e o portal de teste fica no banco ocupando
+// o teto regulatório do autosserviço.
+await pool.query(`DELETE FROM preco WHERE portal_id IN (SELECT id FROM portal WHERE mascara = $1)`, [MASCARA]);
 await pool.query(`DELETE FROM portal WHERE mascara = $1`, [MASCARA]);
 await pool.query(`DELETE FROM usuario WHERE email = $1`, [EMAIL]);
 await pool.end();

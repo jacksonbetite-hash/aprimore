@@ -18,6 +18,20 @@ export interface PortalDoProfessor {
   } | null;
   faturasPendentes: number;
   materias: number; aulasPublicadas: number; alunos: number;
+  /**
+   * O que a checklist do painel precisa saber para dizer a verdade — e
+   * não uma aproximação. Contar "cursos" e "aulas publicadas" solto
+   * marcava passo como feito enquanto o portal continuava vazio: um
+   * curso publicado SEM aula publicada não aparece na página do portal
+   * (`PaginaPortal` filtra `aulasPublicadas > 0`), e uma aula sem
+   * questão não cumpre a regra de "toda aula termina em exercício".
+   */
+  materiasPublicadas: number;
+  /** Cursos que o visitante realmente vê: publicados e com aula no ar. */
+  materiasNoAr: number;
+  /** Publicados, mas sem nenhuma aula no ar — invisíveis no portal. */
+  materiasVazias: number;
+  aulasComExercicio: number;
 }
 
 export function portalDoProfessor(usuarioId: number) {
@@ -35,12 +49,26 @@ export function portalDoProfessor(usuarioId: number) {
             (SELECT count(*)::int FROM portal_fatura f
               WHERE f.portal_id = p.id AND f.status IN ('FECHADA', 'EM_ATRASO')) AS "faturasPendentes",
             (SELECT count(*)::int FROM materia m WHERE m.portal_id = p.id) AS materias,
+            (SELECT count(*)::int FROM materia m
+              WHERE m.portal_id = p.id AND m.status = 'publicado') AS "materiasPublicadas",
+            (SELECT count(*)::int FROM materia m
+              WHERE m.portal_id = p.id AND m.status = 'publicado'
+                AND EXISTS (SELECT 1 FROM aula a JOIN assunto s ON s.id = a.assunto_id
+                             WHERE s.materia_id = m.id AND a.status = 'publicado')) AS "materiasNoAr",
+            (SELECT count(*)::int FROM materia m
+              WHERE m.portal_id = p.id AND m.status = 'publicado'
+                AND NOT EXISTS (SELECT 1 FROM aula a JOIN assunto s ON s.id = a.assunto_id
+                                 WHERE s.materia_id = m.id AND a.status = 'publicado')) AS "materiasVazias",
             (SELECT count(*)::int FROM aula a WHERE a.portal_id = p.id AND a.status = 'publicado') AS "aulasPublicadas",
+            (SELECT count(*)::int FROM aula a
+              WHERE a.portal_id = p.id AND a.status = 'publicado'
+                AND EXISTS (SELECT 1 FROM questao q JOIN exercicio e ON e.id = q.exercicio_id
+                             WHERE e.aula_id = a.id)) AS "aulasComExercicio",
             (SELECT count(*)::int FROM usuario u WHERE u.portal_id = p.id AND u.papel = 'aluno') AS alunos
        FROM portal p
        LEFT JOIN portal_plano pl ON pl.id = p.plano_id
        LEFT JOIN portal_contrato c ON c.portal_id = p.id AND c.vigente_ate IS NULL
-      WHERE p.professor_id = $1 AND p.status <> 'ENCERRADO'
+      WHERE p.professor_id = $1 AND p.tipo = 'PROFESSOR' AND p.status <> 'ENCERRADO'
       ORDER BY p.criado_em DESC LIMIT 1`,
     [usuarioId],
   );

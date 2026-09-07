@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { Pagina, Icone } from '../componentes.tsx';
+import { exigirPortalAberto } from '../guarda-empresa.ts';
 import {
   listarVagas, localidades, areasDeAtuacao, tiposDeVaga, iniciais, local as localDa,
   desdeQuando, POR_PAGINA, ROTULO_TIPO, ROTULO_REGIME, ROTULO_MODALIDADE, ICONE_MODALIDADE,
@@ -24,6 +25,7 @@ const lista = (v: string | string[] | undefined) =>
   (Array.isArray(v) ? v : v ? [v] : []);
 
 export default async function Vagas({ searchParams }: { searchParams: Params }) {
+  await exigirPortalAberto('/vagas');
   const sp = await searchParams;
   const q = texto(sp.q).trim();
   const tipos = lista(sp.tipo);

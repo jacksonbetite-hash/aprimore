@@ -130,7 +130,8 @@ test('portal de professor NUNCA vende curso de outro portal â€” nem pela aplicaÃ
     `INSERT INTO usuario (portal_id, nome, email, papel)
      VALUES ($1, 'Aluno de B', 'aluno-vit-${++n}@exemplo.com', 'aluno') RETURNING id`, [b.portalId]);
   await query(`INSERT INTO preco (portal_id, produto, periodo, centavos, vigente_de)
-               VALUES ($1, 'MATERIA', 'mensal', 1000, '2026-01-01')`, [b.portalId]);
+               VALUES ($1, 'MATERIA', 'mensal', 1000, '2026-01-01')
+               ON CONFLICT DO NOTHING`, [b.portalId]);
 
   await assert.rejects(
     abrirPedido(b.portalId, alunoDeB.id, `aluno-vit-${n}@exemplo.com`, 'MATERIA', 'mensal', a.materiaId, 'PIX'),

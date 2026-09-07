@@ -4,6 +4,8 @@ import type { Metadata } from 'next';
 import { Icone } from '../componentes.tsx';
 import { Anel } from '../AnelProgresso.tsx';
 import LateralAluno from '../LateralAluno.tsx';
+import PainelEmpresa from './PainelEmpresa.tsx';
+import { portalAtual } from '../../lib/portal-consultas.ts';
 import {
   alunoAtual, licencasDo, progressoPorMateria, continuarDeOndeParou,
   estatisticas, cadernoDeErros,
@@ -26,6 +28,11 @@ export default async function Painel(
   const busca = await searchParams;
   const aluno = await alunoAtual();
   if (!aluno) redirect('/entrar?destino=/painel');
+
+  // §5.11 — no portal de uma empresa, quem entra é colaborador: o painel
+  // é o das trilhas atribuídas, não a jornada de quem compra curso.
+  const portal = await portalAtual();
+  if (portal.tipo === 'EMPRESA') return <PainelEmpresa aluno={aluno} portal={portal} />;
 
   const [licencas, progresso, continuar, stats, erros] = await Promise.all([
     licencasDo(aluno.id), progressoPorMateria(aluno.id), continuarDeOndeParou(aluno.id),
