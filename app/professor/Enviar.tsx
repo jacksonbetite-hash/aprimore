@@ -13,9 +13,16 @@ import { Icone } from '../ui.tsx';
  * a aba no meio e reclamar que "não funciona".
  */
 export default function Enviar({
-  tipo, aulaId, rotulo, aceita, dica,
+  tipo, aulaId, materiaId, rotulo, aceita, dica,
 }: {
   tipo: 'video' | 'imagem'; aulaId?: number;
+  /**
+   * Quando presente, a imagem é a CAPA deste curso — e não a foto de
+   * apresentação do portal, que é o destino padrão de `tipo=imagem`.
+   * Sem isto, enviar a capa de um curso trocaria a foto da página
+   * inteira do professor, sem aviso nenhum.
+   */
+  materiaId?: number;
   rotulo: string; aceita: string; dica?: string;
 }) {
   const router = useRouter();
@@ -29,6 +36,7 @@ export default function Enviar({
     const xhr = new XMLHttpRequest();
     const params = new URLSearchParams({ tipo, nome: arquivo.name });
     if (aulaId) params.set('aulaId', String(aulaId));
+    if (materiaId) { params.set('uso', 'capa'); params.set('materiaId', String(materiaId)); }
     xhr.open('POST', `/api/upload?${params}`);
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable) setProgresso(Math.round((e.loaded / e.total) * 100));
@@ -38,7 +46,11 @@ export default function Enviar({
       let corpo: { erro?: string; id?: string } = {};
       try { corpo = JSON.parse(xhr.responseText); } catch { /* resposta sem JSON */ }
       if (xhr.status >= 200 && xhr.status < 300) {
-        setMensagem({ ok: tipo === 'video' ? 'Vídeo enviado e vinculado à aula.' : 'Foto enviada.' });
+        setMensagem({
+          ok: tipo === 'video' ? 'Vídeo enviado e vinculado à aula.'
+            : materiaId ? 'Capa enviada. Ela já é a imagem deste curso na vitrine.'
+              : 'Foto enviada.',
+        });
         router.refresh();
       } else {
         setMensagem({ erro: corpo.erro ?? `Falha no envio (${xhr.status}).` });

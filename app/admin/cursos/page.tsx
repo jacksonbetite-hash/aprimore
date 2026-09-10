@@ -120,6 +120,9 @@ export default async function Cursos(
                     </span>
                   )}
                   <br /><span className="suave">/materia/{m.slug}</span>
+                  {/* Quem assina — e, no catálogo, quem está esperando a
+                      revisão (db/046): é o que o revisor precisa ver na lista. */}
+                  {m.professor && <><br /><span className="caption suave">por {m.professor}</span></>}
                 </td>
                 <td>{m.areaNome}</td>
                 <td className="apertado">

@@ -8,6 +8,7 @@ import { alunosDoPortal, licencasDoPortal } from '../../../../../lib/portal-fina
 import { listarMateriasSimples } from '../../../../../lib/admin.ts';
 import { brl } from '../../../../../lib/precos.ts';
 import { PORTAL_PLATAFORMA } from '../../../../../lib/portal.ts';
+import { permissoesDaTela } from '../../../guarda.ts';
 
 export const metadata: Metadata = { title: 'Alunos do portal — Administração' };
 export const dynamic = 'force-dynamic';
@@ -37,6 +38,7 @@ export default async function AlunosDoPortal(
     licencasDoPortal(portalId, 100), listarMateriasSimples(portalId),
   ]);
   if (!portal) notFound();
+  const { 'licencas.conceder': conceder } = await permissoesDaTela('licencas.conceder');
 
   return (
     <>
@@ -89,7 +91,7 @@ export default async function AlunosDoPortal(
         </table>
       </div>
 
-      <div className="cartao" style={{ marginBottom: 24 }}>
+      {conceder && <div className="cartao" style={{ marginBottom: 24 }}>
         <h2 className="headline-md" style={{ marginBottom: 6 }}>Cortesia</h2>
         <p className="suave" style={{ marginBottom: 16 }}>
           Licença gratuita a um aluno do portal — reposição por falha nossa, brinde acordado
@@ -98,7 +100,7 @@ export default async function AlunosDoPortal(
         <FormCortesiaPortal acao={acaoCortesiaPortal} portalId={portalId}
           alunos={alunos.map((a) => ({ id: a.id, nome: a.nome, email: a.email }))}
           materias={materias} />
-      </div>
+      </div>}
 
       <div className="cartao">
         <h2 className="headline-md" style={{ marginBottom: 16 }}>Licenças do portal</h2>

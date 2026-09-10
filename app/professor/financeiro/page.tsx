@@ -12,6 +12,7 @@ import {
 import { listarPlanos } from '../../../lib/admin-portais.ts';
 import { brl } from '../../../lib/precos.ts';
 import { GB, calcularExcedente, competenciaDe } from '../../../lib/portal.ts';
+import FinanceiroCatalogo from '../catalogo/Financeiro.tsx';
 
 export const metadata: Metadata = { title: 'Financeiro — Painel do professor' };
 
@@ -29,7 +30,8 @@ const CHIP: Record<string, string> = {
  */
 export default async function FinanceiroDoProfessor() {
   const u = (await alunoAtual())!;
-  const portal = (await portalDoProfessor(u.id))!;
+  const portal = await portalDoProfessor(u.id);
+  if (!portal) return <FinanceiroCatalogo u={u} />;
   const atual = competenciaDe(new Date());
   const [consumo, extrato, totais, faturas, vitrine, planos, apuracoes] = await Promise.all([
     consumoDaCompetencia(portal.id, atual), extratoDoPortal(portal.id), totaisDoExtrato(portal.id),

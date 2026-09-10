@@ -43,6 +43,7 @@ async function materiaPublicada(): Promise<number> {
   const [m] = await query<{ id: number }>(
     `SELECT id FROM materia
       WHERE status = 'publicado' AND portal_id = $1
+        AND slug NOT LIKE 'prog-%' AND slug NOT LIKE 'teste-%'   -- matéria de OUTRO teste, em paralelo, some no meio
       ORDER BY ordem LIMIT 1`, [PORTAL_PLATAFORMA]);
   return m.id;
 }

@@ -34,9 +34,13 @@ COPY --from=build /app/lib ./lib
 COPY docker-entrypoint.sh /usr/local/bin/
 # Clones feitos no Windows podem trazer CRLF: o shebang viraria "/bin/sh\r"
 # e o container morreria em "no such file or directory". Normaliza aqui.
+# ffmpeg: a capa do cartão do curso é um quadro do vídeo da primeira aula
+# (lib/capa-video.ts). Extrair no servidor, e não no navegador do
+# professor, é o que permite gerar a capa do acervo que já estava no ar —
+# e não só a de vídeo novo.
 RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh \
  && chmod +x /usr/local/bin/docker-entrypoint.sh && chown -R nextjs:nodejs /app \
- && apk add --no-cache su-exec
+ && apk add --no-cache su-exec ffmpeg
 
 # Sem `USER nextjs` aqui, de propósito: o entrypoint sobe como root apenas
 # para preparar o volume de mídia (§10 — /midia nasce do root, e o upload

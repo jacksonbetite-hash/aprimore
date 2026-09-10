@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { query, queryOne } from './db.ts';
 import { usuarioPorToken, COOKIE_SESSAO, type UsuarioSessao } from './auth.ts';
 import { portalIdAtual } from './portal-consultas.ts';
+import { pode, type Permissao } from './permissoes.ts';
 import type { Espectador, Licenca, StatusConta } from './licenca.ts';
 
 /**
@@ -38,10 +39,33 @@ export async function alunoAtual(): Promise<Aluno | null> {
   return null;
 }
 
-/** Para telas de admin: exige o papel, não só estar logado. */
+/**
+ * Só o administrador — o que sobrou para ele com exclusividade é a
+ * equipe (criar admin, financeiro, suporte). Para tudo o mais a pergunta
+ * certa é `exigirPermissao`, que lê a tabela de lib/permissoes.ts.
+ */
 export async function exigirAdmin(): Promise<Aluno | null> {
   const u = await alunoAtual();
   return u && u.papel === 'admin' ? u : null;
+}
+
+/**
+ * A guarda da retaguarda: quem está logado E tem esta permissão. Devolve
+ * `null` nos dois casos — quem chama decide entre "entre" e "sem acesso".
+ *
+ * Fora do portal 0 ninguém é da equipe: o papel vive na conta da
+ * plataforma, e no endereço de um portal a base é outra.
+ */
+export async function exigirPermissao(permissao: Permissao): Promise<Aluno | null> {
+  const u = await alunoAtual();
+  if (!u || !pode(u.papel, permissao)) return null;
+  if ((await portalIdAtual()) !== 0) return null;
+  return u;
+}
+
+/** Qualquer papel de operação — a porta de /admin. */
+export function exigirEquipe() {
+  return exigirPermissao('retaguarda.entrar');
 }
 
 interface LinhaLicenca {

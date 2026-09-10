@@ -1,3 +1,5 @@
+import { daEquipe } from './permissoes.ts';
+
 /**
  * Qual item do menu está aceso — parte pura, sem React e sem banco.
  *
@@ -47,6 +49,43 @@ export function itemAtivo(caminho: string, enderecos: readonly string[]): string
 }
 
 /**
+ * Uma entrada do menu lateral, na forma mínima que o cálculo do realce
+ * precisa: ou ela tem endereço, ou ela tem filhos.
+ *
+ * O tipo é ESTRUTURAL de propósito — não importa `ItemLateral` de
+ * `app/BarraLateral.tsx`, que é componente de cliente. Este módulo é
+ * puro e roda no executor de testes do Node, sem React e sem Next.
+ */
+export interface EntradaMenu {
+  href?: string;
+  filhos?: readonly EntradaMenu[];
+}
+
+/**
+ * Todos os endereços de um menu, achatando os submenus — é o que
+ * `itemAtivo` recebe.
+ *
+ * Nasceu com o submenu do colaborador ("Minha Jornada" ▸ Minhas trilhas
+ * · Todas as trilhas): sem achatar, o item pai não tem endereço nenhum e
+ * o realce simplesmente não acenderia nos filhos. A ordem preserva a do
+ * menu, mas `itemAtivo` não depende dela — quem vence é o prefixo mais
+ * longo, não o primeiro da lista.
+ *
+ * Um nível de submenu é o que a barra desenha, mas a recursão é livre:
+ * limitar aqui só criaria um caso especial para quando o menu crescer.
+ */
+export function enderecosDe(
+  grupos: readonly { itens: readonly EntradaMenu[] }[],
+): string[] {
+  const achatar = (itens: readonly EntradaMenu[]): string[] =>
+    itens.flatMap((i) => [
+      ...(i.href ? [i.href] : []),
+      ...(i.filhos ? achatar(i.filhos) : []),
+    ]);
+  return grupos.flatMap((g) => achatar(g.itens));
+}
+
+/**
  * Para onde vai quem acabou de entrar — parte pura, testável.
  *
  * Mandar todo mundo para `/painel` fazia o administrador cair na área do
@@ -68,7 +107,9 @@ export function paginaInicial(
 ): string {
   if (destino && destino.startsWith('/') && !destino.startsWith('//')) return destino;
   if (portalId !== 0) return '/painel';
-  if (papel === 'admin') return '/admin';
+  // A equipe da plataforma inteira (admin, financeiro, suporte) trabalha
+  // em /admin; o que cada um vê lá dentro é a tabela de lib/permissoes.ts.
+  if (daEquipe(papel)) return '/admin';
   if (papel === 'professor') return '/professor';
   // §5.11 — o gestor opera o portal da empresa de fora dele, na
   // plataforma, como o professor.

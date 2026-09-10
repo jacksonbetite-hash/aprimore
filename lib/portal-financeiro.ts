@@ -61,8 +61,9 @@ export async function contabilizarTrafego(videoId: string, bytes: number) {
 
 /**
  * Mede o que o portal ocupa em disco: vídeos locais (tamanho real do
- * arquivo) e materiais de apoio. Grava o total da competência corrente —
- * armazenamento é foto, não soma: mede-se o que está lá agora.
+ * arquivo), materiais de apoio e o acervo da Biblioteca da empresa
+ * (db/042). Grava o total da competência corrente — armazenamento é
+ * foto, não soma: mede-se o que está lá agora.
  */
 export async function medirArmazenamento(
   portalId: number, raiz = process.env.VIDEO_RAIZ ?? './midia/video', quando = new Date(),
@@ -86,6 +87,19 @@ export async function medirArmazenamento(
     [portalId],
   );
   bytes += Number(materiais?.total ?? 0);
+
+  /* O PDF da Biblioteca vive no mesmo volume que o vídeo e pesa como
+     ele. Sem esta soma, uma empresa poderia encher o disco com acervo
+     sem que um byte aparecesse na fatura — e a cota de GB do plano
+     (§5.11) deixaria de significar o que promete. O tamanho vem da
+     coluna, e não de um `stat` por arquivo: ele é gravado no envio, e
+     percorrer o diretório a cada medição custaria uma ida ao disco por
+     item para chegar ao mesmo número. */
+  const acervo = await queryOne<{ total: string }>(
+    `SELECT coalesce(sum(bytes), 0)::text AS total FROM acervo WHERE portal_id = $1`,
+    [portalId],
+  );
+  bytes += Number(acervo?.total ?? 0);
 
   await query(
     `INSERT INTO portal_consumo (portal_id, competencia, bytes_armazenados)

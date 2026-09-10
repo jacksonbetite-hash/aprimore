@@ -3,16 +3,12 @@ import { acaoSalvarPerfil } from './acoes-perfil.ts';
 import { alunoAtual } from '../lib/sessao.ts';
 import { portalIdAtual } from '../lib/portal-consultas.ts';
 import { lerPerfil } from '../lib/perfil.ts';
+import { ROTULO_PAPEL } from '../lib/permissoes.ts';
 
 const DATA = (d: Date | null) => (d ? new Date(d).toLocaleDateString('pt-BR') : '—');
 
-const PAPEL: Record<string, string> = {
-  admin: 'Administrador da plataforma',
-  professor: 'Professor com portal próprio',
-  revisor: 'Revisor de conteúdo',
-  gestor: 'Gestor do portal da empresa',
-  aluno: 'Aluno',
-};
+/** Os rótulos moram com a tabela de permissões: um nome por papel, num lugar só. */
+const PAPEL: Record<string, string> = ROTULO_PAPEL;
 
 /**
  * O miolo da tela de perfil, um só para os dois painéis: `/admin/perfil`

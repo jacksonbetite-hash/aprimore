@@ -3,14 +3,16 @@ import FormConceder from './FormConceder.tsx';
 import { BotaoIcone } from '../../ui.tsx';
 import { acaoConcederLicenca, acaoEstender, acaoSuspender } from '../acoes.ts';
 import { listarLicencas, listarAlunos, listarMateriasSimples } from '../../../lib/admin.ts';
+import { permissoesDaTela } from '../guarda.ts';
 
 export const metadata: Metadata = { title: 'Licenças — Administração' };
 
 const DATA = (d: Date) => new Date(d).toLocaleDateString('pt-BR');
 
 export default async function Licencas() {
-  const [licencas, alunos, materias] = await Promise.all([
+  const [licencas, alunos, materias, pode] = await Promise.all([
     listarLicencas(), listarAlunos('', 200), listarMateriasSimples(),
+    permissoesDaTela('licencas.conceder', 'licencas.suporte'),
   ]);
 
   return (
@@ -20,10 +22,15 @@ export default async function Licencas() {
         Conceder cortesia, estender e suspender. Toda ação fica registrada na auditoria.
       </p>
 
-      <div className="cartao">
-        <h2 className="headline-md">Conceder cortesia</h2>
-        <FormConceder acao={acaoConcederLicenca} alunos={alunos} materias={materias} />
-      </div>
+      {/* Cortesia é decisão comercial: só quem tem `licencas.conceder`
+          vê o formulário. Estender e suspender são apoio ao aluno, e o
+          suporte faz. A ação reconfere as duas no servidor. */}
+      {pode['licencas.conceder'] && (
+        <div className="cartao">
+          <h2 className="headline-md">Conceder cortesia</h2>
+          <FormConceder acao={acaoConcederLicenca} alunos={alunos} materias={materias} />
+        </div>
+      )}
 
       <div className="cartao" style={{ marginBottom: 0 }}>
         <h2 className="headline-md">Licenças emitidas</h2>
@@ -50,7 +57,7 @@ export default async function Licencas() {
                   </span>
                 </td>
                 <td>
-                  <div className="acoes-linha">
+                  {pode['licencas.suporte'] && <div className="acoes-linha">
                     <form action={acaoEstender}>
                       <input type="hidden" name="licencaId" value={l.id} />
                       <input type="hidden" name="dias" value="30" />
@@ -64,7 +71,7 @@ export default async function Licencas() {
                         rotulo={l.status === 'SUSPENSA' ? 'Reativar' : 'Suspender'}
                         variante={l.status === 'SUSPENSA' ? 'contorno' : 'perigo'} />
                     </form>
-                  </div>
+                  </div>}
                 </td>
               </tr>
             ))}

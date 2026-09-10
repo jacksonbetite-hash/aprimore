@@ -15,6 +15,9 @@
     "video:local": "node scripts/semear-video-local.mjs",
     "e2e": "node testes-e2e/autenticacao.mjs && node testes-e2e/comercial.mjs && node testes-e2e/administracao.mjs && node testes-e2e/retaguarda.mjs",
     "e2e:empresa": "node testes-e2e/portal-empresa.mjs",
+    "e2e:perfis": "node testes-e2e/perfis-e-usuarios.mjs",
+    "e2e:catalogo": "node testes-e2e/professor-catalogo.mjs",
+    "e2e:vagas": "node testes-e2e/compra-do-catalogo.mjs",
     "confirmar-pagamento": "node scripts/confirmar-pagamento.mjs",
     "e2e:calculadora": "node testes-e2e/calculadora-penal.mjs",
     "penas:extrair": "node scripts/extrair-penas.mjs"

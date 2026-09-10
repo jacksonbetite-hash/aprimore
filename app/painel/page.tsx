@@ -4,6 +4,7 @@ import type { Metadata } from 'next';
 import { Icone } from '../componentes.tsx';
 import { Anel } from '../AnelProgresso.tsx';
 import LateralAluno from '../LateralAluno.tsx';
+import BotaoSair from '../BotaoSair.tsx';
 import PainelEmpresa from './PainelEmpresa.tsx';
 import { portalAtual } from '../../lib/portal-consultas.ts';
 import {
@@ -11,6 +12,7 @@ import {
   estatisticas, cadernoDeErros,
 } from '../../lib/sessao.ts';
 import { licencaVigente } from '../../lib/licenca.ts';
+import { corSegura } from '../../lib/portal.ts';
 import { formatarDuracao } from '../../lib/catalogo.ts';
 
 export const metadata: Metadata = { title: 'Minha jornada' };
@@ -49,18 +51,35 @@ export default async function Painel(
   const pctRetomar = continuar
     ? Math.round((continuar.segundosAssistidos / continuar.duracaoSegundos) * 100)
     : 0;
+  /* Sem aula pendente E com curso liberado: não é aluno novo, é aluno em
+     dia. `continuarDeOndeParou` só devolve aula NÃO concluída, então a
+     ausência dela, para quem tem curso, significa "assistiu tudo". */
+  const concluiuTudo = !continuar && progresso.length > 0
+    && progresso.every((m) => m.aulasConcluidas === m.aulasTotal);
+
+  // §5.10 — a cor do portal também vale na área do aluno: fora daqui o
+  // aluno via a página do professor no tema dele e o painel no nosso.
+  // Só uma cor validada (#rgb/#rrggbb) chega ao CSS: cor é dado, não código.
+  const cor = corSegura(portal.personalizacao.corPrimaria);
 
   return (
     <div className="app">
+      {cor && (
+        <style>{`:root{--primary:${cor};--primary-texto:${cor};--primary-container:${cor};--on-primary-fixed-variant:${cor}}`}</style>
+      )}
       <LateralAluno papel={aluno.papel} />
 
       <div className="conteudo">
         <div className="barra-superior">
-          <Link className="marca" href="/">Aprimore o Saber</Link>
+          {/* §5.10 — dentro do portal de um professor a marca é a DELE.
+              O nome da casa estava fixo aqui, e o aluno do portal via a
+              nossa marca no topo da própria área de estudo. */}
+          <Link className="marca" href="/">{portal.nomeExibicao}</Link>
           <div className="usuario">
             <span className="sino"><Icone nome="notifications" tamanho={24} /></span>
             <span className="avatar">{aluno.nome.split(' ').map((p) => p[0]).slice(0, 2).join('')}</span>
             <strong className="label-md">{aluno.nome.split(' ')[0]}</strong>
+            <BotaoSair />
           </div>
         </div>
 
@@ -114,6 +133,24 @@ export default async function Painel(
                 </div>
                 <Link className="btn btn-primario" style={{ justifySelf: 'start' }} href={`${continuar.base}/aula/${continuar.slug}`}>
                   Retomar Aula <Icone nome="arrow_forward" tamanho={20} />
+                </Link>
+              </div>
+            ) : concluiuTudo ? (
+              /* Quem já assistiu tudo o que tem liberado não está
+                 "começando a jornada": o convite de vitrine no lugar do
+                 retomar era o painel tratando aluno antigo como visitante. */
+              <div className="retomar">
+                <span className="chip chip-secundaria" style={{ justifySelf: 'start' }}>EM DIA</span>
+                <h3>Você concluiu todas as aulas liberadas</h3>
+                <p className="trilha">
+                  {erros.length > 0
+                    ? `Boa hora para revisar: ${erros.length} ${erros.length === 1 ? 'questão espera' : 'questões esperam'} no seu caderno de erros.`
+                    : 'Reveja uma aula quando quiser — seu progresso fica guardado — ou abra um curso novo.'}
+                </p>
+                <Link className="btn btn-primario" style={{ justifySelf: 'start' }}
+                      href={erros.length > 0 ? `${erros[0].base}/aula/${erros[0].aulaSlug}` : '/catalogo'}>
+                  {erros.length > 0 ? 'Revisar o caderno de erros' : 'Ver o catálogo'}
+                  <Icone nome="arrow_forward" tamanho={20} />
                 </Link>
               </div>
             ) : (

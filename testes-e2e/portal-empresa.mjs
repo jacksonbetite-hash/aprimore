@@ -121,6 +121,20 @@ await p.goto(base + '/professor', { waitUntil: 'load' });
 check(!/^\/professor(\/|$)/.test(new URL(p.url()).pathname),
   'o painel do professor não abre para quem administra uma empresa');
 
+// ---------- a Biblioteca no menu do RH (db/042) ----------
+await p.goto(base + '/empresa/biblioteca', { waitUntil: 'load' });
+const biblio = await p.locator('body').innerText();
+check(biblio.includes('Biblioteca') && biblio.includes('Novo item'),
+  'a Biblioteca do RH abre, com o formulário de envio do acervo');
+check(biblio.includes('Nada no acervo ainda'),
+  'e diz o que fazer quando o acervo está vazio');
+
+// Todo item do menu tem ícone. Cinco deles apontavam para nomes que não
+// existem em `app/ui.tsx`, e `Icone` devolve null para nome desconhecido:
+// metade do menu do RH vinha sem ícone nenhum, sem erro em lugar algum.
+const semIcone = await p.locator('aside.lateral a.item-lateral:not(:has(svg))').count();
+check(semIcone === 0, 'todo item do menu do RH tem ícone — nenhum nome desconhecido');
+
 // ---------- a marca e a política de acesso ----------
 await p.goto(base + '/empresa/site', { waitUntil: 'load' });
 await p.fill('input[name=chamada]', 'Treinamento e desenvolvimento na Acme');
@@ -185,7 +199,11 @@ check(!portao.includes('Criar conta') && !portao.includes(REAL),
  * bloco seguinte confere de perto. Manter a rota aqui seria cobrar do
  * sistema o comportamento anterior à funcionalidade.
  */
-const ROTAS = ['/catalogo', '/planos', '/vademecum', '/blog', '/vagas',
+// As rotas do painel do colaborador entram na lista: a Biblioteca, em
+// especial, não pode entregar nem o título do que a empresa publicou.
+const ROTAS = ['/painel', '/painel/trilhas', '/painel/biblioteca', '/painel/planos',
+               '/painel/conta',
+               '/catalogo', '/planos', '/vademecum', '/blog', '/vagas',
                '/materia/qualquer', '/aula/qualquer', '/para-professores', '/empresas'];
 for (const rota of ROTAS) {
   await pb.goto(raiz + rota, { waitUntil: 'load' });

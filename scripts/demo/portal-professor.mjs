@@ -16,6 +16,7 @@
  * recomeçar, para poder rodar de novo sem sujeira.
  */
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   BASE, PORTA, MIDIA, pool, passo, fim, abrirNavegador, webhook, rodarSql,
   esperarOk, preencher, cadastrarQuestao,
@@ -163,6 +164,10 @@ try {
   await curso.locator('select[name=status]').selectOption('publicado');
   await curso.locator('input[name=professor]').fill('Prof. Otávio Lins');
   await curso.locator('input[name=onda]').fill('1');
+  // db/043 — o nível é o que a barra de busca do catálogo oferece em
+  // "Todos os níveis". Vai por texto, e não por lista fechada: o portal é
+  // white-label, e "OAB e concursos" não serve ao portal de tecnologia.
+  await curso.locator('input[name=nivel]').fill('OAB e concursos');
   await curso.locator('input[name=naVitrinePlataforma]').check();
   await curso.locator('button[type=submit]').click();
   await p.waitForURL('**/professor/cursos/**', { timeout: 40000 });
@@ -200,6 +205,10 @@ try {
   // SQL com ordem 2 — sem isso a parte 2 apareceria antes da parte 1.
   await aula.locator('input[name=ordem]').fill('1');
   await aula.locator('input[name=noTrial]').check();
+  // Amostra gratuita: além de abrir a aula a quem não assinou (§6.1),
+  // é ela que vira a PRÉVIA do cartão no catálogo — o trecho que roda na
+  // capa quando alguém passa o mouse (docs/plano-catalogo-streaming.md).
+  await aula.locator('input[name=amostraGratuita]').check();
   await aula.locator('button[type=submit]').click();
   await p.waitForURL('**/professor/cursos/aula/**', { timeout: 40000 });
   passo(p.url().includes('criada=1'), 'aula criada (em rascunho — falta o exercício)');
@@ -230,6 +239,31 @@ try {
   await p.waitForTimeout(1500);
   const { rows: [st] } = await pool.query('SELECT status FROM aula WHERE id = $1', [aulaId]);
   passo(st.status === 'publicado', 'aula publicada — com vídeo e exercício, como manda o §5.3');
+
+  // A capa do curso, nos dois caminhos que ela tem. Primeiro o
+  // automático: o envio do vídeo, lá em cima, já tirou um quadro dele.
+  const { rows: [capaAuto] } = await pool.query(
+    `SELECT capa FROM materia WHERE id = (SELECT materia_id FROM assunto s
+       JOIN aula a ON a.assunto_id = s.id WHERE a.id = $1)`, [aulaId]);
+  const materiaId = (await pool.query(
+    `SELECT s.materia_id::int AS id FROM assunto s JOIN aula a ON a.assunto_id = s.id
+      WHERE a.id = $1`, [aulaId])).rows[0].id;
+  passo(/^\/api\/imagem\/p\d+-capa\d+-[0-9a-f]+\.jpg$/.test(capaAuto.capa ?? ''),
+    `capa do curso saiu sozinha de um quadro do vídeo (${capaAuto.capa})`);
+
+  // E agora o manual: o quadro acerta na média e erra feio no caso ruim
+  // (slide preto, rosto no meio de uma palavra). Enviar a própria arte é
+  // o que faltava — e o que o professor envia passa na frente do quadro.
+  // A imagem é uma capa do blog: 1200×630, mesma proporção do cartão, e
+  // já está no repositório com procedência registrada (public/capas/LEIA-ME.md).
+  await p.goto(`${BASE}/professor/cursos/${materiaId}`, { waitUntil: 'load' });
+  await p.setInputFiles('input[type=file][accept*="image"]',
+    fileURLToPath(new URL('../../public/capas/prescricao-e-decadencia-sem-decoreba.jpg', import.meta.url)));
+  await p.waitForSelector('.alerta-ok:has-text("Capa enviada")', { timeout: 40000 });
+  const { rows: [capaMao] } = await pool.query('SELECT capa FROM materia WHERE id = $1', [materiaId]);
+  passo(capaMao.capa !== capaAuto.capa
+     && /^\/api\/imagem\/p\d+-capa\d+-[0-9a-f]+\.jpg$/.test(capaMao.capa ?? ''),
+    `e foi substituída pela capa que o professor enviou (${capaMao.capa})`);
 
   // -------------------------------------------------------------------
   // 5. O resto do acervo por SQL (questões já escritas)
@@ -262,17 +296,99 @@ try {
   await anon.goto(`${PORTAL_URL}/`, { waitUntil: 'load' });
   const corpo = await anon.locator('body').innerText();
   passo(corpo.includes('Direito Penal sem decoreba'), 'a home do portal traz a chamada do professor');
-  passo(await anon.locator('img[src^="/api/imagem/"]').count() === 1, 'com a foto de apresentação');
+  // Pelo endereço EXATO da foto, e não "existe uma imagem de /api/imagem":
+  // desde que o cartão do curso ganhou capa (tirada de um quadro do vídeo),
+  // a home passou a ter mais de uma imagem servida por aquela rota, e a
+  // contagem de 1 quebrava sem que nada estivesse errado.
+  //
+  // São DOIS agora, e cada um faz um trabalho: o avatar de 44px no selo
+  // sobre a mídia do hero (é a assinatura do portal, acima da dobra) e o
+  // retrato grande em "Quem ensina", que é a única seção que fala dele.
+  // A abertura deixou de exibir o retrato de 220px para dar o lugar ao
+  // produto em uso (docs/plano-vitrine-do-professor.md, fase 1).
+  passo(await anon.locator(`.hero-selo img[src="${foto.foto}"]`).count() === 1,
+    'com a foto de apresentação no selo do hero');
+  passo(await anon.locator(`#sobre img[src="${foto.foto}"]`).count() === 1,
+    'e em tamanho de gente na seção "quem ensina"');
   passo(corpo.includes('Direito Penal descomplicado')
      && corpo.includes('Direito Administrativo para concursos'), 'e os dois cursos no acervo');
-  passo(corpo.includes('Quem ensina') && corpo.includes('Contato'), 'a seção "quem ensina" e o contato aparecem');
+  // Sem diferenciar maiúscula: "Quem ensina" virou o rótulo de etapa da
+  // seção, e `.rotulo-etapa` é `text-transform: uppercase` — na tela lê-se
+  // "QUEM ENSINA", e `innerText` devolve o que a tela mostra.
+  passo(/quem ensina/i.test(corpo) && corpo.includes('Contato'), 'a seção "quem ensina" e o contato aparecem');
   const rodape = await anon.locator('footer').innerText();
   passo(rodape.includes('11.222.333/0001-81'), 'o rodapé identifica o responsável com CNPJ');
   passo((await anon.content()).includes('--primary:#0f766e'), 'e o tema usa a cor escolhida');
   passo(await anon.locator('nav a[href="/blog"]').count() === 0,
     'o blog da plataforma não aparece dentro do portal do professor');
 
+  // A abertura mostra o PRODUTO em uso, e diz em voz alta que a tela
+  // dentro da foto é encenada (CDC, art. 37 — public/imagens/LEIA-ME.md).
+  passo(await anon.locator('.hero-foto img[src="/imagens/estudo-em-grupo.jpg"]').count() === 1
+     && corpo.includes('Imagem ilustrativa'),
+    'a abertura mostra a foto de estudo em grupo, com o selo de conteúdo ilustrativo');
+  passo(await anon.locator('.vitrine-app-figura img[src="/imagens/aula-no-celular.jpg"]').count() === 1
+     && corpo.includes('Tela ilustrativa do aplicativo'),
+    'e o app no celular desceu para a seção do método, com o selo dele');
+  // A contagem saiu dos chips flutuantes e virou a linha de números
+  // embaixo dos botões: número em corpo grande, rótulo embaixo. Por isso
+  // se lê `<b>` a `<b>`, e não como "2 cursos" corrido no texto da página.
+  const numeros = await anon.locator('.hero-numeros b').allInnerTexts();
+  passo(numeros[0] === '2' && numeros[1] === '4',
+    `e a contagem do acervo na linha de números (${numeros.join(' · ')})`);
+
+  // -------------------------------------------------------------------
+  // 7. A página de cursos do portal: a vitrine, com o curso em destaque
+  // -------------------------------------------------------------------
+  await anon.goto(`${PORTAL_URL}/catalogo`, { waitUntil: 'load' });
+  const vitrine = await anon.locator('body').innerText();
+  // O banner é um CURSO, não a faixa de marca de antes: quem chega numa
+  // vitrine quer ver um curso, não a descrição do catálogo. Qual curso é
+  // escolha do professor — o marcado como destaque (db/043).
+  passo((await anon.locator('.destaque-catalogo h1').innerText())
+        .includes('Direito Penal descomplicado'),
+    'a página de cursos abre no curso que o professor marcou como destaque');
+  passo(vitrine.includes('Curso em destaque')
+     && await anon.locator('.destaque-catalogo .destaque-fundo img').count() === 1,
+    'com a capa dele em tamanho de cartaz atrás do texto');
+  // A capa é a que o professor enviou; então NÃO entra a imagem de
+  // reserva, e o selo de "imagem ilustrativa" não aparece no banner.
+  passo(await anon.locator('.destaque-fundo img[src="/imagens/estudio-do-professor.jpg"]').count() === 0,
+    'e sem a arte de reserva, porque o curso em destaque tem capa própria');
+  // "Assistir agora" só existe porque este curso tem amostra gratuita
+  // com vídeo — é a mesma aula que roda na prévia do cartão.
+  passo(await anon.locator('.destaque-acoes a[href^="/aula/"]').count() === 1,
+    'o botão "Assistir agora" leva à aula aberta, não à tela de compra');
+  // O curso do banner sai da prateleira: repetido logo abaixo, apareceria
+  // duas vezes na mesma dobra.
+  passo(await anon.locator('.cartao-curso').count() === 1,
+    'e a prateleira mostra o outro curso, sem repetir o do banner');
+  // A prévia do cartão. O <video> só é baixado no hover, então o que a
+  // página entrega é a CAMADA — por isso a conferência é dela, e não do
+  // <video>, que ainda não existe no HTML.
+  passo(await anon.locator('.cartao-curso .capa-previa').count() === 1,
+    'o cartão do curso com amostra gratuita traz a camada de prévia');
+  // O filtro de nível existe porque os dois cursos têm nível cadastrado.
+  passo(await anon.locator('select[aria-label="Filtrar por nível"]').count() === 1
+     && vitrine.includes('OAB e concursos'),
+    'a barra de busca oferece o filtro de nível, com o que o professor cadastrou');
+  passo(vitrine.includes('7 dias para desistir')
+     && vitrine.includes('Cancelamento em 2 cliques'),
+    'a faixa embaixo do banner traz as garantias verificáveis da casa');
+  // O que NÃO pode estar lá: o layout de referência trazia nota "5.0",
+  // "1.420 avaliações", "4K HDR" e "modo offline". Nenhum deles é coisa
+  // que este banco saiba responder (CDC, art. 37).
+  passo(!/avaliações|4K HDR|offline/i.test(vitrine),
+    'e nenhum número ou recurso inventado — nota, avaliações, 4K, offline');
+  // "Lançamento em ondas" promete uma onda nova a cada duas semanas. É
+  // promessa da PLATAFORMA; dentro do portal ela sobraria para o
+  // professor cumprir — e para o nosso suporte responder.
+  passo(!vitrine.includes('Lançamento em ondas'),
+    'e sem a caixa de ondas, que é promessa da plataforma');
+
   await anon.goto(`${BASE}/catalogo`, { waitUntil: 'load' });
+  passo((await anon.locator('body').innerText()).includes('Lançamento em ondas'),
+    'na plataforma, a caixa de ondas continua onde estava');
   passo((await anon.locator('body').innerText()).includes('professores parceiros'),
     'o curso compartilhado aparece na vitrine da plataforma');
   await anon.context().close();

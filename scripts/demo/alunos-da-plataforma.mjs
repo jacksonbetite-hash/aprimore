@@ -90,6 +90,12 @@ async function responderExercicio(pagina, aulaId, erradas = 1) {
        FROM questao q JOIN exercicio e ON e.id = q.exercicio_id
       WHERE e.aula_id = $1 ORDER BY q.ordem, q.id`, [aulaId]);
 
+  // O exercício vive numa aba e mostra UMA questão por vez: a âncora abre
+  // a aba (AbasAula ouve o hash), e entre uma questão e outra o roteiro
+  // clica em "Próxima questão", como o aluno faz.
+  await pagina.evaluate(() => { window.location.hash = 'exercicio'; });
+  await pagina.locator('#exercicio').waitFor({ state: 'visible', timeout: 10000 });
+
   let respondidas = 0;
   for (const g of gabarito) {
     const alvo = respondidas < erradas ? g.errada : g.certa;
@@ -101,8 +107,12 @@ async function responderExercicio(pagina, aulaId, erradas = 1) {
       .filter({ hasText: alt.texto.slice(0, 40) }).first();
     if (await botao.count() === 0) continue;
     await botao.evaluate((el) => el.click());
-    await pagina.waitForTimeout(350);
+    await pagina.locator('#exercicio .comentario').first()
+      .waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+    await pagina.waitForTimeout(250);
     respondidas++;
+    await pagina.locator('#exercicio .nav-exercicio .btn-primario').click().catch(() => {});
+    await pagina.waitForTimeout(200);
   }
   return respondidas;
 }

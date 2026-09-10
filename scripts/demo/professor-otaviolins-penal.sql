@@ -21,10 +21,16 @@ SELECT p.id, 'penal', 'Direito Penal', 1
 FROM portal p WHERE p.mascara = 'otaviolins';
 
 -- ---------- Matéria ----------
-INSERT INTO materia (portal_id, area_id, slug, nome, ementa, onda, status, professor, ordem, na_vitrine_plataforma)
+-- `destaque` e `nivel` são de db/043: este é o curso que abre a página de
+-- cursos no banner grande, e o nível é o que alimenta o filtro
+-- "Todos os níveis". O curso de Administrativo (criado pelo painel, no
+-- roteiro) fica com o outro nível — com um só, o filtro não teria o que
+-- filtrar e a tela não provaria nada.
+INSERT INTO materia (portal_id, area_id, slug, nome, ementa, onda, status, professor, ordem,
+                     na_vitrine_plataforma, destaque, nivel)
 SELECT p.id, ar.id, 'direito-penal-descomplicado', 'Direito Penal descomplicado',
   'Um mapa do Direito Penal para quem está começando: o princípio da legalidade, as leis que redesenharam o combate ao crime organizado e o que muda na prática quando o Congresso cria um crime novo. Aulas curtas, com exemplos, para a faculdade e para o concurso.',
-  1, 'publicado', 'Prof. Otávio Lins', 1, true
+  1, 'publicado', 'Prof. Otávio Lins', 1, true, true, 'Graduação'
 FROM portal p
 JOIN area ar ON ar.portal_id = p.id AND ar.slug = 'penal'
 WHERE p.mascara = 'otaviolins';

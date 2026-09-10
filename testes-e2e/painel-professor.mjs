@@ -8,8 +8,39 @@
  *   BASE_URL=http://localhost:3010 node testes-e2e/painel-professor.mjs
  */
 import { createHmac, randomBytes } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
+import { readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { chromium } from 'playwright-core';
 import pg from 'pg';
+
+/**
+ * O arquivo que sobe como aula.
+ *
+ * Com ffmpeg por perto, sobe um MP4 de verdade — e aí dá para conferir o
+ * que o professor vê depois de enviar: a capa do cartão saindo sozinha de
+ * um quadro do vídeo (lib/capa-video.ts). Sem ffmpeg, sobe ruído, como
+ * antes: o teste continua valendo para o upload, e a capa cai no desenho
+ * da área, que é o comportamento correto para arquivo que não é vídeo.
+ */
+function videoDeTeste() {
+  const dir = mkdtempSync(path.join(tmpdir(), 'e2e-video-'));
+  const arquivo = path.join(dir, 'aula.mp4');
+  const r = spawnSync(process.env.FFMPEG || 'ffmpeg', [
+    '-hide_banner', '-loglevel', 'error', '-f', 'lavfi',
+    '-i', 'testsrc=size=640x360:rate=15:duration=3', '-pix_fmt', 'yuv420p', '-y', arquivo,
+  ]);
+  if (r.status !== 0) {
+    rmSync(dir, { recursive: true, force: true });
+    return { buffer: randomBytes(96 * 1024), real: false };
+  }
+  const buffer = readFileSync(arquivo);
+  rmSync(dir, { recursive: true, force: true });
+  return { buffer, real: true };
+}
+const VIDEO = videoDeTeste();
 
 const b = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined });
 const base = process.env.BASE_URL ?? 'http://localhost:3000';
@@ -153,7 +184,7 @@ try {
   // ---------- vídeo da aula, pelo painel ----------
   const aulaId = parseInt(p.url().split('/aula/')[1], 10);
   await p.setInputFiles('input[type=file][accept*="video"]', {
-    name: 'aula-teste.mp4', mimeType: 'video/mp4', buffer: randomBytes(96 * 1024),
+    name: 'aula-teste.mp4', mimeType: 'video/mp4', buffer: VIDEO.buffer,
   });
   await p.waitForSelector('.alerta-ok:has-text("Vídeo enviado")', { timeout: 30000 });
   const { rows: [aulaDb] } = await pool.query(
@@ -177,8 +208,55 @@ try {
   await anon.goto(PORTAL + '/', { waitUntil: 'load' });
   corpo = await anon.textContent('body');
   check(corpo.includes('Direito Penal descomplicado'), 'a home do portal mostra a chamada personalizada');
-  check(await anon.locator(`img[src="/api/imagem/${fotoEnviada}"]`).count() === 1, 'com a foto enviada na abertura');
-  check(corpo.includes('Teoria do Crime') && corpo.includes('Conduta e resultado'), 'e o acervo publicado, por área e assunto');
+  // A abertura deixou de exibir o retrato de 220px: o lugar da direita
+  // passou a ser do PRODUTO em uso (o app aberto numa aula). A foto do
+  // professor virou o selo de 44px sobre essa mídia, e ganhou tamanho de
+  // gente em "Quem ensina" — docs/plano-vitrine-do-professor.md, fase 1.
+  check(await anon.locator(`.hero-selo img[src="/api/imagem/${fotoEnviada}"]`).count() === 1,
+    'com a foto enviada no selo da abertura');
+  check(await anon.locator(`#sobre img[src="/api/imagem/${fotoEnviada}"]`).count() === 1,
+    'e em tamanho de gente em "Quem ensina"');
+  /* A mídia da abertura passou a ser a foto de estudo em grupo, e o
+     celular desceu para a seção do método (layout de 09/09/2026). As
+     duas continuam com o selo de conteúdo ilustrativo. */
+  check(await anon.locator('.hero-foto img[src="/imagens/estudo-em-grupo.jpg"]').count() === 1,
+    'e a mídia da abertura é a foto de estudo em grupo');
+  check(await anon.locator('.vitrine-app-figura img[src="/imagens/aula-no-celular.jpg"]').count() === 1,
+    'com o app aberto numa aula na seção do método');
+  /* O acervo da home virou prateleira de cartões (fase 1 de
+     `docs/plano-catalogo-em-prateleiras.md`): área no título da fila,
+     curso no cartão, com capa, preço e "Ver o curso". O título da AULA
+     saiu daqui — ele agora só aparece na página do curso, que é onde a
+     verificação seguinte vai buscá-lo. */
+  check(corpo.includes('Penal') && corpo.includes('Teoria do Crime'),
+    'e o acervo publicado, por área e curso');
+  check(await anon.locator('.prateleira .cartao-vitrine .capa-curso').count() >= 1,
+    'o curso aparece em cartão com capa');
+  if (VIDEO.real) {
+    /* A capa é gerada fora do caminho da resposta do upload: pode chegar
+       um instante depois dele. Duas tentativas bastam — o quadro sai em
+       milissegundos num vídeo de três segundos. */
+    let comFoto = await anon.locator('.cartao-vitrine .capa-foto').count();
+    if (!comFoto) {
+      await anon.waitForTimeout(2500);
+      await anon.reload({ waitUntil: 'load' });
+      comFoto = await anon.locator('.cartao-vitrine .capa-foto').count();
+    }
+    check(comFoto === 1, 'e a capa é um quadro do vídeo enviado, gerado sozinho');
+  } else {
+    console.log('· (ffmpeg ausente: capa a partir do vídeo não verificada)');
+  }
+  check((await anon.locator('.rodape-vitrine strong').first().textContent())?.includes('R$'),
+    'com o preço no pé do cartão');
+  check(await anon.locator('.cartao-vitrine:has-text("Teoria do Crime") .btn:has-text("Ver o curso")').count() === 1,
+    'e o botão "Ver o curso"');
+
+  const destinoCartao = await anon.locator('.cartao-vitrine:has-text("Teoria do Crime")')
+    .first().getAttribute('href');
+  await anon.goto(PORTAL + destinoCartao, { waitUntil: 'load' });
+  check((await anon.textContent('body')).includes('Conduta e resultado'),
+    'e o cartão leva ao curso, onde a aula publicada está listada');
+  await anon.goto(PORTAL + '/', { waitUntil: 'load' });
   const rodape = await anon.locator('footer').textContent();
   const okRodape = rodape.includes('Responsável pelo conteúdo') && rodape.includes('11.222.333/0001-81');
   check(okRodape, 'rodapé identifica o responsável com CNPJ');

@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useState } from 'react';
 import type { EstadoAdmin } from '../acoes.ts';
 import type { AreaAdmin, MateriaAdmin } from '../../../lib/admin-cursos.ts';
 
@@ -17,8 +17,16 @@ const SITUACOES = [
  * matéria, nunca por assunto). Por isso a ementa é obrigatória e longa:
  * ela é o texto que decide a compra e o que o buscador lê.
  */
+/**
+ * O que o professor do catálogo (db/046) decide sobre a situação: leva
+ * até "em revisão"; publicar é da plataforma. Se o curso já está
+ * publicado, a opção aparece só para ele poder MANTER.
+ */
+const SITUACOES_DO_CATALOGO = SITUACOES.filter((s) => ['rascunho', 'em_revisao', 'arquivado'].includes(s.valor));
+
 export default function FormMateria({
-  acao, areas, portalId, materia, ehPlataforma, empresa = false,
+  acao, areas, portalId, materia, ehPlataforma, empresa = false, niveis = [],
+  catalogo = false, nomeProfessor,
 }: {
   acao: (e: EstadoAdmin, d: FormData) => Promise<EstadoAdmin>;
   areas: AreaAdmin[];
@@ -27,9 +35,26 @@ export default function FormMateria({
   ehPlataforma: boolean;
   /** §5.11: mesmo formulário, rótulos de empresa (trilha em vez de curso), sem onda nem vitrine. */
   empresa?: boolean;
+  /** Etapa 5: professor SEM portal, no catálogo — sem onda, destaque e vitrine; quem assina é ele. */
+  catalogo?: boolean;
+  nomeProfessor?: string;
+  /**
+   * Os níveis já usados neste portal (db/043). Servem de sugestão no
+   * `<datalist>`: sem elas, "Prática forense" e "Pratica Forense" viram
+   * duas opções diferentes no filtro do catálogo, e quem digitou não vê
+   * o erro. Lista vazia = campo livre, sem sugestão.
+   */
+  niveis?: string[];
 }) {
   const [estado, enviar, pendente] = useActionState(acao, {});
   const coisa = empresa ? 'trilha' : 'curso';
+  // db/047 — o limite de vagas sem orçamento só faz sentido onde a
+  // EMPRESA pode comprar o curso: no catálogo da plataforma (curso da
+  // casa ou de professor do catálogo) e no curso de portal compartilhado
+  // na vitrine. O marcador da vitrine vira estado para o campo aparecer
+  // na hora em que ele é ligado.
+  const [naVitrine, setNaVitrine] = useState(Boolean(materia?.naVitrinePlataforma));
+  const vendeParaEmpresas = !empresa && (ehPlataforma || catalogo || naVitrine);
 
   return (
     <form action={enviar} className="form-editor">
@@ -68,15 +93,23 @@ export default function FormMateria({
         <label>
           Situação
           <select name="status" defaultValue={materia?.status ?? 'rascunho'}>
-            {SITUACOES.map((s) => <option key={s.valor} value={s.valor}>{s.rotulo}</option>)}
+            {(catalogo ? SITUACOES_DO_CATALOGO : SITUACOES).map((s) => <option key={s.valor} value={s.valor}>{s.rotulo}</option>)}
+            {catalogo && materia && !SITUACOES_DO_CATALOGO.some((s) => s.valor === materia.status) && (
+              <option value={materia.status}>{SITUACOES.find((s) => s.valor === materia.status)?.rotulo ?? materia.status}</option>
+            )}
           </select>
+          {catalogo && <span className="dica">Publicar é da revisão da plataforma: deixe pronto e marque "em revisão".</span>}
         </label>
-        <label>
-          {empresa ? 'Responsável pelo conteúdo' : 'Professor'}
-          <input name="professor" defaultValue={materia?.professor ?? ''}
-            placeholder={empresa ? 'Equipe de T&D' : 'quem assina'} />
-        </label>
-        {!empresa && <label>
+        {catalogo ? (
+          <input type="hidden" name="professor" value={nomeProfessor ?? ''} />
+        ) : (
+          <label>
+            {empresa ? 'Responsável pelo conteúdo' : 'Professor'}
+            <input name="professor" defaultValue={materia?.professor ?? ''}
+              placeholder={empresa ? 'Equipe de T&D' : 'quem assina'} />
+          </label>
+        )}
+        {!empresa && !catalogo && <label>
           Onda de lançamento
           <input name="onda" type="number" min={1} defaultValue={materia?.onda ?? ''}
             placeholder="em branco" />
@@ -95,16 +128,68 @@ export default function FormMateria({
         </label>
       </div>
 
+      {/* db/043 — os dois controles que o catálogo em vitrine pediu. Ficam
+          juntos porque respondem à mesma pergunta ("como este curso
+          aparece na página de cursos"), e separados dos dados do curso,
+          que valem em qualquer tela. */}
+      {!empresa && (
+        <div className="linha estreita">
+          <label>
+            Nível ou público
+            <input name="nivel" defaultValue={materia?.nivel ?? ''} maxLength={60}
+              list="niveis-do-portal" placeholder="Graduação, Prática forense, OAB e concursos…" />
+            <span className="dica">
+              A quem o curso se dirige. É o filtro <strong>“Todos os níveis”</strong> da barra
+              de busca do catálogo: as opções são exatamente as que você escreveu aqui, nos
+              seus cursos. Em branco, o curso continua aparecendo — só não entra no filtro.
+            </span>
+            {niveis.length > 0 && (
+              <datalist id="niveis-do-portal">
+                {niveis.map((n) => <option key={n} value={n} />)}
+              </datalist>
+            )}
+          </label>
+        </div>
+      )}
+
+      {!empresa && !catalogo && (
+        <label className="marcador">
+          <input type="checkbox" name="destaque" defaultChecked={materia?.destaque} />
+          Curso em destaque no catálogo
+          <span className="dica">
+            É o curso do <strong>banner grande</strong>, no alto da página de cursos: capa em
+            tamanho de cartaz, ementa e o botão de assistir. Só entra curso publicado e com
+            aula no ar. Marcando mais de um, o banner mostra o de <em>menor ordem</em>; sem
+            marcar nenhum, ele mostra o primeiro curso publicado.
+          </span>
+        </label>
+      )}
+
       {!ehPlataforma && !empresa && (
         <label className="marcador">
           <input type="checkbox" name="naVitrinePlataforma"
-            defaultChecked={materia?.naVitrinePlataforma} />
+            checked={naVitrine} onChange={(e) => setNaVitrine(e.target.checked)} />
           Também na vitrine da plataforma
           <span className="dica">
             §5.10: compartilhar é ato deliberado, matéria a matéria. Venda que nascer na nossa
             vitrine é venda nossa, com comissão pela regra do §5.6.1.
           </span>
         </label>
+      )}
+
+      {vendeParaEmpresas && (
+        <div className="linha estreita">
+          <label>
+            Vagas para empresa sem orçamento
+            <input name="vagasSemOrcamento" type="number" min={0} max={100000}
+              defaultValue={materia?.vagasSemOrcamento ?? 10} required />
+            <span className="dica">
+              Uma empresa compra até este número de vagas deste curso na hora, pelo preço anual
+              da tabela; acima disso, ela pede orçamento ao comercial. <strong>0</strong> = sempre
+              por orçamento.
+            </span>
+          </label>
+        </div>
       )}
 
       <div className="acoes">

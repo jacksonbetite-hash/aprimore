@@ -4,11 +4,14 @@ import type { Metadata } from 'next';
 import FormAula from '../../../../admin/cursos/FormAula.tsx';
 import Exercicio from '../../../../admin/cursos/Exercicio.tsx';
 import Enviar from '../../../Enviar.tsx';
-import { acaoEditarAula, acaoStatusAula, acaoSalvarQuestao, acaoExcluirQuestao } from '../../../acoes.ts';
+import {
+  acaoEditarAula, acaoStatusAula, acaoSalvarQuestao, acaoExcluirQuestao, acaoRemoverVideo,
+} from '../../../acoes.ts';
 import { buscarAula, listarAssuntos, exercicioDaAula } from '../../../../../lib/admin-cursos.ts';
 import { alunoAtual } from '../../../../../lib/sessao.ts';
 import { portalDoProfessor } from '../../../../../lib/professor.ts';
 import { enderecoDoPortal } from '../../../../../lib/portal-consultas.ts';
+import AulaCatalogo from '../../../catalogo/Aula.tsx';
 
 export const metadata: Metadata = { title: 'Aula — Painel do professor' };
 
@@ -18,9 +21,10 @@ export default async function AulaDoProfessor(
   const { id } = await params;
   const { criada } = await searchParams;
   const u = (await alunoAtual())!;
-  const portal = (await portalDoProfessor(u.id))!;
   const aulaId = Number(id);
   if (!Number.isInteger(aulaId)) notFound();
+  const portal = await portalDoProfessor(u.id);
+  if (!portal) return <AulaCatalogo u={u} aulaId={aulaId} criada={criada} />;
 
   const aula = await buscarAula(portal.id, aulaId);
   if (!aula) notFound();
@@ -60,9 +64,23 @@ export default async function AulaDoProfessor(
             ? <>Vídeo atual: <code>{aula.videoId}</code> ({aula.videoProvedor}). Enviar outro substitui.</>
             : 'Esta aula ainda não tem vídeo. A página funciona sem ele (resumo e exercício), mas a aula em vídeo é o produto.'}
         </p>
-        <Enviar tipo="video" aulaId={aula.id} rotulo="Enviar arquivo de vídeo"
+        <Enviar tipo="video" aulaId={aula.id}
+                rotulo={aula.videoId ? 'Trocar o arquivo de vídeo' : 'Enviar arquivo de vídeo'}
                 aceita="video/mp4,video/webm,.mp4,.m4v,.webm"
                 dica="MP4 (H.264) ou WebM, até 2 GB. O arquivo fica no nosso volume e é entregue ao aluno por endereço assinado, com prazo — nunca por link público." />
+        {/* Trocar já dava para fazer (enviar outro substitui); tirar, não.
+            O par completo é o que o §5.10 chama de autonomia sobre o
+            próprio acervo. */}
+        {aula.videoId && (
+          <form action={acaoRemoverVideo} style={{ marginTop: 12 }}>
+            <input type="hidden" name="aulaId" value={aula.id} />
+            <button className="btn btn-contorno btn-sm" type="submit">Tirar o vídeo desta aula</button>
+          </form>
+        )}
+        <p className="caption suave" style={{ marginTop: 12 }}>
+          Todas as suas aulas, com quem já tem gravação e quem não tem, ficam em{' '}
+          <Link href="/professor/videos">Vídeos das aulas</Link>.
+        </p>
       </div>
 
       <div className="cartao">

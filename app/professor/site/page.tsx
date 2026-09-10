@@ -8,12 +8,14 @@ import { portalDoProfessor } from '../../../lib/professor.ts';
 import { situacaoDominio } from '../../../lib/portal-dominio.ts';
 import { enderecoDoPortal } from '../../../lib/portal-consultas.ts';
 import { brl } from '../../../lib/precos.ts';
+import { redirect } from 'next/navigation';
 
 export const metadata: Metadata = { title: 'Minha página — Painel do professor' };
 
 export default async function MinhaPagina() {
   const u = (await alunoAtual())!;
-  const portal = (await portalDoProfessor(u.id))!;
+  const portal = await portalDoProfessor(u.id);
+  if (!portal) redirect('/professor');   // o professor do catálogo não tem esta tela
   const dominio = await situacaoDominio(portal.id);
   const endereco = await enderecoDoPortal(portal.mascara);
   const visivel = endereco.replace(/^https?:\/\//, '');
@@ -24,7 +26,8 @@ export default async function MinhaPagina() {
           <h1 className="headline-lg">Minha página</h1>
           <p className="suave">
             O que aparece em <a href={endereco} target="_blank" rel="noreferrer"><code>{visivel}</code></a>:
-            abertura, propósito, quem ensina, contato e cor. O acervo e a oferta entram sozinhos.
+            abertura, propósito, quem ensina, contato, cor e as ferramentas de estudo do topo.
+            O acervo e a oferta entram sozinhos.
           </p>
         </div>
         <div className="acoes">
@@ -64,6 +67,9 @@ export default async function MinhaPagina() {
       </div>
 
       <div className="cartao" style={{ marginBottom: 24 }}>
+        {/* §5.10 — as ferramentas de estudo saíram do menu do site
+            principal e passaram a ser escolha de cada portal: o professor
+            marca no formulário abaixo quais quer no topo da página dele. */}
         <FormSite acao={acaoSalvarSite} portalId={portal.id} personalizacao={portal.personalizacao}
                   campoFoto={false} />
       </div>

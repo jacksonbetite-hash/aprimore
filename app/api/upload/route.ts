@@ -7,10 +7,12 @@ import { NextResponse } from 'next/server';
 import { alunoAtual } from '../../../lib/sessao.ts';
 import { portalDoProfessor } from '../../../lib/professor.ts';
 import { portalDaEmpresa } from '../../../lib/empresa.ts';
+import { ehProfessorDoCatalogo, materiaDe, posseDaMateria } from '../../../lib/professor-catalogo.ts';
 import { query, queryOne } from '../../../lib/db.ts';
 import { medirArmazenamento } from '../../../lib/portal-financeiro.ts';
+import { gerarCapaDaMateria } from '../../../lib/capa-video.ts';
 import {
-  extensaoAceita, nomeNoVolume, pertenceAoPortal, LIMITE_BYTES, type TipoEnvio,
+  extensaoAceita, nomeNoVolume, nomeDeCapa, pertenceAoPortal, LIMITE_BYTES, type TipoEnvio,
 } from '../../../lib/upload.ts';
 
 /**
@@ -33,6 +35,11 @@ const VIDEO_RAIZ = path.resolve(/*turbopackIgnore: true*/ process.env.VIDEO_RAIZ
 const IMAGEM_RAIZ = path.resolve(
   /*turbopackIgnore: true*/ process.env.IMAGEM_RAIZ ?? path.join(path.dirname(VIDEO_RAIZ), 'imagem'),
 );
+// A Biblioteca da empresa (db/042): PDF do acervo, ao lado de vídeo e
+// imagem no mesmo volume — e, como eles, fora da imagem Docker (§10).
+const DOCUMENTO_RAIZ = path.resolve(
+  /*turbopackIgnore: true*/ process.env.DOCUMENTO_RAIZ ?? path.join(path.dirname(VIDEO_RAIZ), 'documento'),
+);
 
 const erro = (status: number, mensagem: string) => NextResponse.json({ erro: mensagem }, { status });
 
@@ -42,13 +49,25 @@ export async function POST(req: Request) {
 
   const url = new URL(req.url);
   const tipo = url.searchParams.get('tipo') as TipoEnvio;
-  if (tipo !== 'video' && tipo !== 'imagem') return erro(400, 'tipo de envio inválido');
+  if (tipo !== 'video' && tipo !== 'imagem' && tipo !== 'documento') {
+    return erro(400, 'tipo de envio inválido');
+  }
+  /* Para onde vai a imagem depois de gravada. `portal` (o padrão, que é
+     o comportamento de sempre) troca a foto de apresentação do portal;
+     `acervo` só devolve o endereço, para o formulário da Biblioteca
+     guardar como capa do item; `capa` grava a capa de UM curso, indicado
+     por `?materiaId=`. Sem esta distinção, enviar a capa de um livro — ou
+     de um curso — trocaria a foto da página inteira, silenciosamente. */
+  const usoPedido = url.searchParams.get('uso');
+  const uso = usoPedido === 'acervo' ? 'acervo' : usoPedido === 'capa' ? 'capa' : 'portal';
   const nomeOriginal = url.searchParams.get('nome') ?? '';
   const ext = extensaoAceita(tipo, nomeOriginal);
   if (!ext) {
     return erro(415, tipo === 'video'
       ? 'Formato não aceito. Envie MP4 (H.264) ou WebM.'
-      : 'Formato não aceito. Envie JPG, PNG ou WebP.');
+      : tipo === 'documento'
+        ? 'Formato não aceito. Envie um arquivo PDF.'
+        : 'Formato não aceito. Envie JPG, PNG ou WebP.');
   }
 
   // De quem é o upload: professor no próprio portal; admin onde indicar.
@@ -67,9 +86,33 @@ export async function POST(req: Request) {
     portalId = portal.id;
   } else {
     if (u.papel !== 'professor' && u.papel !== 'admin') return erro(403, 'sem permissão');
+    /* A Biblioteca é do portal de uma EMPRESA (§5.11). O professor não
+       tem acervo: um PDF enviado por ele ficaria no volume sem item que
+       o referencie — ocupando cota e sem abrir para ninguém, porque a
+       entrega exige item publicado. */
+    if (tipo === 'documento') return erro(403, 'envio de documento é da Biblioteca da empresa');
     const portal = await portalDoProfessor(u.id);
-    if (!portal) return erro(403, 'você ainda não tem um portal');
-    portalId = portal.id;
+    if (portal) {
+      portalId = portal.id;
+    } else if (u.papel === 'professor' && await ehProfessorDoCatalogo(u.id)) {
+      // Etapa 5 — professor SEM portal envia para o catálogo (portal 0),
+      // e só para aula ou curso que é DELE: a posse é conferida abaixo,
+      // antes de gravar um byte.
+      portalId = 0;
+      const aulaPedida = Number(url.searchParams.get('aulaId'));
+      const materiaPedida = Number(url.searchParams.get('materiaId'));
+      const materiaAlvo = tipo === 'video' && Number.isInteger(aulaPedida)
+        ? await materiaDe({ aulaId: aulaPedida })
+        : Number.isInteger(materiaPedida) ? materiaPedida : null;
+      if (materiaAlvo === null) return erro(400, 'diga a aula ou o curso');
+      try {
+        await posseDaMateria(query, u.id, materiaAlvo);
+      } catch {
+        return erro(404, 'curso não encontrado');
+      }
+    } else {
+      return erro(403, 'você ainda não tem um portal');
+    }
   }
 
   const limite = LIMITE_BYTES[tipo];
@@ -79,22 +122,46 @@ export async function POST(req: Request) {
   }
 
   let aulaId: number | undefined;
-  let anteriorVideo: { provedor: string | null; id: string | null } | null = null;
+  let anteriorVideo: { provedor: string | null; id: string | null; materiaId: number } | null = null;
   if (tipo === 'video') {
     aulaId = Number(url.searchParams.get('aulaId'));
     if (!Number.isInteger(aulaId)) return erro(400, 'aula inválida');
-    // A aula precisa ser DESTE portal: id alheio não encontra a linha.
-    const aula = await queryOne<{ provedor: string | null; id: string | null }>(
-      `SELECT video_provedor AS provedor, video_id AS id FROM aula WHERE id = $1 AND portal_id = $2`,
+    // A aula precisa ser DESTE portal: id alheio não encontra a linha. A
+    // matéria vem junto porque é dela a capa que o vídeo vai gerar.
+    const aula = await queryOne<{ provedor: string | null; id: string | null; materiaId: number }>(
+      `SELECT au.video_provedor AS provedor, au.video_id AS id, s.materia_id::int AS "materiaId"
+         FROM aula au JOIN assunto s ON s.id = au.assunto_id
+        WHERE au.id = $1 AND au.portal_id = $2`,
       [aulaId, portalId],
     );
     if (!aula) return erro(404, 'aula não encontrada');
     anteriorVideo = aula;
   }
 
-  const raiz = tipo === 'video' ? VIDEO_RAIZ : IMAGEM_RAIZ;
+  /* A capa que o professor escolhe à mão (docs/plano-vitrine-do-professor.md,
+     fase 3a). Espelho exato do ramo do vídeo, e pela mesma razão: a
+     matéria precisa ser DESTE portal, e isso se confere ANTES de gravar
+     um byte — id de curso alheio na URL não pode nem criar arquivo no
+     volume. O quadro tirado do vídeo continua existindo para quem não
+     enviar nada; quem enviar, manda nela (gerarCapaDaMateria não
+     sobrescreve capa existente sem `substituir`). */
+  let materiaId: number | undefined;
+  let capaAnterior: string | null = null;
+  if (tipo === 'imagem' && uso === 'capa') {
+    materiaId = Number(url.searchParams.get('materiaId'));
+    if (!Number.isInteger(materiaId)) return erro(400, 'curso inválido');
+    const materia = await queryOne<{ capa: string | null }>(
+      'SELECT capa FROM materia WHERE id = $1 AND portal_id = $2', [materiaId, portalId],
+    );
+    if (!materia) return erro(404, 'curso não encontrado');
+    capaAnterior = materia.capa;
+  }
+
+  const raiz = tipo === 'video' ? VIDEO_RAIZ : tipo === 'documento' ? DOCUMENTO_RAIZ : IMAGEM_RAIZ;
   await mkdir(/*turbopackIgnore: true*/ raiz, { recursive: true });
-  const id = nomeNoVolume(tipo, portalId, ext, aulaId);
+  const id = materiaId !== undefined
+    ? nomeDeCapa(portalId, materiaId, ext)
+    : nomeNoVolume(tipo, portalId, ext, aulaId);
   const destino = path.join(raiz, id);
 
   // Stream para o disco, com o teto aplicado byte a byte — o
@@ -137,7 +204,31 @@ export async function POST(req: Request) {
       await unlink(path.join(VIDEO_RAIZ, ant.id)).catch(() => {});
     }
     if (portalId !== 0) void medirArmazenamento(portalId).catch(() => {});
-  } else {
+    /* A capa do curso sai de um quadro deste vídeo, se o curso ainda não
+       tiver uma. Fora do caminho da resposta, de propósito: o professor
+       veio enviar a aula, e uma falha do ffmpeg não pode transformar um
+       envio que deu certo em erro na tela. Sem capa, o cartão cai no
+       gradiente da área — que é a reserva desenhada de sempre. */
+    void gerarCapaDaMateria(portalId, ant.materiaId).catch((e) => {
+      console.error('capa do curso não pôde ser gerada:', (e as Error).message);
+    });
+  } else if (tipo === 'imagem' && uso === 'capa') {
+    await query('UPDATE materia SET capa = $3 WHERE id = $1 AND portal_id = $2',
+      [materiaId, portalId, `/api/imagem/${id}`]);
+    /* A capa anterior sai do disco — mesma regra do vídeo e da foto. O
+       `pertenceAoPortal` é o que impede um caminho gravado à mão no banco
+       de apagar arquivo de outro portal.
+
+       O que NÃO acontece aqui: `medirArmazenamento`. A cota conta vídeo,
+       material de apoio e acervo (lib/portal-financeiro.ts) — imagem de
+       portal nunca entrou nela, e fazer a capa entrar mudaria a fatura de
+       todo mundo. Se um dia entrar, entra junto com a foto do portal. */
+    const anterior = capaAnterior?.startsWith('/api/imagem/')
+      ? capaAnterior.slice('/api/imagem/'.length) : null;
+    if (anterior && anterior !== id && pertenceAoPortal(anterior, portalId)) {
+      await unlink(path.join(IMAGEM_RAIZ, anterior)).catch(() => {});
+    }
+  } else if (tipo === 'imagem' && uso === 'portal') {
     const atual = await queryOne<{ foto: string | null }>(
       `SELECT personalizacao->>'foto' AS foto FROM portal WHERE id = $1`, [portalId]);
     await query(
@@ -154,8 +245,19 @@ export async function POST(req: Request) {
   await query(
     `INSERT INTO log_auditoria (ator, acao, entidade, entidade_id, detalhe)
      VALUES ($1, $2, $3, $4, $5)`,
-    [u.email, `upload.${tipo}`, tipo === 'video' ? 'aula' : 'portal', aulaId ?? portalId,
+    [u.email, `upload.${tipo}`,
+     tipo === 'video' ? 'aula' : materiaId !== undefined ? 'materia' : 'portal',
+     aulaId ?? materiaId ?? portalId,
      JSON.stringify({ id, bytes: recebido, portalId })],
   );
-  return NextResponse.json({ id, bytes: recebido, url: tipo === 'imagem' ? `/api/imagem/${id}` : null });
+  /* O documento NÃO é gravado em `acervo` aqui: o item ainda não
+     existe — o RH escolhe o PDF e só depois salva a ficha. Quem amarra
+     arquivo e item é `acaoSalvarItemAcervo`, que também registra os
+     bytes na cota. Enquanto isso o arquivo fica no volume sem dono, e é
+     por isso que a entrega (`/api/documento`) exige item PUBLICADO:
+     arquivo órfão não abre para ninguém. */
+  const endereco = tipo === 'imagem' ? `/api/imagem/${id}`
+    : tipo === 'documento' ? `/api/documento/${id}`
+      : null;
+  return NextResponse.json({ id, bytes: recebido, url: endereco });
 }

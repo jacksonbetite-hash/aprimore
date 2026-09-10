@@ -32,6 +32,12 @@ export function lerMateria(dados: FormData): DadosMateria {
     professor: String(dados.get('professor') ?? ''),
     ordem: numero(dados.get('ordem')),
     naVitrinePlataforma: dados.get('naVitrinePlataforma') === 'on',
+    destaque: dados.get('destaque') === 'on',
+    nivel: String(dados.get('nivel') ?? ''),
+    // db/047 — só chega quando o formulário mostra o campo (curso da
+    // plataforma, do catálogo ou compartilhado na vitrine); ausente mantém.
+    vagasSemOrcamento: dados.get('vagasSemOrcamento') === null || String(dados.get('vagasSemOrcamento')).trim() === ''
+      ? null : Number(dados.get('vagasSemOrcamento')),
   };
 }
 

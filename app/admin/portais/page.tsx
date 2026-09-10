@@ -5,6 +5,7 @@ import { BotaoIcone, LinkIcone } from '../../ui.tsx';
 import { acaoCriarPortal, acaoSalvarPlano, acaoCriarProfessor, acaoStatusPortal } from './acoes.ts';
 import { listarPortais, listarPlanos, listarProfessores } from '../../../lib/admin-portais.ts';
 import { brl } from '../../../lib/precos.ts';
+import { permissoesDaTela } from '../guarda.ts';
 
 export const metadata: Metadata = { title: 'Portais de professor — Administração' };
 export const dynamic = 'force-dynamic';
@@ -15,8 +16,9 @@ const CHIP: Record<string, string> = {
 };
 
 export default async function Portais() {
-  const [portais, planos, professores] = await Promise.all([
+  const [portais, planos, professores, pode] = await Promise.all([
     listarPortais(), listarPlanos(), listarProfessores(),
+    permissoesDaTela('cadastros.agir', 'financeiro.agir'),
   ]);
 
   return (
@@ -80,7 +82,7 @@ export default async function Portais() {
                                rotulo="Abrir o portal" />
                     <LinkIcone href={`/admin/cursos?portal=${p.id}`} icone="menu_book"
                                rotulo="Acervo do portal" />
-                    {p.status === 'ATIVO' ? (
+                    {!pode['cadastros.agir'] ? null : p.status === 'ATIVO' ? (
                       <form action={acaoStatusPortal}>
                         <input type="hidden" name="id" value={p.id} />
                         <input type="hidden" name="status" value="SUSPENSO" />
@@ -111,7 +113,7 @@ export default async function Portais() {
         </p>
       </div>
 
-      <div className="cartao">
+      {pode['cadastros.agir'] && <div className="cartao">
         <h2 className="headline-md" style={{ marginBottom: 6 }}>Novo portal</h2>
         <p className="caption suave" style={{ marginBottom: 16 }}>
           Nasce em rascunho. Só vai ao ar depois do contrato registrado e aceito (§5.6).
@@ -124,11 +126,11 @@ export default async function Portais() {
         ) : (
           <FormPortal acao={acaoCriarPortal} planos={planos} professores={professores} />
         )}
-      </div>
+      </div>}
 
       <div className="cartao">
         <h2 className="headline-md" style={{ marginBottom: 16 }}>Professores</h2>
-        <FormProfessor acao={acaoCriarProfessor} />
+        {pode['cadastros.agir'] && <FormProfessor acao={acaoCriarProfessor} />}
         <table className="tabela" style={{ marginTop: 16 }}>
           <thead><tr><th>Professor</th><th>E-mail</th><th>Portais</th></tr></thead>
           <tbody>
@@ -184,8 +186,10 @@ export default async function Portais() {
             )}
           </tbody>
         </table>
-        <h3 className="headline-md" style={{ marginBottom: 16 }}>Novo plano</h3>
-        <FormPlano acao={acaoSalvarPlano} />
+        {pode['financeiro.agir'] && <>
+          <h3 className="headline-md" style={{ marginBottom: 16 }}>Novo plano</h3>
+          <FormPlano acao={acaoSalvarPlano} />
+        </>}
       </div>
     </>
   );

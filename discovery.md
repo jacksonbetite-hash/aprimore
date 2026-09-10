@@ -150,6 +150,8 @@ Toda aula publicada tem, sem exceção:
 
 ### 5.6 Professores: cadastro, autoria e remuneração
 
+> **Implantado em 10/09/2026** como "professor sem página própria" (`docs/plano-perfis-e-acessos.md`, etapa 5; db/046): cadastro em autosserviço em `/para-professores/catalogo`, autoria no painel `/professor` em modo catálogo, publicação com revisão da plataforma, comissão-padrão de **40%** gravada na venda e apuração mensal pelo ciclo do §5.6.1 com o professor como dono. Aceita CPF ou CNPJ; o repasse é por Pix (o gateway exige subconta, que só o portal tem).
+
 **Cadastro do professor** (pelo admin; autocadastro com aprovação em fase posterior):
 - Dados pessoais e fiscais: nome, CPF/CNPJ, dados bancários/Pix, endereço, e-mail
 - Perfil público: foto, mini-currículo, titulação, matérias que ministra (exibido nas páginas das matérias)
@@ -316,7 +318,7 @@ O nome interno é **portal do professor**; cada portal é um *tenant* — uma fa
 | **Cobrança do professor** | **Licença mensal fixa + percentual fixo sobre as vendas.** Duas linhas na mesma fatura mensal |
 | **Acréscimo por indicação** | Aluno que chega ao portal por anúncio nosso: **+5 pontos percentuais** sobre aquela venda, **só na primeira compra** dele naquele portal (§5.10.1) |
 | **Acervo** | **Escolha do professor, matéria a matéria**: fica só no portal dele, ou aparece também na nossa vitrine |
-| **Base de alunos** | **Separada por portal.** O aluno do professor não existe no nosso catálogo, e vice-versa |
+| **Base de alunos** | **Separada por portal.** O aluno do professor não existe no nosso catálogo, e vice-versa. **Revisto em 10/09/2026** (`docs/plano-perfis-e-acessos.md`, db/045): a **credencial** passou a ser uma por e-mail — a mesma senha entra na plataforma, no portal do professor e no da empresa —, mas o **perfil** (licenças, progresso, setor) continua um por portal, com o mesmo isolamento por chave composta. Quem quer acessos separados usa outro e-mail |
 | **Publicação de conteúdo** | **Direta, com moderação reativa.** Autonomia é a promessa do produto; não há revisor no caminho |
 | **Vídeo** | Cota de armazenamento e banda por plano, **excedente cobrado** |
 | **Quando** | **Em paralelo à Fase 1** — há professor interessado. Ver a ressalva de capacidade no §16 |
@@ -547,6 +549,25 @@ Qualquer um deles entra sem código: campo "Domínio próprio (R$/mês)" do plan
 
 - **Domínio próprio (Fase 2)** ✅ — o portal responde também em `cursos.dominiodele.com.br`. Mecânica: o `proxy.ts` marca todo Host que não é nosso nem subdomínio nosso (`x-portal-dominio`, apagado se vier da rua); `portalAtual` resolve por `portal.dominio_proprio`, **só depois de verificado**. O professor cadastra o domínio no painel (Minha página), aponta o CNAME para `<mascara>.<nosso domínio>` e pede a verificação (`verificarDominio`, consulta CNAME real; DNS ainda não propagado é "ainda não", não erro). O preço mora no plano (`portal_plano.centavos_dominio_proprio`; **NULL = o plano não oferece**, e o painel diz isso) e entra na fatura como linha própria só depois de verificado. Índice único por domínio; trocar zera a verificação; o admin, ao definir pelo cadastro do portal, já vale como verificado (db/029). **HTTPS (04/09/2026):** o Caddy entrou no perfil `vps` na frente do nginx (`caddy/Caddyfile`), com certificado **sob demanda** para qualquer host — subdomínio de portal ou domínio próprio — emitido na primeira visita e renovado sozinho. Antes de emitir, ele pergunta a `GET /api/dominio-permitido?domain=`, que só diz sim para a plataforma, para subdomínio de portal no ar e para domínio próprio verificado (cobertura no e2e do funil). Na VPS: `docker compose --profile vps up -d`, com `ACME_EMAIL` no `.env`; o nginx deixa de ouvir a porta 80 da rua e nada mais muda. O certbot deixa de ser necessário. **Preço decidido (04/09/2026):** R$ 29,90/mês no plano de lançamento (`db/030`); incluído no plano C quando ele existir.
 
+**Entregue em 08/09/2026 — autonomia do professor sobre vídeo e ferramentas:**
+
+- **"Vídeos das aulas" (`/professor/videos`)** — o professor via o envio do vídeo só *dentro* de cada aula, e quem ainda não tinha assunto nem aula não achava onde anexar ("não encontrei o local onde anexo o vídeo da aula"). A tela nova põe todas as aulas do portal numa lista, por curso, dizendo quais têm gravação e quais não, com o envio na linha de cada uma, a conferência do arquivo atual no player (assinado, `preload="none"` para não gastar banda do portal à toa), o tamanho ocupado e o **botão de tirar o vídeo** — o par que faltava (trocar já existia: enviar outro substitui e apaga o anterior). Arquivo que sumiu do volume aparece como problema, não como "enviado". `lib/video-aula.ts`, `acaoRemoverVideo`, item na barra lateral, atalhos nas telas de curso e de aula, e passo próprio na checklist da visão geral (`aulasComVideo`).
+- **Ferramentas passam a ser escolha do portal** — o submenu **Ferramentas** saiu do topo do site principal e virou item de "Minha página": o professor marca quais ferramentas de estudo (vade-mécum, calculadora penal, caderno de erros) quer no topo do portal dele; sem marcar nenhuma, o submenu não aparece. O mural de vagas é conteúdo da casa e não se vincula a portal nenhum (`soPlataforma`). Catálogo e validação em `lib/ferramentas.ts` (7 testes): chave inventada no formulário não vira menu, e a ordem é a do catálogo. No site principal a porta das ferramentas passou a ser o rodapé — a calculadora entrou lá para não virar página órfã, e o e2e da calculadora confere isso.
+- **Base de alunos de demonstração por portal** — `scripts/demo/alunos-do-professor.mjs` (`PORTAL=<mascara>`) cria quatro alunos pelos fluxos de verdade no endereço do portal: conta em `/cadastrar`, compra no checkout, pagamento pelo webhook assinado, aulas concluídas pela rota do player, exercício respondido com erro e acerto, e um reembolso pedido no botão de `/conta` (CDC, art. 49). Sai com venda paga, passe completo, pedido em aberto e pedido reembolsado — que é o que faz "Alunos" e "Financeiro" mostrarem o que sabem fazer.
+
+**Também em 08/09/2026 — a tela do aluno que JÁ é aluno:**
+
+O relato veio de um teste com conta de aluno dentro do portal: "já sou aluno e estou no ambiente de aula, não está correto a apresentação do valor à direita; não consigo ver as perguntas respondidas nem o meu progresso". Três defeitos reais atrás disso, e um deles silencioso:
+
+- **A página do curso mostrava o preço para quem já comprou.** Ela só sabia decidir acesso *aula a aula* (`podeAcessar`); faltava o degrau do curso. Entrou `acessoAoCurso` em `lib/licenca.ts` — mesma escada de decisão, parando um degrau antes, com teste que trava a coerência entre os dois ("quem acessa o curso acessa a aula paga dele"). Com acesso, a caixa da direita deixa de ser vitrine e vira **progresso**: anel de percentual, aulas concluídas, questões respondidas e aproveitamento, botão de *continuar de onde parei* com o nome da próxima aula, e por qual licença o acesso vem, com a data em que vence. Sem acesso, a oferta continua — mas o aluno logado não recebe mais "Testar 7 dias grátis" apontando para `/cadastrar`.
+- **O exercício voltava em branco.** `Exercicio` nascia sem estado: quem já tinha respondido não via as próprias marcações nem os comentários, e respondia de novo achando que a primeira vez não valera. Agora as respostas vêm do banco (`respostasDaAula`, a última de cada questão — o mesmo critério do caderno de erros) e a tela reabre no estado em que ficou, com etiqueta de acerto/erro e a data. **Refazer continua permitido, e é o que tira a questão do caderno** (§5.2), mas passou a ser um clique deliberado. Achado de raiz no caminho: `exercicioDaAula` devolvia os ids sem `::int` — BIGINT chega como texto, a comparação estrita com o id marcado dava `false` sempre, e o exercício respondido voltava como **"0 acertos"** com o gabarito certo do lado (§15.14, a mesma classe de defeito do `db/025`).
+- **O progresso não aparecia em lugar nenhum do conteúdo.** `lib/progresso-curso.ts` (5 testes, 2 contra banco) responde o recorte fino — que aulas ESTE aluno concluiu neste curso, onde parou, como foi no exercício. A ementa passou a marcar *Concluída* / *Continuar* com o percentual assistido, e a barra lateral da aula só dá o visto verde no que foi realmente assistido (antes marcava tudo o que estava destrancado) e mostra o andamento do curso.
+- Dois vazamentos de white-label corrigidos de passagem, na mesma tela: o painel do aluno dentro do portal do professor trazia **a marca da plataforma** no topo e o **tema roxo da casa** em vez da cor do portal; e tratava aluno com curso 100% concluído como visitante ("Sua jornada começa agora — comece sem pagar nada"), agora "Você concluiu todas as aulas liberadas", com o caderno de erros como próximo passo.
+
+**09/09/2026 — exercício passo a passo, em aba própria** (plano e estado em `docs/plano-exercicio-sequencial.md`): as N questões vinham empilhadas abaixo das abas, e responder a 1ª obrigava a rolar pelo comentário inteiro até achar a 2ª. O exercício virou a aba **Exercício**, entre Resumo e Materiais — a ordem das abas passou a ser a ordem de estudo, e o rótulo carrega o estado (`Exercício · 5/6`, `✓ 5/6`). Dentro dela, **uma questão por vez**: marcadores numerados clicáveis (verde/vermelho/pendente), "Próxima questão" só depois de responder, e um **resultado** com nota, a lista das questões (clique volta a qualquer uma), "Refazer as que errei" e "Próxima aula". Abre na primeira pendente, ou no resultado se não há pendente. `AbasAula` passou a abrir a aba pela âncora (`#exercicio`), então o chamado no fim do resumo, os roteiros de demonstração e qualquer link antigo continuam chegando lá. A aula bloqueada mantém a aba, com a oferta no lugar das questões.
+
+Fora do escopo, e não é defeito: **avaliação final e certificado são do portal de empresa** (§5.11). No portal do professor, a avaliação do aluno são os exercícios comentados de cada aula.
+
 **Ainda não feito:**
 
 - Transcodificação/CDN (Bunny) para o vídeo do portal — hoje o arquivo enviado é servido como está, pelo nosso volume; o adaptador CDN é o `case 'BUNNY'` de `lib/video.ts`.
@@ -559,6 +580,8 @@ E-mail no domínio do professor · editor livre de layout · app · múltiplos p
 
 Consolidados nos itens 14 a 17 do §15.
 ### 5.11 Portal da Empresa — universidade corporativa em autosserviço (planejamento de 04/09/2026)
+
+> **Acréscimo de 10/09/2026 — compra de cursos do catálogo** (`docs/plano-perfis-e-acessos.md`, etapa 6; db/047): além das trilhas próprias, a empresa compra **vagas** de cursos do catálogo da plataforma em `/empresa/catalogo`. Cada curso declara, no cadastro, até quantas vagas se compram na hora (`vagas_sem_orcamento`, padrão 10); acima disso é orçamento, respondido em `/admin/empresas`. O pagamento vira um lote; o RH distribui as vagas em "Liberar trilhas", e o colaborador estuda o curso da plataforma dentro do portal da empresa. "Sem página própria" significa apenas sem domínio próprio — o subdomínio existe sempre.
 
 O §12-B.1 previu as licenças patrocinadas como "Fase 3, por proposta". A vitrine de `/empresas` (db/032) já capta o interesse — e a decisão desta rodada é que a empresa **não espere proposta**: assim como o professor, ela se cadastra, paga e opera sozinha. O que ela opera é diferente do que o professor opera, e é isso que este plano descreve.
 
@@ -707,6 +730,66 @@ Estimativa grosseira, no ritmo do §14 (5 a 15 h/semana): etapas 0–2 em 3 a 4 
 
 **Verificação:** 347 testes de unidade e integração (24 novos em `lib/empresa-equipe.test.ts`, cobrindo teto de contas, convite, atribuição, nota e certificado), e o roteiro `scripts/demo/portal-empresa.mjs` com **41 passos no navegador** — da contratação ao certificado conferido por quem está de fora, terminando na varredura das rotas públicas no endereço da empresa.
 
+**Etapa 8 ✅ (09/09/2026) — o painel do colaborador e a Biblioteca da empresa.**
+Do teste com conta de colaboradora no portal `aurora`: o menu mudava de
+tela para tela, três itens levavam para fora do painel, e "Biblioteca"
+abria o vade-mécum de leis. Plano em `docs/plano-painel-do-colaborador.md`.
+
+- **O menu virou layout (`app/painel/layout.tsx`).** Em `/painel` a barra
+  vinha de `PainelEmpresa`; em `/conta`, do menu da PLATAFORMA — com
+  caderno de erros, vade-mécum e planos de venda, nada disso existente na
+  empresa. Agora a barra mora no layout e cada tela é rota filha: o Next
+  não remonta layout ao navegar, então clicar num submenu troca só o
+  miolo da direita. Rotas, e não abas de cliente, para F5, botão voltar,
+  favorito e `destino=` do login continuarem valendo.
+- **"Minha Jornada" abre "Minhas trilhas" e "Todas as trilhas"**
+  (`ItemPai` em `BarraLateral`, `enderecosDe` em `lib/navegacao.ts`). O pai
+  não tem endereço: era ele que duplicava `/painel` junto com "Minhas
+  trilhas", e é essa duplicação que o submenu desfaz.
+- **Catálogo, Biblioteca e Planos entraram para dentro do painel.** A
+  decisão antiga de deixá-los fora (`BarraLateral`) valia para a
+  plataforma, onde são páginas de venda e de SEO. No portal fechado de uma
+  empresa não há venda nem busca orgânica, e quem vê já está logado.
+  `/catalogo`, `/conta` e `/planos` redirecionam para as rotas do painel;
+  na plataforma, o caminho inverso. **Não há item "Catálogo"**: ali o
+  catálogo É o conjunto das trilhas do portal, e já se chama "Todas as
+  trilhas". **"Planos" virou "Meu acesso"** — o colaborador não contrata
+  nada, e a tela responde a pergunta que ele tem: até quando tenho acesso
+  a quê, e quem renova.
+- **A Biblioteca da empresa (`db/042`, `lib/acervo-item.ts` + `lib/acervo.ts`).**
+  Acervo do PORTAL, não anexo de aula: título, autor, assuntos (etiquetas
+  livres), PDF ou link, capa, setor e rascunho/publicado. `material_apoio`
+  (db/001) não servia — exige `aula_id`, não tem portal, autor nem
+  publicação, e nunca ganhou rota de envio. O RH publica em
+  `/empresa/biblioteca`; a equipe folheia em `/painel/biblioteca`,
+  filtrando por assunto, autor e formato pela barra de endereço.
+- **A entrega do PDF é privada (`/api/documento/[id]`), ao contrário da de
+  imagem.** A foto do portal é pública porque é a cara dele; o acervo é
+  conteúdo interno do cliente, e vale para ele o mesmo do §5.11. Confere
+  sessão, portal (pelo prefixo do nome do arquivo), publicação e setor —
+  e responde 404, nunca 403: "existe, mas você não pode" já entrega que o
+  material existe. `Cache-Control: private, no-store`. O nginx da VPS não
+  serve esse diretório: a única location de mídia é `/midia-interna/`,
+  `internal`, apontando só para o vídeo.
+- **O acervo entra na cota de GB**, junto com vídeo e material de apoio
+  (`medirArmazenamento`). Sem isso a empresa encheria o disco sem que um
+  byte aparecesse na fatura.
+
+**Dois defeitos existentes encontrados de passagem:** cinco itens do menu
+do RH (`route`, `groups`, `assignment_turned_in`, `monitoring`, `web`)
+apontavam para ícones que não existem em `app/ui.tsx` — e `Icone` devolve
+`null` para nome desconhecido, de propósito, então metade do menu vinha
+sem ícone e ninguém via erro. Os cinco foram desenhados. E o formulário
+de capa do acervo revelou que `tipo=imagem` no upload sempre trocava a
+**foto de apresentação do portal**: nasceu `uso=acervo` para separar os
+dois destinos.
+
+**Verificação da etapa 8:** 394 testes (`skipped 0`, com `DATABASE_URL` na
+mesma linha), `npm run build`, `npm run contraste`, o roteiro
+`portal-empresa.mjs` com **66 passos no navegador** e `e2e:empresa` com as
+cinco rotas novas na varredura de vazamento — tudo contra o container
+reconstruído.
+
 **Quatro defeitos encontrados ao percorrer o fluxo, e corrigidos:**
 
 1. **Toda prova saía zerada.** O driver do Postgres devolve BIGINT como texto; a correção comparava o id marcado (número, vindo do formulário) com o id da alternativa (texto). `5 === '5'` é falso, e o gabarito certo no banco não salvava ninguém. `::int` nas duas consultas de `lib/avaliacao.ts`, e a comparação de matéria em `podeAcessar` passou a ser numérica pelo mesmo motivo.
@@ -733,7 +816,7 @@ SSO (SAML/Google Workspace) · API de RH · múltiplas unidades e centros de cus
 
 ### 5.12 Calculadora Penal — dosimetria, prescrição, decadência e perempção (planejamento de 05/09/2026)
 
-Terceira ferramenta do menu **Ferramentas**, ao lado do vade-mécum e do mural de vagas. O vade-mécum responde "o que a lei diz"; a calculadora responde "o que a lei dá neste caso" — e mostra, passo a passo, de onde cada número saiu.
+Terceira ferramenta do catálogo de **Ferramentas** (`lib/ferramentas.ts`), ao lado do vade-mécum e do mural de vagas. O vade-mécum responde "o que a lei diz"; a calculadora responde "o que a lei dá neste caso" — e mostra, passo a passo, de onde cada número saiu.
 
 **A promessa ao aluno:** "escolha a lei e o crime, descreva o caso, e veja a pena calculada nas três fases do art. 68 do CP com o artigo ao lado, a regra usada em cada passo e os prazos de prescrição, decadência e perempção — cada número com o dispositivo que o sustenta e a aula que o explica."
 
@@ -774,11 +857,11 @@ Para quem: o aluno de Direito Penal e Processo Penal, o candidato à OAB e a con
 | **Lei no tempo** | Toda regra do catálogo tem `vigenciaDe` e `vigenciaAte`; a **data do fato** escolhe a versão (CF, art. 5º, XL; art. 2º CP). Quando a lei nova é mais benéfica só em parte, a tela avisa que não se combinam (Súmula 501 STJ) | Pacote Anticrime (23/01/2020), Lei 12.234/10, Lei 13.718/18, Lei 14.994/24 e Lei 14.811/24 mudaram exatamente as regras que a calculadora aplica. Sem a data do fato, metade dos resultados estaria errada para metade dos casos |
 | **Critério jurisprudencial parametrizado** | Onde há divergência (fração da 1ª fase, cascata × soma na 3ª, compensação reincidência × confissão, termo inicial da executória), o padrão é o majoritário do STJ e o aluno pode trocar. A tela sempre diz qual critério usou | A calculadora não pode se apresentar como "a resposta" — em prova, quem sabe justificar o critério ganha o ponto; na prática, o tribunal local decide |
 | **Resultado é uma URL** | O estado do cálculo vive nos `searchParams`; o resultado é renderizado no servidor, como o vade-mécum. Permalink, imprimível pelo navegador, sem sessão. O formulário é componente de cliente com prévia da pena ao vivo | O aluno cola o link no grupo de estudo e o professor cola na aula; e a tela de resultado indexa. Salvar exige sessão — `calculo_pena` |
-| **Gratuita e pública** | Aberta como o vade-mécum (§5.4): a lei é pública, e a ferramenta é porta de entrada e SEO. Histórico salvo só logado. Disponível também no portal do professor (ferramenta de estudo, como a biblioteca); no portal de empresa, atrás da guarda de `app/guarda-empresa.ts` | Mesma regra do `Cabecalho`: no portal do professor o menu Ferramentas perde só o mural de vagas |
+| **Gratuita e pública** | Aberta como o vade-mécum (§5.4): a lei é pública, e a ferramenta é porta de entrada e SEO. Histórico salvo só logado. Disponível no portal do professor **quando ele a vincula** (§5.10, "Ferramentas na minha página"); no portal de empresa, atrás da guarda de `app/guarda-empresa.ts` | O menu Ferramentas deixou de ser da casa e passou a ser de cada portal: no site principal a porta da calculadora é o rodapé e o endereço direto |
 | **Escopo de normas da v1** | Lista **fechada** de tipos: Código Penal (os mais cobrados — homicídio e feminicídio, lesão corporal inclusive doméstica, furto, roubo, extorsão, estelionato, receptação, estupro e estupro de vulnerável, peculato, corrupção ativa e passiva, ameaça, perseguição, entre 40 e 60 tipos), Lei de Drogas (arts. 28, 33, 33 § 4º, 35 e 40) e Lei Maria da Penha (via art. 129, §§ 9º e 13, art. 147-B CP e art. 24-A). Uma norma entra quando todos os seus tipos catalogados passam pela conferência | Catalogar o Código Penal inteiro são 300+ tipos revisados à mão. Melhor 50 certos que 300 duvidosos — o aluno percebe o erro no crime que ele estuda |
 | **Acervo cresce junto** | Entram no `CATALOGO` do `scripts/importar-leis.mjs`: Lei 8.072/90 (hediondos), 9.099/95 (juizados), 9.455/97 (tortura), 9.503/97 (CTB), 9.605/98 (ambiental), 9.613/98 (lavagem), 10.826/03 (desarmamento), 12.850/13 (organização criminosa), 13.869/19 (abuso de autoridade) e DL 3.688/41 (contravenções) | A calculadora cita a Lei de Hediondos em todo regime e progressão; sem ela no acervo, o link "ver o artigo" quebra. As demais são as próximas normas com tipos penais |
 | **Extrator de penas** | `scripts/extrair-penas.mjs` lê os blocos `pena` do acervo ("reclusão, de seis a vinte anos, e multa") e gera um **rascunho** do catálogo para revisão — não grava nada sozinho | O parser já isola a linha da pena; converter "seis a vinte anos" em dias é regra fechada. O que não é fechado — espécie de ação penal, hediondez, causas específicas — fica para a revisão humana |
-| **Menu** | Item **Calculadora Penal** em `FERRAMENTAS` (`app/componentes.tsx`), chave `calculadora-penal`, rota `/calculadora-penal`, ícone `calculate`, sem `naBarra` | Segue a regra do `MenuFerramentas`: quem mora só no submenu acende o gatilho |
+| **Menu** | Item **Calculadora Penal** em `FERRAMENTAS` (`lib/ferramentas.ts`), chave `calculadora-penal`, rota `/calculadora-penal`, ícone `calculate`, sem `naBarra`. O submenu só aparece no portal de professor que marcou a ferramenta | Segue a regra do `MenuFerramentas`: quem mora só no submenu acende o gatilho |
 
 #### Modelo de dados
 

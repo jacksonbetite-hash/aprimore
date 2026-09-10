@@ -2,7 +2,8 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import ConteudoAula from '../../../../aula/[slug]/ConteudoAula.tsx';
 import { buscarAula, buscarMateria } from '../../../../../lib/catalogo.ts';
-import { portalIdAtual, buscarPortalPorMascara } from '../../../../../lib/portal-consultas.ts';
+import { portalAtual, buscarPortalPorMascara } from '../../../../../lib/portal-consultas.ts';
+import { PLATAFORMA } from '../../../../../lib/portal.ts';
 import { espectadorAtual } from '../../../../../lib/sessao.ts';
 import { licencaVigente } from '../../../../../lib/licenca.ts';
 
@@ -10,8 +11,12 @@ export const dynamic = 'force-dynamic';
 
 /** Aula de curso parceiro na nossa vitrine — mesma regra da página do curso. */
 async function resolver(mascara: string, slug: string) {
-  if ((await portalIdAtual()) !== 0) return null;
-  const portal = await buscarPortalPorMascara(mascara);
+  const aqui = await portalAtual();
+  // db/047 — no portal de uma EMPRESA, só o curso da plataforma comprado
+  // como vaga, e só com a licença de quem está olhando (ver a página do curso).
+  const naEmpresa = aqui.tipo === 'EMPRESA';
+  if (aqui.id !== 0 && !(naEmpresa && mascara === PLATAFORMA.mascara)) return null;
+  const portal = mascara === PLATAFORMA.mascara ? PLATAFORMA : await buscarPortalPorMascara(mascara);
   if (!portal) return null;
   const aula = await buscarAula(portal.id, slug);
   if (!aula) return null;
@@ -19,7 +24,8 @@ async function resolver(mascara: string, slug: string) {
   if (!materia) return null;
 
   const licenciado = (await espectadorAtual()).licencas.some((l) =>
-    l.escopo === 'MATERIA' && l.materiaId === materia.id && licencaVigente(l, new Date()));
+    l.escopo === 'MATERIA' && Number(l.materiaId) === Number(materia.id) && licencaVigente(l, new Date()));
+  if (naEmpresa) return licenciado ? { portal, aula } : null;
   const naVitrine = materia.naVitrinePlataforma && materia.status === 'publicado';
   if (!naVitrine && !licenciado) return null;
   return { portal, aula };

@@ -2,7 +2,7 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import FormMateria from '../FormMateria.tsx';
 import { acaoCriarMateria } from '../acoes.ts';
-import { listarAreas } from '../../../../lib/admin-cursos.ts';
+import { listarAreas, niveisDoPortal } from '../../../../lib/admin-cursos.ts';
 import { PORTAL_PLATAFORMA } from '../../../../lib/portal.ts';
 
 export const metadata: Metadata = { title: 'Novo curso — Administração' };
@@ -14,7 +14,7 @@ export default async function NovoCurso(
   const { portal = '' } = await searchParams;
   const portalId = portal !== '' && Number.isInteger(Number(portal))
     ? Number(portal) : PORTAL_PLATAFORMA;
-  const areas = await listarAreas(portalId);
+  const [areas, niveis] = await Promise.all([listarAreas(portalId), niveisDoPortal(portalId)]);
 
   return (
     <>
@@ -44,7 +44,7 @@ export default async function NovoCurso(
       ) : (
         <div className="cartao">
           <FormMateria acao={acaoCriarMateria} areas={areas} portalId={portalId}
-            ehPlataforma={portalId === PORTAL_PLATAFORMA} />
+            ehPlataforma={portalId === PORTAL_PLATAFORMA} niveis={niveis} />
         </div>
       )}
     </>

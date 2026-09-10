@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { Icone } from './ui.tsx';
+import type { Ferramenta } from '../lib/ferramentas.ts';
 
 /**
  * "Ferramentas" do topo: o único item de navegação que abre submenu.
@@ -12,17 +13,11 @@ import { Icone } from './ui.tsx';
  * a sessão. Abre no clique, e não no passar do ponteiro: menu que abre
  * sozinho no hover é intocável em tela sensível ao toque e dispara sem
  * querer quando o ponteiro só está de passagem para o botão ao lado.
+ *
+ * Quem monta a lista é o cabeçalho: no portal do professor, ela é a que
+ * ELE escolheu em "Minha página" (lib/ferramentas.ts). No site principal
+ * o menu não existe mais.
  */
-
-export interface Ferramenta {
-  chave: string;
-  href: string;
-  nome: string;
-  descricao: string;
-  icone: string;
-  /** A ferramenta também tem item de primeiro nível na barra do topo. */
-  naBarra?: boolean;
-}
 
 export default function MenuFerramentas(
   { itens, ativo }: { itens: Ferramenta[]; ativo?: string },

@@ -209,7 +209,7 @@ export default async function Home() {
       </section>
 
       {/* ---------- 4. Recursos + o app no celular ---------- */}
-      <section className="secao marca" id="recursos">
+      <section className="secao lavanda" id="recursos">
         <div className="container vitrine-app">
           <div className="vitrine-app-texto">
             <span className="chip chip-primaria chip-sm">

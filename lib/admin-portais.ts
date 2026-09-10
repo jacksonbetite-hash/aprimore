@@ -1,8 +1,9 @@
 import { query, queryOne } from './db.ts';
 import { emTransacao, auditar, type Exec } from './auditoria.ts';
-import { gerarHashSenha, validarEmail, validarSenha } from './auth.ts';
+import { gerarHashSenha, validarEmail, validarSenha, garantirConta } from './auth.ts';
 import {
   PORTAL_PLATAFORMA, conferirDominio, type StatusPortal, type PortalTipo,
+  type Personalizacao,
 } from './portal.ts';
 
 /**
@@ -209,13 +210,17 @@ export async function criarProfessor(ator: string, nome: string, email: string, 
 
   const hash = await gerarHashSenha(senha);
   return emTransacao(async (exec) => {
+    // Conta global (db/045): a senha informada só vale para conta nova;
+    // quem já tem conta continua com a dela e ganha (ou muda para) o
+    // papel de professor na plataforma.
+    const conta = await garantirConta(exec, { nome, email, senhaHash: hash });
     const [u] = await exec<{ id: number; papel: string }>(
-      `INSERT INTO usuario (portal_id, nome, email, senha_hash, papel)
-       VALUES (${PORTAL_PLATAFORMA}, $1, lower($2), $3, 'professor')
-       ON CONFLICT (portal_id, lower(email)) DO UPDATE
+      `INSERT INTO usuario (portal_id, conta_id, nome, email, papel)
+       VALUES (${PORTAL_PLATAFORMA}, $1, $2, lower($3), 'professor')
+       ON CONFLICT (conta_id, portal_id) DO UPDATE
          SET papel = 'professor', nome = EXCLUDED.nome
        RETURNING id, papel`,
-      [nome.trim(), email.trim(), hash],
+      [conta.id, nome.trim(), email.trim()],
     );
     await auditar(exec, ator, 'usuario.promovido_professor', 'usuario', u.id,
       { email: email.trim().toLowerCase() });
@@ -326,14 +331,14 @@ export async function criarPortal(ator: string, d: DadosPortal) {
   });
 }
 
-export interface Personalizacao {
-  chamada?: string;
-  proposito?: string;
-  sobre?: string;
-  contato?: string;
-  corPrimaria?: string;
-  foto?: string;
-}
+/**
+ * A personalização é UMA só: quem a define é `lib/portal.ts`, que também
+ * a serve às páginas públicas. Havia uma cópia desta interface aqui, e
+ * cópia de tipo envelhece — o campo novo entrava num lado e o outro
+ * continuava recusando. Reexportamos para não quebrar quem já importa
+ * daqui.
+ */
+export type { Personalizacao };
 
 /**
  * As seções fixas do §5.10 — abertura, propósito, prova e contato.

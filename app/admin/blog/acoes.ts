@@ -2,7 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { exigirAdmin } from '../../../lib/sessao.ts';
+import { exigirPermissao } from '../../../lib/sessao.ts';
+import type { Permissao } from '../../../lib/permissoes.ts';
 import {
   criarPost, editarPost, mudarStatusPost, salvarCategoria, excluirCategoria,
   type DadosPost, type StatusPublicacao,
@@ -13,8 +14,8 @@ import type { EstadoAdmin } from '../acoes.ts';
  * Toda ação reconfere o papel no servidor. Esconder o link do menu não é
  * controle de acesso — é decoração (a mesma nota de `app/admin/acoes.ts`).
  */
-async function admin() {
-  const u = await exigirAdmin();
+async function admin(permissao: Permissao) {
+  const u = await exigirPermissao(permissao);
   if (!u) throw new Error('acesso negado');
   return u;
 }
@@ -49,7 +50,7 @@ function lerFormulario(dados: FormData): DadosPost {
 
 export async function acaoCriarPost(_e: EstadoAdmin, dados: FormData): Promise<EstadoAdmin> {
   let u;
-  try { u = await admin(); } catch { return { erro: 'Acesso negado.' }; }
+  try { u = await admin('conteudo.agir'); } catch { return { erro: 'Acesso negado.' }; }
 
   let id: number;
   let slug: string;
@@ -66,7 +67,7 @@ export async function acaoCriarPost(_e: EstadoAdmin, dados: FormData): Promise<E
 
 export async function acaoEditarPost(_e: EstadoAdmin, dados: FormData): Promise<EstadoAdmin> {
   let u;
-  try { u = await admin(); } catch { return { erro: 'Acesso negado.' }; }
+  try { u = await admin('conteudo.agir'); } catch { return { erro: 'Acesso negado.' }; }
 
   const id = Number(dados.get('id'));
   if (!Number.isInteger(id)) return { erro: 'Artigo inválido.' };
@@ -83,7 +84,7 @@ export async function acaoEditarPost(_e: EstadoAdmin, dados: FormData): Promise<
 
 /** Publicar, despublicar e arquivar direto da lista, sem abrir o artigo. */
 export async function acaoStatusPost(dados: FormData) {
-  const u = await admin();
+  const u = await admin('conteudo.agir');
   const id = Number(dados.get('id'));
   const status = String(dados.get('status') ?? '') as StatusPublicacao;
   if (!STATUS.includes(status)) throw new Error('situação inválida');
@@ -97,7 +98,7 @@ export async function acaoSalvarCategoria(
   _e: EstadoAdmin, dados: FormData,
 ): Promise<EstadoAdmin> {
   let u;
-  try { u = await admin(); } catch { return { erro: 'Acesso negado.' }; }
+  try { u = await admin('conteudo.agir'); } catch { return { erro: 'Acesso negado.' }; }
 
   const bruto = String(dados.get('id') ?? '');
   const id = bruto ? Number(bruto) : null;
@@ -122,7 +123,7 @@ export async function acaoSalvarCategoria(
  * `(estado, dados)` receberia o FormData no lugar errado.
  */
 export async function acaoEditarCategoriaLinha(dados: FormData) {
-  const u = await admin();
+  const u = await admin('conteudo.agir');
   const ordem = Number(dados.get('ordem') ?? 0);
   await salvarCategoria(u.email, Number(dados.get('id')), String(dados.get('nome') ?? ''),
     Number.isFinite(ordem) ? ordem : 0);
@@ -131,7 +132,7 @@ export async function acaoEditarCategoriaLinha(dados: FormData) {
 }
 
 export async function acaoExcluirCategoria(dados: FormData) {
-  const u = await admin();
+  const u = await admin('conteudo.agir');
   await excluirCategoria(u.email, Number(dados.get('id')));
   revalidatePath('/admin/blog/categorias');
   revalidarBlog();

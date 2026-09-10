@@ -81,6 +81,42 @@ const pares = [
   ['letra da alternativa errada',        'onError', 'error',                     4.5],
   ['botão de play sobre o player',       'primaryTexto', '#ffffff',              4.5],
 
+  // ---- Banner do curso em destaque: a cor é DO PORTAL, e a capa é
+  //      FOTO ENVIADA por ele ----
+  // A faixa é a `.destaque-cortina` sobre a capa do curso, e a capa pode
+  // ser qualquer imagem — inclusive branca. O pior caso é o portal de cor
+  // BRANCA (a que menos escurece a mistura) com capa BRANCA por baixo,
+  // no ponto mais claro por onde o texto passa (~70% da largura, onde o
+  // degradê horizontal já caiu para 35%). `#545060` é o resultado desse
+  // empilhamento: base `mix(--primary 18%, #150f2e)`, capa branca a 42%,
+  // cortina por cima. Se o texto passa aqui, passa em qualquer portal e
+  // sobre qualquer capa. `#453c5e` é o mesmo ponto com o roxo da casa.
+  // Quem mexer nas opacidades do CSS refaz estes hexes antes de commitar.
+  ['destaque: título (roxo padrão)',        '#ffffff', '#453c5e',            4.5],
+  ['destaque: título (pior capa/portal)',   '#ffffff', '#545060',            4.5],
+  ['destaque: ementa (92%)',                '#f1f1f2', '#545060',            4.5],
+  ['destaque: números e assinatura (90%)',  '#eeeeef', '#545060',            4.5],
+  ['destaque: pílula de vidro (branco 16%)', '#ffffff', '#6f6c79',           4.5],
+  ['destaque: selo de imagem ilustrativa',  '#e0e0e2', '#342f40',            4.5],
+  ['destaque: CTA branco',                  'onPrimaryContainer', '#ffffff', 4.5],
+  // O mesmo "vidro" DENTRO da faixa de chamada, cujo fundo é o degradê
+  // roxo da casa. Na ponta clara dele (#7c3aed) o branco a 16% cai a
+  // 4,28:1, então lá o vidro é 10% — #864aee é essa mistura.
+  ['faixa de chamada: botão de vidro',      '#ffffff', '#864aee',            4.5],
+
+  // ---- Vitrine do portal do professor: a cor também é DO PORTAL ----
+  // A pílula da onda sobre a capa, o selo da faixa de novidade e o de
+  // "Contato e suporte" usam a MESMA receita do banner acima
+  // (`mix(--primary 36%, #150f2e)` com texto branco), então o pior caso
+  // é o mesmo #5e5c74 — o portal de cor branca.
+  ['vitrine: pílula da onda (pior portal)',  '#ffffff', '#5e5c74',            4.5],
+  ['vitrine: selo em tinta do portal (pior portal)', '#ffffff', '#5e5c74',    4.5],
+  // Amostra e duração ficam sobre a CAPA, que é foto enviada pelo
+  // professor e pode ser branca. Quem sustenta o par é a `.capa-cortina`:
+  // no ponto do texto ela está em 72% de #0f172a, e #525866 é o resultado
+  // dessa mistura sobre o pior fundo possível (branco puro).
+  ['vitrine: texto sobre a cortina da capa', '#ffffff', '#525866',            4.5],
+
   // ---- Elementos gráficos e bordas: AA pede 3:1, não 4.5:1 ----
   ['borda de controle / cartão',         'bordaControle', 'cartao',              3.0],
   ['borda de foco / fundo',              'primaryContainer', 'surface',          3.0],

@@ -28,10 +28,18 @@ export function listarAreas(portalId: number) {
   );
 }
 
+/**
+ * O catálogo lista curso não publicado como "em breve" — é a onda de
+ * lançamento da casa (§4). O curso de um professor do catálogo (db/046)
+ * NÃO entra nessa regra: rascunho e "em revisão" são dele, e só aparecem
+ * quando a plataforma publica. Sem isto, criar o curso já o exporia.
+ */
+const SO_PUBLICADO_SE_DE_PROFESSOR = `(m.professor_id IS NULL OR m.status = 'publicado')`;
+
 export function listarMaterias(portalId: number) {
   return query<Materia>(
     `SELECT ${MATERIA_CAMPOS} FROM materia m JOIN area a ON a.id = m.area_id
-     WHERE m.portal_id = $1
+     WHERE m.portal_id = $1 AND ${SO_PUBLICADO_SE_DE_PROFESSOR}
      ORDER BY a.ordem, m.ordem`,
     [portalId],
   );
@@ -40,7 +48,7 @@ export function listarMaterias(portalId: number) {
 export function buscarMateria(portalId: number, slug: string) {
   return queryOne<Materia>(
     `SELECT ${MATERIA_CAMPOS} FROM materia m JOIN area a ON a.id = m.area_id
-     WHERE m.portal_id = $1 AND m.slug = $2`,
+     WHERE m.portal_id = $1 AND m.slug = $2 AND ${SO_PUBLICADO_SE_DE_PROFESSOR}`,
     [portalId, slug],
   );
 }

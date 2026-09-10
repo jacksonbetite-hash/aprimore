@@ -9,8 +9,12 @@ set -e
 # volume de centenas de gigabytes atrasaria toda subida.
 if [ "$(id -u)" = "0" ]; then
   MIDIA="${VIDEO_RAIZ:-/midia/video}"
-  mkdir -p "$MIDIA" "$(dirname "$MIDIA")/imagem"
-  chown nextjs:nodejs "$(dirname "$MIDIA")" "$MIDIA" "$(dirname "$MIDIA")/imagem"
+  RAIZ="$(dirname "$MIDIA")"
+  # `documento` guarda o acervo da Biblioteca da empresa (db/042). Sem
+  # este mkdir a primeira publicacao do RH falha com EACCES: o volume
+  # nasce do root, e a aplicacao roda como nextjs.
+  mkdir -p "$MIDIA" "$RAIZ/imagem" "$RAIZ/documento"
+  chown nextjs:nodejs "$RAIZ" "$MIDIA" "$RAIZ/imagem" "$RAIZ/documento"
   exec su-exec nextjs "$0" "$@"
 fi
 

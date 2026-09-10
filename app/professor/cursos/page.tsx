@@ -6,9 +6,10 @@ import { BotaoIcone, LinkIcone, EdicaoNaLinha } from '../../ui.tsx';
 import {
   acaoSalvarArea, acaoEditarAreaLinha, acaoExcluirArea, acaoCriarMateria, acaoStatusMateria,
 } from '../acoes.ts';
-import { listarAreas, listarMaterias } from '../../../lib/admin-cursos.ts';
+import { listarAreas, listarMaterias, niveisDoPortal } from '../../../lib/admin-cursos.ts';
 import { alunoAtual } from '../../../lib/sessao.ts';
 import { portalDoProfessor } from '../../../lib/professor.ts';
+import CursosCatalogo from '../catalogo/Cursos.tsx';
 
 export const metadata: Metadata = { title: 'Cursos e aulas — Painel do professor' };
 
@@ -23,8 +24,11 @@ const CHIP: Record<string, string> = {
  */
 export default async function CursosDoProfessor() {
   const u = (await alunoAtual())!;
-  const portal = (await portalDoProfessor(u.id))!;
-  const [areas, materias] = await Promise.all([listarAreas(portal.id), listarMaterias(portal.id)]);
+  const portal = await portalDoProfessor(u.id);
+  if (!portal) return <CursosCatalogo u={u} />;
+  const [areas, materias, niveis] = await Promise.all([
+    listarAreas(portal.id), listarMaterias(portal.id), niveisDoPortal(portal.id),
+  ]);
   const invisiveis = materias.filter((m) => m.status === 'publicado' && m.aulasPublicadas === 0);
 
   return (
@@ -36,6 +40,12 @@ export default async function CursosDoProfessor() {
             {areas.length} área(s) · {materias.length} curso(s). Publicação é direta — o
             conteúdo publicado é de sua responsabilidade (contrato).
           </p>
+        </div>
+        {/* O vídeo é de cada aula, e é aqui que se procura por ele. O
+            atalho leva à tela onde todas as aulas aparecem juntas, com
+            quem já tem gravação e quem não tem. */}
+        <div className="acoes">
+          <Link className="btn btn-contorno" href="/professor/videos">Vídeos das aulas</Link>
         </div>
       </div>
 
@@ -94,7 +104,9 @@ export default async function CursosDoProfessor() {
         <h2 className="headline-md" style={{ marginBottom: 6 }}>Cursos</h2>
         <p className="caption suave" style={{ marginBottom: 16 }}>
           O vídeo não fica aqui: ele é <strong>de cada aula</strong>. Abra o curso → crie o
-          assunto → crie a aula → dentro da aula está o envio do arquivo de vídeo.
+          assunto → crie a aula → dentro da aula está o envio do arquivo de vídeo. Para
+          enviar, trocar ou tirar o vídeo de várias aulas de uma vez, use{' '}
+          <Link href="/professor/videos">Vídeos das aulas</Link>.
         </p>
         <table className="tabela">
           <thead><tr><th>Curso</th><th>Área</th><th>Aulas no ar</th><th>Situação</th><th>No portal</th><th>Vitrine</th><th>Ações</th></tr></thead>
@@ -103,9 +115,30 @@ export default async function CursosDoProfessor() {
               const noAr = m.status === 'publicado' && m.aulasPublicadas > 0;
               return (
                 <tr key={m.id}>
+                  {/* A miniatura da capa na primeira coluna: é aqui que o
+                      professor confere de relance qual curso está com a
+                      imagem errada — a vitrine ele vê de fora, e de fora
+                      não dá para consertar. Quadro cinza = sem capa, e o
+                      cartão está usando o desenho da área. */}
                   <td>
-                    <Link href={`/professor/cursos/${m.id}`} style={{ color: 'var(--primary-texto)', fontWeight: 700 }}>{m.nome}</Link>
-                    <br /><span className="suave">/materia/{m.slug}</span>
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                      {m.capa ? (
+                        <img src={m.capa} alt="" width={64} height={36} loading="lazy"
+                             style={{
+                               borderRadius: 6, objectFit: 'cover', flexShrink: 0,
+                               border: '1px solid var(--surface-variant)',
+                             }} />
+                      ) : (
+                        <span aria-hidden="true" style={{
+                          width: 64, height: 36, borderRadius: 6, flexShrink: 0,
+                          background: 'var(--surface-container-high)',
+                        }} />
+                      )}
+                      <span>
+                        <Link href={`/professor/cursos/${m.id}`} style={{ color: 'var(--primary-texto)', fontWeight: 700 }}>{m.nome}</Link>
+                        <br /><span className="suave">/materia/{m.slug}</span>
+                      </span>
+                    </div>
                   </td>
                   <td>{m.areaNome}</td>
                   <td className="apertado">{m.aulasPublicadas}/{m.aulas}</td>
@@ -146,7 +179,8 @@ export default async function CursosDoProfessor() {
       {areas.length > 0 && (
         <div className="cartao" style={{ marginBottom: 0 }}>
           <h2 className="headline-md" style={{ marginBottom: 16 }}>Novo curso</h2>
-          <FormMateria acao={acaoCriarMateria} areas={areas} portalId={portal.id} ehPlataforma={false} />
+          <FormMateria acao={acaoCriarMateria} areas={areas} portalId={portal.id} ehPlataforma={false}
+                       niveis={niveis} />
         </div>
       )}
     </>

@@ -3,6 +3,7 @@
 import { useActionState, useId, useState } from 'react';
 import type { EstadoAdmin } from '../acoes.ts';
 import type { PlanoPortal, PortalAdmin, Personalizacao } from '../../../lib/admin-portais.ts';
+import { FERRAMENTAS_DO_PORTAL } from '../../../lib/ferramentas.ts';
 
 type Acao = (e: EstadoAdmin, d: FormData) => Promise<EstadoAdmin>;
 
@@ -290,6 +291,28 @@ export function FormSite({
           <input type="hidden" name="foto" value={personalizacao.foto ?? ''} />
         )}
       </div>
+
+      {/* §5.10 — as ferramentas de estudo saíram do topo do site principal
+          e passaram a ser escolha de cada portal. Caixa marcada vira item
+          do submenu "Ferramentas" no topo da página do professor; nenhuma
+          marcada, e o submenu não aparece. */}
+      <fieldset className="campo-ferramentas">
+        <legend>Ferramentas no topo da minha página</legend>
+        <span className="dica" style={{ marginBottom: 10 }}>
+          O que o seu aluno encontra no menu <strong>Ferramentas</strong> do portal. São
+          ferramentas da plataforma, servidas dentro do seu endereço, com a sua marca.
+        </span>
+        {FERRAMENTAS_DO_PORTAL.map((f) => (
+          <label key={f.chave} className="caixa-marcar">
+            <input type="checkbox" name="ferramentas" value={f.chave}
+              defaultChecked={(personalizacao.ferramentas ?? []).includes(f.chave)} />
+            <span>
+              <strong>{f.nome}</strong>
+              <small>{f.descricao}</small>
+            </span>
+          </label>
+        ))}
+      </fieldset>
 
       <div className="acoes" style={{ display: 'grid', gap: 12 }}>
         {/* O aviso repete aqui embaixo de propósito: o botão fica no fim de

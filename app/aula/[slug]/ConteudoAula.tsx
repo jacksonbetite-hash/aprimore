@@ -8,7 +8,8 @@ import {
 } from '../../../lib/catalogo.ts';
 import { dispositivosDaAula } from '../../../lib/vademecum.ts';
 import { partirDispositivo } from '../../../lib/vademecum-texto.ts';
-import { exercicioDaAula } from '../../../lib/exercicio.ts';
+import { exercicioDaAula, respostasDaAula } from '../../../lib/exercicio.ts';
+import { progressoDoCurso, percentual } from '../../../lib/progresso-curso.ts';
 import { espectadorAtual, alunoAtual, progressoDaAula } from '../../../lib/sessao.ts';
 import { podeAcessar, ofertaPara, espectadorParaCurso } from '../../../lib/licenca.ts';
 import { urlDeReproducao, marcaDoAluno } from '../../../lib/video.ts';
@@ -46,6 +47,13 @@ export default async function ConteudoAula(
   if (!decisao.libera && await portalSuspenso()) return <PortalSuspenso />;
 
   const questoes = decisao.libera ? await exercicioDaAula(aula.id) : [];
+  /* O que ele já respondeu nesta aula e o que já assistiu neste curso: é
+     o que faz a página voltar no estado em que ele a deixou, em vez de
+     começar do zero a cada visita. */
+  const [respondidas, progressoCurso] = await Promise.all([
+    decisao.libera && aluno ? respostasDaAula(aluno.id, aula.id) : Promise.resolve([]),
+    progressoDoCurso(aluno?.id, aula.materiaId),
+  ]);
 
   /* O endereço do vídeo só é calculado depois que §6.3 liberou, e vive um
      carregamento de página: é assinado, tem prazo e leva o aluno dentro
@@ -65,6 +73,14 @@ export default async function ConteudoAula(
       console.error(`aula ${aula.slug}: vídeo indisponível —`, err);
     }
   }
+
+  /* O rótulo da aba diz de longe como está o exercício — é a mesma
+     informação que antes só aparecia depois de rolar a pilha inteira. */
+  const acertosDados = respondidas.filter((r) => r.acertou).length;
+  const contadorExercicio = !decisao.libera || questoes.length === 0 ? undefined
+    : respondidas.length === 0 ? `${questoes.length}`
+      : respondidas.length < questoes.length ? `${respondidas.length}/${questoes.length}`
+        : `✓ ${acertosDados}/${questoes.length}`;
 
   const doModulo = doAssunto.filter((a) => a.assuntoSlug === aula.assuntoSlug && a.status === 'publicado');
   const publicadas = doAssunto.filter((a) => a.status === 'publicado');
@@ -152,11 +168,59 @@ export default async function ConteudoAula(
                         A fonte original fica ao lado, no painel — você não precisa sair daqui para conferir.
                       </div>
                     )}
+                    {/* O fim do resumo é o lugar natural do convite: quem
+                        leu até aqui é quem vai responder. A âncora abre a
+                        aba (AbasAula ouve o hash). */}
+                    <div className="convite-exercicio">
+                      <div>
+                        {!decisao.libera ? (
+                          <>
+                            <h3>Exercício com {aula.questoes} questões comentadas</h3>
+                            <p>Abre junto com a aula, e toda alternativa vem explicada.</p>
+                          </>
+                        ) : respondidas.length > 0 ? (
+                          <>
+                            <h3>Você já fez este exercício</h3>
+                            <p>
+                              {respondidas.length} de {questoes.length}{' '}
+                              {questoes.length === 1 ? 'questão respondida' : 'questões respondidas'},{' '}
+                              {acertosDados} com acerto. Dá para reler os comentários e refazer questão por questão.
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <h3>Terminou o resumo? Hora do exercício</h3>
+                            <p>Fixe o conteúdo desta aula com {questoes.length} questões, uma de cada vez.</p>
+                          </>
+                        )}
+                      </div>
+                      {decisao.libera
+                        ? <a className="btn btn-primario" href="#exercicio"><Icone nome="edit_note" tamanho={20} /> {respondidas.length > 0 ? 'Ver o exercício' : 'Fazer o exercício'}</a>
+                        : <Link className="btn btn-primario" href={linkOferta}>{oferta ? 'Ver o curso' : 'Ver planos'}</Link>}
+                    </div>
                   </>
                 ),
               },
               {
-                id: 'materiais', rotulo: `Materiais (${materiais.length})`,
+                /* Entre Resumo e Materiais, e não depois: a ordem das abas é
+                   a ordem de estudo, e "toda aula termina em exercício"
+                   (§5.3) fica visível no próprio menu. */
+                id: 'exercicio', rotulo: 'Exercício', contador: contadorExercicio,
+                conteudo: decisao.libera ? (
+                  <Exercicio questoes={questoes} professor={aula.professor} respondidas={respondidas}
+                             proxima={proxima ? { href: `${base}/aula/${proxima.slug}`, titulo: proxima.titulo } : null} />
+                ) : (
+                  <div className="convite-exercicio" style={{ marginTop: 0 }}>
+                    <div>
+                      <h3>Exercício com {aula.questoes} questões comentadas</h3>
+                      <p>Abre junto com a aula, e toda alternativa vem explicada.</p>
+                    </div>
+                    <Link className="btn btn-primario" href={linkOferta}>{oferta ? 'Ver o curso' : 'Ver planos'}</Link>
+                  </div>
+                ),
+              },
+              {
+                id: 'materiais', rotulo: 'Materiais', contador: String(materiais.length),
                 conteudo: decisao.libera ? (
                   <>
                     {materiais.length === 0 && <p className="vazio">Esta aula ainda não tem material de apoio.</p>}
@@ -179,7 +243,7 @@ export default async function ConteudoAula(
                 ),
               },
               {
-                id: 'artigos', rotulo: `Artigos Citados (${leis.length})`,
+                id: 'artigos', rotulo: 'Artigos citados', contador: String(leis.length),
                 conteudo: (
                   <>
                     <p>Dispositivos vinculados a esta aula:</p>
@@ -199,29 +263,6 @@ export default async function ConteudoAula(
             ]}
           />
 
-          {decisao.libera ? (
-            <>
-              <div className="convite-exercicio">
-                <div>
-                  <h3>Pronto para testar seus conhecimentos?</h3>
-                  <p>Fixe o conteúdo desta aula com {questoes.length} questões práticas.</p>
-                </div>
-                <a className="btn btn-primario" href="#exercicio">
-                  <Icone nome="edit_note" tamanho={20} /> Fazer o exercício
-                </a>
-              </div>
-              <Exercicio questoes={questoes} professor={aula.professor} />
-            </>
-          ) : (
-            <div className="convite-exercicio">
-              <div>
-                <h3>Exercício com {aula.questoes} questões comentadas</h3>
-                <p>Abre junto com a aula, e toda alternativa vem explicada.</p>
-              </div>
-              <Link className="btn btn-primario" href={linkOferta}>{oferta ? 'Ver o curso' : 'Ver planos'}</Link>
-            </div>
-          )}
-
           <div className="nav-aula" style={{ display: 'flex', justifyContent: 'space-between', gap: 16, marginTop: 32, flexWrap: 'wrap' }}>
             {anterior
               ? <Link className="btn btn-contorno btn-sm" href={`${base}/aula/${anterior.slug}`}><Icone nome="arrow_back" tamanho={18} /> {anterior.titulo}</Link>
@@ -237,6 +278,17 @@ export default async function ConteudoAula(
           <div>
             <h2>{aula.assuntoNome}</h2>
             <p className="suave">{aula.materiaNome}</p>
+            {/* O andamento do curso inteiro, e não só do módulo: é a
+                pergunta que o aluno faz ao voltar ("quanto falta?"). */}
+            {aluno && decisao.libera && publicadas.length > 0 && (
+              <div className="barra-exercicio" style={{ marginTop: 12 }}>
+                <span className="rotulo">Curso</span>
+                <div className="progresso">
+                  <i style={{ width: `${percentual(progressoCurso.aulasConcluidas, publicadas.length)}%` }} />
+                </div>
+                <span className="contador">{progressoCurso.aulasConcluidas} / {publicadas.length}</span>
+              </div>
+            )}
             <div style={{ marginTop: 16 }}>
               {doModulo.map((a) => {
                 const dela = podeAcessar(espectador, {
@@ -244,7 +296,16 @@ export default async function ConteudoAula(
                   amostraGratuita: a.amostraGratuita, noTrial: a.noTrial,
                 });
                 const atual = a.id === aula.id;
-                const icone = atual ? 'play_circle' : dela.libera ? 'check_circle' : 'lock';
+                /* O ícone de "concluída" agora depende de o aluno ter
+                   ASSISTIDO, e não de a aula estar destrancada: antes o
+                   módulo inteiro aparecia com o visto verde desde a
+                   primeira visita, e o aluno não tinha como saber por
+                   onde tinha passado. */
+                const vista = progressoCurso.porAula.get(Number(a.id));
+                const icone = atual ? 'play_circle'
+                  : !dela.libera ? 'lock'
+                    : vista?.concluida ? 'check_circle'
+                      : vista ? 'pause_circle' : 'radio_button_unchecked';
                 const classe = atual ? 'atual' : dela.libera ? '' : 'trancada';
                 return (
                   <Link className={`item-modulo ${classe}`} href={`${base}/aula/${a.slug}`} key={a.id}>
@@ -252,7 +313,10 @@ export default async function ConteudoAula(
                     <span>
                       <span className="titulo">{a.titulo}</span>
                       <span className="duracao">
-                        {formatarDuracao(a.duracaoSegundos)}{atual && ' • Assistindo'}
+                        {formatarDuracao(a.duracaoSegundos)}
+                        {atual ? ' • Assistindo'
+                          : vista?.concluida ? ' • Concluída'
+                            : vista ? ' • Começada' : ''}
                       </span>
                     </span>
                   </Link>

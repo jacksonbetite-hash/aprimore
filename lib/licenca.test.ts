@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  podeAcessar, licencaVigente,
+  podeAcessar, acessoAoCurso, licencaVigente,
   type Licenca, type AulaAlvo, type Espectador,
   type StatusLicenca, type EscopoLicenca, type OrigemLicenca,
 } from './licenca.ts';
@@ -230,4 +230,77 @@ test('matriz escopo × status × vigência: só ATIVA + vigente libera', () => {
     }
   }
   assert.equal(combinacoes, 36);
+});
+
+/* ---------------------------------------------------------------------
+   Acesso ao CURSO — o degrau que a página do curso usa para decidir
+   entre mostrar o preço e mostrar o progresso. Se ele divergir de
+   `podeAcessar`, a tela promete o que o cadeado nega (ou o contrário).
+   --------------------------------------------------------------------- */
+
+test('curso comprado: acesso ao curso, com a licença que o abriu', () => {
+  const l = lic();
+  const a = acessoAoCurso(aluno([l]), MATERIA_CONST, AGORA);
+  assert.equal(a.libera, true);
+  assert.equal(a.libera && a.motivo, 'LICENCA_MATERIA');
+  assert.equal(a.libera && a.licenca.id, l.id);
+});
+
+test('o passe completo abre qualquer curso', () => {
+  const passe = lic({ escopo: 'CATALOGO', materiaId: null });
+  assert.equal(acessoAoCurso(aluno([passe]), MATERIA_INTRO, AGORA).libera, true);
+});
+
+test('licença de OUTRO curso não abre este', () => {
+  const a = acessoAoCurso(aluno([lic({ materiaId: MATERIA_INTRO })]), MATERIA_CONST, AGORA);
+  assert.equal(a.libera, false);
+  assert.equal(a.motivo, 'SEM_LICENCA');
+});
+
+test('licença vencida ou cancelada não abre o curso', () => {
+  for (const over of [
+    { status: 'CANCELADA' as StatusLicenca },
+    { fimEm: new Date('2026-08-15T00:00:00Z') },
+  ]) {
+    assert.equal(acessoAoCurso(aluno([lic(over)]), MATERIA_CONST, AGORA).libera, false);
+  }
+});
+
+test('visitante não tem acesso ao curso — nem quando ele tem aula de amostra', () => {
+  const a = acessoAoCurso(visitante, MATERIA_CONST, AGORA);
+  assert.equal(a.libera, false);
+  assert.equal(a.motivo, 'SEM_LICENCA');
+  // A amostra abre UMA aula, e continua abrindo:
+  assert.equal(podeAcessar(visitante, aulaAberta, AGORA).libera, true);
+});
+
+test('conta bloqueada por inatividade não abre o curso', () => {
+  const a = acessoAoCurso(aluno([lic()], 'BLOQUEADA_INATIVIDADE'), MATERIA_CONST, AGORA);
+  assert.equal(a.libera, false);
+  assert.equal(a.motivo, 'CONTA_BLOQUEADA');
+});
+
+test('trial dá acesso ao curso, mas só às aulas da cota', () => {
+  const t = lic({ origem: 'TRIAL' });
+  const a = acessoAoCurso(aluno([t]), MATERIA_CONST, AGORA);
+  assert.equal(a.libera && a.motivo, 'TRIAL');
+  assert.equal(podeAcessar(aluno([t]), aulaDoTrial, AGORA).libera, true);
+  assert.equal(podeAcessar(aluno([t]), aulaPaga, AGORA).libera, false);
+});
+
+test('curso e aula nunca discordam: quem acessa o curso acessa a aula paga dele', () => {
+  const casos: Espectador[] = [
+    visitante,
+    aluno([lic()]),
+    aluno([lic({ escopo: 'CATALOGO', materiaId: null })]),
+    aluno([lic({ materiaId: MATERIA_INTRO })]),
+    aluno([lic({ status: 'EXPIRADA' })]),
+    aluno([lic()], 'BLOQUEADA_INATIVIDADE'),
+  ];
+  for (const e of casos) {
+    const curso = acessoAoCurso(e, MATERIA_CONST, AGORA);
+    const aula = podeAcessar(e, aulaPaga, AGORA);
+    // O trial é a única exceção prevista (cota de aulas), e não está aqui.
+    assert.equal(curso.libera, aula.libera);
+  }
 });

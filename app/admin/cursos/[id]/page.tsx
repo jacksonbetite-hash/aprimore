@@ -10,7 +10,7 @@ import {
   acaoCriarAula, acaoStatusAula,
 } from '../acoes.ts';
 import {
-  buscarMateria, listarAreas, listarAssuntos, listarAulas,
+  buscarMateria, listarAreas, listarAssuntos, listarAulas, niveisDoPortal,
 } from '../../../../lib/admin-cursos.ts';
 import { PORTAL_PLATAFORMA } from '../../../../lib/portal.ts';
 import { formatarDuracao } from '../../../../lib/catalogo.ts';
@@ -36,9 +36,10 @@ export default async function Curso(
   const materiaId = Number(id);
   if (!Number.isInteger(materiaId)) notFound();
 
-  const [materia, areas, assuntos, aulas] = await Promise.all([
+  const [materia, areas, assuntos, aulas, niveis] = await Promise.all([
     buscarMateria(portalId, materiaId), listarAreas(portalId),
     listarAssuntos(portalId, materiaId), listarAulas(portalId, materiaId),
+    niveisDoPortal(portalId),
   ]);
   if (!materia) notFound();
 
@@ -68,10 +69,24 @@ export default async function Curso(
         </p>
       )}
 
+      {/* A prévia do cartão do catálogo (docs/plano-catalogo-streaming.md).
+          Não é controle novo: quem a escolhe é o marcador "amostra
+          gratuita" da aula. O que a linha faz é dizer QUAL aula ele
+          escolheu — sem isso, o vídeo que roda no cartão não tem origem
+          visível para quem cuida do acervo. */}
+      <p className="alerta" style={{ background: 'var(--surface-container)' }}>
+        <strong>Prévia do cartão no catálogo:</strong>{' '}
+        {materia.previaAula
+          ? <>a aula <strong>{materia.previaAula}</strong> — a primeira amostra gratuita
+            publicada com vídeo. Ela roda na capa quando alguém passa o mouse pelo cartão.</>
+          : <>nenhuma. Sem aula marcada como <em>amostra gratuita</em> com vídeo, o cartão
+            mostra só a capa, parada.</>}
+      </p>
+
       <div className="cartao">
         <h2 className="headline-md" style={{ marginBottom: 16 }}>Dados do curso</h2>
         <FormMateria acao={acaoEditarMateria} areas={areas} portalId={portalId}
-          materia={materia} ehPlataforma={portalId === PORTAL_PLATAFORMA} />
+          materia={materia} ehPlataforma={portalId === PORTAL_PLATAFORMA} niveis={niveis} />
       </div>
 
       <div className="cartao">

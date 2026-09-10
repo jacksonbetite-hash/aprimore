@@ -3,6 +3,7 @@ import { alunoAtual } from '../../../lib/sessao.ts';
 import { portalDoProfessor } from '../../../lib/professor.ts';
 import { alunosDoPortal, licencasDoPortal } from '../../../lib/portal-financeiro.ts';
 import { brl } from '../../../lib/precos.ts';
+import { redirect } from 'next/navigation';
 
 export const metadata: Metadata = { title: 'Alunos — Painel do professor' };
 
@@ -12,7 +13,8 @@ const DATA = (d: Date | null) => (d ? new Date(d).toLocaleDateString('pt-BR') : 
 export default async function AlunosDoProfessor({ searchParams }: { searchParams: Promise<{ busca?: string }> }) {
   const { busca = '' } = await searchParams;
   const u = (await alunoAtual())!;
-  const portal = (await portalDoProfessor(u.id))!;
+  const portal = await portalDoProfessor(u.id);
+  if (!portal) redirect('/professor');   // o professor do catálogo não tem esta tela
   const [alunos, licencas] = await Promise.all([alunosDoPortal(portal.id, busca), licencasDoPortal(portal.id, 100)]);
 
   return (

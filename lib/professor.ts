@@ -32,6 +32,12 @@ export interface PortalDoProfessor {
   /** Publicados, mas sem nenhuma aula no ar — invisíveis no portal. */
   materiasVazias: number;
   aulasComExercicio: number;
+  /**
+   * Aulas publicadas que já têm gravação. Aula sem vídeo vai ao ar e
+   * serve resumo e exercício — é comportamento correto —, mas a aula em
+   * vídeo é o produto, e o painel precisa dizer quantas ainda faltam.
+   */
+  aulasComVideo: number;
 }
 
 export function portalDoProfessor(usuarioId: number) {
@@ -64,6 +70,8 @@ export function portalDoProfessor(usuarioId: number) {
               WHERE a.portal_id = p.id AND a.status = 'publicado'
                 AND EXISTS (SELECT 1 FROM questao q JOIN exercicio e ON e.id = q.exercicio_id
                              WHERE e.aula_id = a.id)) AS "aulasComExercicio",
+            (SELECT count(*)::int FROM aula a
+              WHERE a.portal_id = p.id AND a.status = 'publicado' AND a.video_id IS NOT NULL) AS "aulasComVideo",
             (SELECT count(*)::int FROM usuario u WHERE u.portal_id = p.id AND u.papel = 'aluno') AS alunos
        FROM portal p
        LEFT JOIN portal_plano pl ON pl.id = p.plano_id

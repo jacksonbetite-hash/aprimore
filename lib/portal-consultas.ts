@@ -62,10 +62,33 @@ export async function portalIdAtual(): Promise<number> {
  * aqui dentro o Host já é o interno.
  */
 export async function enderecoDoPortal(mascara: string): Promise<string> {
+  return `${await origemExterna()}${mascara}.${dominioBase()}${await portaExterna()}`;
+}
+
+/**
+ * O endereço do SITE PRINCIPAL, visto de dentro de um portal.
+ *
+ * Serve à porta de serviço de `/entrar` (§5.10): a conta do professor e a
+ * do gestor vivem no portal 0, não na base do portal em que ele está. Sem
+ * este endereço, quem opera o portal tenta entrar nele com a senha da
+ * plataforma e recebe "e-mail ou senha não conferem" — a conta existe, só
+ * não é ali. Monta-se do mesmo jeito que `enderecoDoPortal`, sem máscara.
+ */
+export async function enderecoDaPlataforma(): Promise<string> {
+  return `${await origemExterna()}${dominioBase()}${await portaExterna()}`;
+}
+
+/** `http://` ou `https://`, como o NAVEGADOR chegou (ver `proxy.ts`). */
+async function origemExterna(): Promise<string> {
+  const h = await headers();
+  const protocolo = h.get(CABECALHO_PROTO_EXTERNO) ?? h.get('x-forwarded-proto') ?? 'http';
+  return `${protocolo}://`;
+}
+
+/** `:3010` em desenvolvimento, vazio quando o site responde na porta padrão. */
+async function portaExterna(): Promise<string> {
   const h = await headers();
   const host = h.get(CABECALHO_HOST_EXTERNO) ?? h.get('host') ?? '';
   const semColchete = host.split(',')[0].trim();
-  const porta = /:\d+$/.exec(semColchete)?.[0] ?? '';
-  const protocolo = h.get(CABECALHO_PROTO_EXTERNO) ?? h.get('x-forwarded-proto') ?? 'http';
-  return `${protocolo}://${mascara}.${dominioBase()}${porta}`;
+  return /:\d+$/.exec(semColchete)?.[0] ?? '';
 }

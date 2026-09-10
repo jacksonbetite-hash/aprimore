@@ -50,6 +50,10 @@ services:
       # 100 GB de aula num `docker build` inviabilizaria todo deploy.
       VIDEO_SEGREDO: ${VIDEO_SEGREDO:-}
       VIDEO_RAIZ: /midia/video
+      # §5.11 — o acervo da Biblioteca da empresa, ao lado do video e da
+      # imagem no mesmo volume. Nunca na imagem Docker.
+      DOCUMENTO_RAIZ: /midia/documento
+      DOCUMENTO_MAX_BYTES: ${DOCUMENTO_MAX_BYTES:-52428800}
       # Vazio = o Node entrega os bytes. Com o perfil `vps`, o compose
       # sobe o nginx e esta variável passa a apontar a location interna.
       VIDEO_ACCEL_REDIRECT: ${VIDEO_ACCEL_REDIRECT:-}

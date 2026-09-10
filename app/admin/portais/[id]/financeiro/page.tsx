@@ -16,6 +16,7 @@ import { brl } from '../../../../../lib/precos.ts';
 import {
   PORTAL_PLATAFORMA, GB, calcularExcedente, competenciaDe, competenciaAnterior,
 } from '../../../../../lib/portal.ts';
+import { permissoesDaTela } from '../../../guarda.ts';
 
 export const metadata: Metadata = { title: 'Financeiro do portal — Administração' };
 export const dynamic = 'force-dynamic';
@@ -46,6 +47,9 @@ export default async function FinanceiroDoPortal({ params }: { params: Promise<{
     consumoDaCompetencia(portalId, atual), extratoDoPortal(portalId), totaisDoExtrato(portalId),
     listarFaturas(portalId), vendasNaVitrine(portalId), listarApuracoes(portalId),
   ]);
+  // O financeiro lê esta tela inteira e não aperta botão nenhum
+  // (lib/permissoes.ts); cada ação reconfere no servidor.
+  const { 'financeiro.agir': agir } = await permissoesDaTela('financeiro.agir');
   const itens = new Map(await Promise.all(apuracoes.map(async (a) => [a.id, await itensDaApuracao(a.id)] as const)));
   const comissaoTotal = vitrine.filter((v) => v.status === 'PAGO').reduce((t, v) => t + v.aReceber, 0);
   if (!portal) notFound();
@@ -96,10 +100,10 @@ export default async function FinanceiroDoPortal({ params }: { params: Promise<{
               : 'Dentro da cota'}
             {consumo.medidoEm && <> · medido {DATA(consumo.medidoEm)}</>}
           </p>
-          <form action={acaoMedirConsumo} style={{ marginTop: 8 }}>
+          {agir && <form action={acaoMedirConsumo} style={{ marginTop: 8 }}>
             <input type="hidden" name="portalId" value={portalId} />
             <button className="btn btn-contorno btn-sm" type="submit">Medir armazenamento agora</button>
-          </form>
+          </form>}
         </div>
       </div>
 
@@ -129,9 +133,11 @@ export default async function FinanceiroDoPortal({ params }: { params: Promise<{
             {faturas.length === 0 && <tr><td colSpan={8} className="suave">Nenhuma fatura ainda.</td></tr>}
           </tbody>
         </table>
-        <h3 className="headline-md" style={{ marginBottom: 12 }}>Fechar uma competência</h3>
-        <FormFechar acao={acaoFecharFatura} portalId={portalId}
-                    competenciaSugerida={competenciaAnterior(hoje)} />
+        {agir && <>
+          <h3 className="headline-md" style={{ marginBottom: 12 }}>Fechar uma competência</h3>
+          <FormFechar acao={acaoFecharFatura} portalId={portalId}
+                      competenciaSugerida={competenciaAnterior(hoje)} />
+        </>}
       </div>
 
       <div className="cartao">
@@ -213,8 +219,10 @@ export default async function FinanceiroDoPortal({ params }: { params: Promise<{
                 </td>
                 <td className="mono">{a.nfNumero ?? '—'}</td>
                 <td>
-                  <FormApuracaoAdmin aprovar={acaoAprovarApuracao} pagar={acaoRegistrarRepasse} pagarGateway={acaoPagarRepasse}
-                    portalId={portalId} apuracaoId={a.id} status={a.status} contestacao={a.contestacao} temNota={Boolean(a.nfNumero)} />
+                  {agir ? (
+                    <FormApuracaoAdmin aprovar={acaoAprovarApuracao} pagar={acaoRegistrarRepasse} pagarGateway={acaoPagarRepasse}
+                      portalId={portalId} apuracaoId={a.id} status={a.status} contestacao={a.contestacao} temNota={Boolean(a.nfNumero)} />
+                  ) : <span className="suave">—</span>}
                 </td>
               </tr>
             ))}
@@ -224,7 +232,7 @@ export default async function FinanceiroDoPortal({ params }: { params: Promise<{
             {apuracoes.length === 0 && <tr><td colSpan={8} className="suave">Nenhuma competência apurada ainda.</td></tr>}
           </tbody>
         </table>
-        <FormApurar acao={acaoApurar} portalId={portalId} competenciaSugerida={competenciaAnterior(hoje)} />
+        {agir && <FormApurar acao={acaoApurar} portalId={portalId} competenciaSugerida={competenciaAnterior(hoje)} />}
       </div>
     </>
   );

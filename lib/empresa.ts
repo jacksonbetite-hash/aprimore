@@ -1,5 +1,6 @@
 import { query, queryOne } from './db.ts';
 import { emTransacao, auditar } from './auditoria.ts';
+import { garantirConta } from './auth.ts';
 import { PORTAL_PLATAFORMA, type Personalizacao, type StatusPortal } from './portal.ts';
 
 /**
@@ -179,11 +180,14 @@ export async function adicionarGestor(
       usuarioId = existente.id;
       await exec(`UPDATE usuario SET papel = 'gestor' WHERE id = $1 AND papel = 'aluno'`, [usuarioId]);
     } else {
+      // Conta global (db/045): se a pessoa já tem conta por outro portal,
+      // ganha o perfil de gestor na plataforma e entra com a senha de lá.
+      const conta = await garantirConta(exec, { nome, email: limpo, senhaHash });
       const [novo] = await exec<{ id: number }>(
-        `INSERT INTO usuario (portal_id, nome, email, senha_hash, papel)
-         VALUES (${PORTAL_PLATAFORMA}, $1, lower($2), $3, 'gestor')
+        `INSERT INTO usuario (portal_id, conta_id, nome, email, papel)
+         VALUES (${PORTAL_PLATAFORMA}, $1, $2, $3, 'gestor')
          RETURNING id::int AS id`,
-        [nome.trim().slice(0, 120), limpo, senhaHash],
+        [conta.id, nome.trim().slice(0, 120), limpo],
       );
       usuarioId = novo.id;
     }

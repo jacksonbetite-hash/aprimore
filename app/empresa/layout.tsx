@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import BarraLateral, { type GrupoLateral } from '../BarraLateral.tsx';
+import BotaoSair from '../BotaoSair.tsx';
 import { Icone } from '../componentes.tsx';
 import { sair } from '../acoes-auth.ts';
 import { alunoAtual } from '../../lib/sessao.ts';
@@ -42,6 +43,12 @@ export default async function LayoutEmpresa({ children }: { children: React.Reac
       titulo: 'Treinamento',
       itens: [
         { href: '/empresa/trilhas', icone: 'route', texto: 'Trilhas e aulas' },
+        // O acervo (db/042): o que a empresa DISPONIBILIZA, ao lado do
+        // que ela manda fazer. Fica no mesmo grupo porque é a mesma
+        // pergunta do RH — "o que a equipe tem para aprender".
+        { href: '/empresa/biblioteca', icone: 'library_books', texto: 'Biblioteca' },
+        // db/047 — os cursos prontos da plataforma, comprados como vagas.
+        { href: '/empresa/catalogo', icone: 'loyalty', texto: 'Catálogo da plataforma' },
         { href: '/empresa/colaboradores', icone: 'groups', texto: 'Colaboradores' },
         { href: '/empresa/atribuicoes', icone: 'assignment_turned_in', texto: 'Liberar trilhas' },
         { href: '/empresa/acompanhamento', icone: 'monitoring', texto: 'Acompanhamento' },
@@ -79,7 +86,10 @@ export default async function LayoutEmpresa({ children }: { children: React.Reac
           </form>
         }
       />
-      <div className="conteudo"><div className="miolo">{children}</div></div>
+      <div className="conteudo">
+        <BotaoSair className="sair-topo" />
+        <div className="miolo">{children}</div>
+      </div>
     </div>
   );
 }

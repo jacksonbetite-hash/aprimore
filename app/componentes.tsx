@@ -4,50 +4,13 @@ import { portalAtual } from '../lib/portal-consultas.ts';
 import { corSegura, formatarCnpj } from '../lib/portal.ts';
 import { portalFechadoParaVisitante } from './guarda-empresa.ts';
 import { sair } from './acoes-auth.ts';
+import { daEquipe } from '../lib/permissoes.ts';
 
-import MenuFerramentas, { type Ferramenta } from './MenuFerramentas.tsx';
+import MenuFerramentas from './MenuFerramentas.tsx';
+import { ferramentasEscolhidas } from '../lib/ferramentas.ts';
 
 export { Icone, Marca } from './ui.tsx';
 import { Icone, Marca } from './ui.tsx';
-
-/* O submenu "Ferramentas" reúne o que se USA durante o estudo — consulta
-   e apoio, não conteúdo de leitura. Só entra aqui destino que existe:
-   menu com item morto é pior que menu curto.
-   `naBarra` marca a ferramenta que também tem item de primeiro nível no
-   topo — hoje só o caderno de erros, que mora dentro do painel. As
-   demais emprestam o realce ao gatilho, senão a página não teria nenhum
-   marcador aceso na barra. */
-const FERRAMENTAS: Ferramenta[] = [
-  {
-    chave: 'vademecum',
-    href: '/vademecum',
-    nome: 'Vade-mécum Digital',
-    descricao: 'Consulta a leis e códigos, com busca por artigo ou trecho',
-    icone: 'gavel',
-  },
-  {
-    chave: 'calculadora-penal',
-    href: '/calculadora-penal',
-    nome: 'Calculadora Penal',
-    descricao: 'Dosimetria, regime, prescrição, decadência e perempção',
-    icone: 'calculate',
-  },
-  {
-    chave: 'vagas',
-    href: '/vagas',
-    nome: 'Mural de Vagas',
-    descricao: 'Estágios e vagas de emprego no mercado jurídico',
-    icone: 'work',
-  },
-  {
-    chave: 'caderno-de-erros',
-    href: '/painel#caderno',
-    nome: 'Caderno de erros',
-    descricao: 'As questões que você errou, reunidas para revisar',
-    icone: 'edit_note',
-    naBarra: true,
-  },
-];
 
 export async function Cabecalho({ ativo }: { ativo?: string }) {
   const [aluno, portal] = await Promise.all([alunoAtual(), portalAtual()]);
@@ -55,10 +18,12 @@ export async function Cabecalho({ ativo }: { ativo?: string }) {
   const item = (href: string, chave: string, texto: string) => (
     <Link href={href} className={ativo === chave ? 'ativo' : undefined}>{texto}</Link>
   );
-  // No portal de um professor (§5.10), o site é dele: a marca é a dele, e
-  // blog e mural de vagas — conteúdo nosso — saem do menu. A biblioteca
-  // fica, porque a lei ao lado da aula é o método, não conteúdo editorial.
-  const ferramentas = noPortal ? FERRAMENTAS.filter((f) => f.chave !== 'vagas') : FERRAMENTAS;
+  // §5.10 — o submenu "Ferramentas" é do PORTAL, não da casa. No site
+  // principal ele não existe mais (as ferramentas continuam no rodapé e
+  // no endereço direto); dentro do portal de um professor, ele mostra
+  // exatamente o que ele marcou em "Minha página" — nem tudo o que a
+  // plataforma tem, nem nada por padrão.
+  const ferramentas = noPortal ? ferramentasEscolhidas(portal.personalizacao.ferramentas) : [];
 
   // §5.11 — no portal de uma empresa o menu encolhe ao que existe ali.
   // "Planos" levaria o colaborador a uma página que redireciona (ele não
@@ -69,13 +34,20 @@ export async function Cabecalho({ ativo }: { ativo?: string }) {
   return (
     <header className="topo">
       <div className="container topo-nav">
-        <Marca nome={noPortal ? portal.nomeExibicao : undefined} />
+        {/* No portal de um professor, a marca em cima é a DELE e a linha
+            miúda diz quem opera — a mesma informação do rodapé legal
+            (§5.10), agora onde a pessoa olha primeiro. No portal de uma
+            empresa não: ali o portal é interno, e o nome do fornecedor
+            no alto da tela do colaborador não acrescenta nada a ele. */}
+        <Marca nome={noPortal ? portal.nomeExibicao : undefined}
+               assinatura={noPortal && !empresa ? 'por Aprimore o Saber' : null} />
         {/* Navegação ao centro: a marca ancora a esquerda, a ação de entrar
             ancora a direita, e o miolo fica com os destinos. */}
-        {/* A Biblioteca saiu da barra: ela é ferramenta de consulta e já
-            tem lugar no submenu, onde a descrição diz o que ela faz. O
-            Blog ocupa o primeiro nível porque é conteúdo de leitura, a
-            porta de entrada de quem ainda não é aluno. */}
+        {/* A Biblioteca não está na barra: é ferramenta de consulta, e
+            no site principal a porta dela é o rodapé (o submenu de
+            ferramentas passou a ser dos portais). O Blog ocupa o primeiro
+            nível porque é conteúdo de leitura, a porta de entrada de quem
+            ainda não é aluno. */}
         <nav className="topo-links">
           {item('/catalogo', 'catalogo', empresa ? 'Trilhas' : 'Cursos')}
           {!noPortal && item('/blog', 'blog', 'Blog')}
@@ -84,12 +56,12 @@ export async function Cabecalho({ ativo }: { ativo?: string }) {
               anúncio "monte o seu" seria concorrência na casa dele. */}
           {!noPortal && item('/para-professores', 'para-professores', 'Para professores')}
           {item('/painel', 'painel', empresa ? 'Meu progresso' : 'Meu painel')}
-          {!empresa && <MenuFerramentas itens={ferramentas} ativo={ativo} />}
+          {!empresa && ferramentas.length > 0 && <MenuFerramentas itens={ferramentas} ativo={ativo} />}
         </nav>
         <div className="topo-acoes">
           {aluno ? (
             <>
-              {aluno.papel === 'admin' && (
+              {daEquipe(aluno.papel) && (
                 <Link className="btn btn-contorno btn-sm" href="/admin">Admin</Link>
               )}
               {aluno.papel === 'professor' && !noPortal && (
@@ -124,7 +96,8 @@ export async function Rodape() {
         <div className="container">
           <div className="rodape-grade">
             <div>
-              <Marca nome={portal.nomeExibicao} />
+              <Marca nome={portal.nomeExibicao}
+                     assinatura={portal.tipo === 'EMPRESA' ? null : 'por Aprimore o Saber'} />
               <p className="caption suave" style={{ marginTop: 12, maxWidth: '22rem', lineHeight: 1.7 }}>
                 {portal.personalizacao.contato && <>Contato: {portal.personalizacao.contato}<br /></>}
                 Responsável pelo conteúdo: {portal.responsavelNome ?? portal.nomeExibicao}
@@ -206,6 +179,7 @@ export async function Rodape() {
             <Link href="/catalogo">Cursos</Link>
             <Link href="/planos">Planos</Link>
             <Link href="/vademecum">Biblioteca</Link>
+            <Link href="/calculadora-penal">Calculadora Penal</Link>
             <Link href="/painel">Área do aluno</Link>
           </div>
           <div>

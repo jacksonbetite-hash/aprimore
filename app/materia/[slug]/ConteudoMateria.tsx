@@ -7,8 +7,10 @@ import { temCpf } from '../../../lib/checkout.ts';
 import {
   buscarMateria, listarAulasDaMateria, formatarDuracao,
 } from '../../../lib/catalogo.ts';
+import { Anel } from '../../AnelProgresso.tsx';
 import { espectadorAtual, alunoAtual } from '../../../lib/sessao.ts';
-import { podeAcessar, espectadorParaCurso } from '../../../lib/licenca.ts';
+import { podeAcessar, acessoAoCurso, espectadorParaCurso } from '../../../lib/licenca.ts';
+import { progressoDoCurso, proximaAula, percentual } from '../../../lib/progresso-curso.ts';
 import { brl, porMes } from '../../../lib/precos.ts';
 import { tabelaVigente } from '../../../lib/precos-consultas.ts';
 import { portalIdAtual } from '../../../lib/portal-consultas.ts';
@@ -49,6 +51,15 @@ export default async function ConteudoMateria(
   ]);
   const espectador = espectadorParaCurso(espectadorBruto, portalDoCurso === portalDoAluno);
   const publicadas = aulas.filter((a) => a.status === 'publicado');
+  /* Quem já comprou não precisa ver o preço de novo: precisa saber onde
+     parou. A decisão de acesso é a MESMA do cadeado da aula (§6.3), um
+     degrau acima — ver `acessoAoCurso`. */
+  const acesso = acessoAoCurso(espectador, materia.id);
+  const progresso = await progressoDoCurso(
+    acesso.libera ? aluno?.id : undefined, materia.id,
+  );
+  const retomar = acesso.libera ? proximaAula(publicadas, progresso) : null;
+  const pctCurso = percentual(progresso.aulasConcluidas, publicadas.length);
   const emProducao = aulas.filter((a) => a.status !== 'publicado');
   const assuntos = [...new Set(publicadas.map((a) => a.assuntoSlug))];
   const temAmostra = publicadas.some((a) => a.amostraGratuita);
@@ -155,22 +166,36 @@ export default async function ConteudoMateria(
                           id: aula.id, materiaId: materia.id,
                           amostraGratuita: aula.amostraGratuita, noTrial: aula.noTrial,
                         });
-                        const etiqueta = aula.amostraGratuita
-                          ? { c: 'chip-secundaria', t: 'Grátis' }
-                          : d.libera
-                            ? { c: 'chip-terciaria', t: d.motivo === 'TRIAL' ? 'Teste' : 'Liberada' }
-                            : { c: 'chip-neutra', t: 'Licença' };
+                        /* O que ESTE aluno já fez nesta aula. A etiqueta
+                           "concluída" vale mais que a de acesso: quem já
+                           assistiu não precisa que a linha lhe diga que a
+                           aula está liberada. */
+                        const vista = progresso.porAula.get(Number(aula.id));
+                        const etiqueta = vista?.concluida
+                          ? { c: 'chip-secundaria', t: 'Concluída' }
+                          : vista
+                            ? { c: 'chip-terciaria', t: 'Continuar' }
+                            : aula.amostraGratuita
+                              ? { c: 'chip-secundaria', t: 'Grátis' }
+                              : d.libera
+                                ? { c: 'chip-terciaria', t: d.motivo === 'TRIAL' ? 'Teste' : 'Liberada' }
+                                : { c: 'chip-neutra', t: 'Licença' };
                         return (
                           <Link
-                            className={`linha-aula ${d.libera ? (aula.amostraGratuita ? 'concluida' : '') : 'bloqueada'}`}
+                            className={`linha-aula ${d.libera ? (vista?.concluida ? 'concluida' : '') : 'bloqueada'}`}
                             href={`${base}/aula/${aula.slug}`} key={aula.id}
                           >
                             <span className="estado">
-                              <Icone nome={d.libera ? 'play_arrow' : 'lock'} />
+                              <Icone nome={!d.libera ? 'lock' : vista?.concluida ? 'check' : 'play_arrow'} />
                             </span>
                             <span className="texto">
                               <strong>{aula.titulo}</strong>
-                              <span>{formatarDuracao(aula.duracaoSegundos)} · {plural(aula.questoes, 'questão', 'questões')}</span>
+                              <span>
+                                {formatarDuracao(aula.duracaoSegundos)} · {plural(aula.questoes, 'questão', 'questões')}
+                                {vista && !vista.concluida && aula.duracaoSegundos > 0 && (
+                                  <> · assistido {percentual(vista.segundos, aula.duracaoSegundos)}%</>
+                                )}
+                              </span>
                             </span>
                             <span className={`chip chip-sm ${etiqueta.c}`}>{etiqueta.t}</span>
                           </Link>
@@ -208,7 +233,65 @@ export default async function ConteudoMateria(
           )}
         </div>
 
-        {/* ---- Compra ---- */}
+        {/* ---- Quem já tem o curso: progresso, não vitrine ---- */}
+        {acesso.libera ? (
+          <aside className="cartao caixa-compra caixa-progresso">
+            <span className="label-md suave">SEU PROGRESSO NESTE CURSO</span>
+            <div className="progresso-resumo">
+              <Anel pct={pctCurso} cor="var(--primary)" />
+              <div>
+                <strong>
+                  {progresso.aulasConcluidas} de {publicadas.length}{' '}
+                  {publicadas.length === 1 ? 'aula concluída' : 'aulas concluídas'}
+                </strong>
+                <span className="caption suave">
+                  {progresso.questoesTotal > 0
+                    ? <>{progresso.questoesRespondidas} de {progresso.questoesTotal} questões respondidas · {progresso.acertos} {progresso.acertos === 1 ? 'acerto' : 'acertos'} ({percentual(progresso.acertos, progresso.questoesRespondidas)}%)</>
+                    : 'Os exercícios deste curso ainda estão sendo escritos.'}
+                </span>
+              </div>
+            </div>
+
+            {retomar && (
+              <div className="pilha-sm" style={{ marginTop: 20 }}>
+                <Link className="btn btn-primario btn-bloco" href={`${base}/aula/${retomar.slug}`}>
+                  {progresso.aulasConcluidas === 0 ? 'Começar a primeira aula'
+                    : progresso.aulasConcluidas === publicadas.length ? 'Rever o curso'
+                      : 'Continuar de onde parei'}
+                </Link>
+                <span className="caption suave" style={{ textAlign: 'center' }}>{retomar.titulo}</span>
+              </div>
+            )}
+
+            {/* Até quando ele tem acesso, e por qual licença: a resposta
+                da pergunta que chega ao suporte como "eu ainda tenho o
+                curso?". */}
+            <div className="inclui-titulo">Seu acesso</div>
+            <ul className="lista-inclui">
+              <li>
+                <Icone nome="check_circle" />
+                {acesso.motivo === 'LICENCA_CATALOGO' ? 'Pelo passe completo'
+                  : acesso.motivo === 'TRIAL' ? 'Pelo teste gratuito de 7 dias'
+                    : 'Licença deste curso'}
+                {' '}· até {new Date(acesso.licenca.fimEm).toLocaleDateString('pt-BR')}
+              </li>
+              <li><Icone nome="check_circle" /> Material de apoio e biblioteca de fontes nas aulas</li>
+              <li><Icone nome="check_circle" /> Questões erradas vão para o seu caderno de erros</li>
+            </ul>
+            {acesso.motivo === 'TRIAL' && (
+              <p className="caption suave">
+                O teste abre cerca de 20% das aulas. <Link href="/planos">Assine o curso</Link> para
+                abrir todas — seu progresso continua de onde parou.
+              </p>
+            )}
+            <p className="caption suave" style={{ borderTop: '1px dashed var(--surface-variant)', paddingTop: 14 }}>
+              <Link href="/painel">Meu painel</Link> reúne o progresso de todos os seus cursos e o
+              caderno de erros.
+            </p>
+          </aside>
+        ) : (
+
+        /* ---- Compra ---- */
         <aside className="cartao caixa-compra">
           <span className="label-md suave">LICENÇA DESTE CURSO</span>
           <div className="preco" style={{ marginTop: 8 }}>
@@ -225,7 +308,12 @@ export default async function ConteudoMateria(
           ) : (
             <div className="pilha-sm" style={{ marginTop: 20 }}>
               <Link className="btn btn-primario btn-bloco" href="/planos">Assinar este curso</Link>
-              <Link className="btn btn-contorno btn-bloco" href="/cadastrar">Testar 7 dias grátis</Link>
+              {/* Quem já está logado não "cria conta para testar": o teste
+                  se ativa em /planos, e mandá-lo para /cadastrar era
+                  oferecer a ele uma segunda conta. */}
+              <Link className="btn btn-contorno btn-bloco" href={aluno ? '/planos' : '/cadastrar'}>
+                {aluno ? 'Ver planos e teste gratuito' : 'Testar 7 dias grátis'}
+              </Link>
             </div>
           )}
           <div className="inclui-titulo">O que está incluso</div>
@@ -250,6 +338,7 @@ export default async function ConteudoMateria(
             Arrependeu? Devolvemos 100% em até 7 dias, sem justificativa (CDC, art. 49).
           </p>
         </aside>
+        )}
       </div>
     </Pagina>
   );

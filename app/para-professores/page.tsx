@@ -8,6 +8,7 @@ import { planoDeLancamento } from '../../lib/portal-assinatura.ts';
 import { portalIdAtual } from '../../lib/portal-consultas.ts';
 import { dominioBase } from '../../lib/portal.ts';
 import { brl } from '../../lib/precos.ts';
+import { COMISSAO_PADRAO_PP } from '../../lib/professor-catalogo.ts';
 
 export const metadata: Metadata = {
   title: 'Seu site de aulas — Portal do Professor',
@@ -90,6 +91,27 @@ export default async function ParaProfessores() {
             {INCLUI.map((c) => (
               <div className="cartao" key={c.titulo}><h3>{c.titulo}</h3><p>{c.texto}</p></div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Etapa 5 do plano de perfis: a segunda porta. Quem não quer site
+          próprio publica no catálogo da casa e recebe comissão. */}
+      <section className="secao">
+        <div className="container">
+          <div className="cartao faixa-professor">
+            <span className="selo"><Icone nome="menu_book" tamanho={22} /></span>
+            <div>
+              <h2>Prefere vender no nosso catálogo, sem portal?</h2>
+              <p>
+                Sem mensalidade e sem site para cuidar: você publica os seus cursos no catálogo
+                da plataforma, a venda é nossa e você recebe {COMISSAO_PADRAO_PP}% de cada uma,
+                com extrato mensal e repasse por Pix.
+              </p>
+            </div>
+            <Link className="faixa-professor-link" href="/para-professores/catalogo">
+              Cadastrar-me no catálogo <Icone nome="chevron_right" tamanho={16} />
+            </Link>
           </div>
         </div>
       </section>

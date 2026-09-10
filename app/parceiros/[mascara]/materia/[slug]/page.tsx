@@ -2,7 +2,8 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import ConteudoMateria from '../../../../materia/[slug]/ConteudoMateria.tsx';
 import { buscarMateria } from '../../../../../lib/catalogo.ts';
-import { portalIdAtual, buscarPortalPorMascara } from '../../../../../lib/portal-consultas.ts';
+import { portalAtual, buscarPortalPorMascara } from '../../../../../lib/portal-consultas.ts';
+import { PLATAFORMA } from '../../../../../lib/portal.ts';
 import { espectadorAtual } from '../../../../../lib/sessao.ts';
 import { licencaVigente } from '../../../../../lib/licenca.ts';
 import { portalVendeNaVitrine } from '../../../../../lib/vitrine.ts';
@@ -18,14 +19,21 @@ export const dynamic = 'force-dynamic';
  * coisas: vitrine ligada e portal do professor ATIVO.
  */
 async function resolver(mascara: string, slug: string) {
-  if ((await portalIdAtual()) !== 0) return null;
-  const portal = await buscarPortalPorMascara(mascara);
+  const aqui = await portalAtual();
+  // db/047 — dentro do portal de uma EMPRESA a rota serve o curso DA
+  // PLATAFORMA comprado como vaga: só a máscara da plataforma, e só com
+  // a licença do próprio colaborador. Sem sessão ou sem vaga: 404.
+  const naEmpresa = aqui.tipo === 'EMPRESA';
+  if (aqui.id !== 0 && !(naEmpresa && mascara === PLATAFORMA.mascara)) return null;
+  const portal = mascara === PLATAFORMA.mascara ? PLATAFORMA : await buscarPortalPorMascara(mascara);
   if (!portal) return null;
   const materia = await buscarMateria(portal.id, slug);
   if (!materia) return null;
 
   const licenciado = (await espectadorAtual()).licencas.some((l) =>
-    l.escopo === 'MATERIA' && l.materiaId === materia.id && licencaVigente(l, new Date()));
+    l.escopo === 'MATERIA' && Number(l.materiaId) === Number(materia.id) && licencaVigente(l, new Date()));
+  if (naEmpresa) return licenciado ? { portal, materia, vende: false } : null;
+
   const naVitrine = materia.naVitrinePlataforma && materia.status === 'publicado';
   if (!naVitrine && !licenciado) return null;
 

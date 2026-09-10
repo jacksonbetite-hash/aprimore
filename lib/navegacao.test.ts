@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { itemAtivo, paginaInicial } from './navegacao.ts';
+import { itemAtivo, paginaInicial, enderecosDe } from './navegacao.ts';
 
 /**
  * O defeito que estes testes travam: com o realce fixado no código, o
@@ -60,6 +60,9 @@ test('item raiz "/" não sequestra o menu inteiro', () => {
  */
 test('cada papel cai no painel dele', () => {
   assert.equal(paginaInicial('admin', 0), '/admin');
+  // A equipe inteira trabalha em /admin; o menu de lá é que se ajusta.
+  assert.equal(paginaInicial('financeiro', 0), '/admin');
+  assert.equal(paginaInicial('suporte', 0), '/admin');
   assert.equal(paginaInicial('professor', 0), '/professor');
   assert.equal(paginaInicial('aluno', 0), '/painel');
   assert.equal(paginaInicial('revisor', 0), '/painel');
@@ -80,4 +83,54 @@ test('destino para fora do site é ignorado — nada de redirecionamento aberto'
   assert.equal(paginaInicial('aluno', 0, '//phishing.exemplo'), '/painel');
   assert.equal(paginaInicial('admin', 0, ''), '/admin');
   assert.equal(paginaInicial('admin', 0, null), '/admin');
+});
+
+/**
+ * O submenu do colaborador ("Minha Jornada" ▸ Minhas trilhas · Todas as
+ * trilhas). O defeito que estes testes travam: sem achatar os filhos, a
+ * lista entregue a `itemAtivo` não teria endereço nenhum do submenu, e o
+ * realce nunca acenderia dentro dele.
+ */
+const MENU = [
+  {
+    itens: [
+      { icone: 'dashboard', texto: 'Minha Jornada', filhos: [
+        { href: '/painel', icone: 'route', texto: 'Minhas trilhas' },
+        { href: '/painel/trilhas', icone: 'grid_view', texto: 'Todas as trilhas' },
+      ] },
+      { href: '/painel/biblioteca', icone: 'menu_book', texto: 'Biblioteca' },
+      { href: '/painel/conta', icone: 'person', texto: 'Minha conta' },
+    ],
+  },
+];
+
+test('enderecosDe achata os filhos do submenu, na ordem do menu', () => {
+  assert.deepEqual(enderecosDe(MENU), [
+    '/painel', '/painel/trilhas', '/painel/biblioteca', '/painel/conta',
+  ]);
+});
+
+test('o item pai não entra: ele não tem endereço', () => {
+  assert.equal(enderecosDe(MENU).length, 4);
+});
+
+test('menu sem submenu nenhum continua devolvendo a lista simples', () => {
+  assert.deepEqual(
+    enderecosDe([{ itens: [{ href: '/a' }, { href: '/b' }] }, { itens: [{ href: '/c' }] }]),
+    ['/a', '/b', '/c'],
+  );
+});
+
+test('cada filho do submenu acende a si mesmo, e o pai não rouba o realce', () => {
+  const enderecos = enderecosDe(MENU);
+  assert.equal(itemAtivo('/painel', enderecos), '/painel');
+  assert.equal(itemAtivo('/painel/trilhas', enderecos), '/painel/trilhas');
+  // A raiz do painel é prefixo de todas as outras: sem o "prefixo mais
+  // longo" de `itemAtivo`, "Minhas trilhas" ficaria aceso na Biblioteca.
+  assert.equal(itemAtivo('/painel/biblioteca', enderecos), '/painel/biblioteca');
+  assert.equal(itemAtivo('/painel/conta', enderecos), '/painel/conta');
+});
+
+test('sub-rota da Biblioteca acende a Biblioteca, não a raiz do painel', () => {
+  assert.equal(itemAtivo('/painel/biblioteca?assunto=LGPD', enderecosDe(MENU)), '/painel/biblioteca');
 });

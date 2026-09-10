@@ -14,6 +14,8 @@ import {
 import { lerMateria, lerAula, lerQuestao, situacao, numero } from '../../lib/admin-cursos-form.ts';
 import { contestarApuracao, informarNota } from '../../lib/apuracao.ts';
 import { definirDominio, verificarDominio } from '../../lib/portal-dominio.ts';
+import { lerFerramentas } from '../../lib/ferramentas.ts';
+import { removerVideoDaAula } from '../../lib/video-aula.ts';
 import type { EstadoAdmin } from '../admin/acoes.ts';
 
 // ---------- Apuração da comissão de vitrine (§5.6.1) ----------
@@ -78,6 +80,7 @@ export async function acaoSalvarSite(_e: EstadoAdmin, dados: FormData): Promise<
         contato: String(dados.get('contato') ?? '').trim(),
         corPrimaria: String(dados.get('corPrimaria') ?? '').trim(),
         foto: String(dados.get('foto') ?? '').trim(),
+        ferramentas: lerFerramentas(dados.getAll('ferramentas').map(String)),
       },
     });
   } catch (err) {
@@ -250,6 +253,24 @@ export async function acaoStatusAula(dados: FormData) {
   const d = await dono();
   await mudarStatusAula(d.u.email, d.portal.id, Number(dados.get('id')), situacao(dados.get('status')));
   revalidarPortal(d.portal.id);
+}
+
+// ---------- Vídeo da aula ----------
+
+/**
+ * Tira o vídeo da aula (§5.10 — o professor é dono do próprio acervo:
+ * anexa, troca e também retira). Enviar outro arquivo continua sendo o
+ * caminho da TROCA; esta ação é a de deixar a aula sem gravação, e ela
+ * libera a cota de armazenamento na mesma hora.
+ */
+export async function acaoRemoverVideo(dados: FormData) {
+  const d = await dono();
+  await removerVideoDaAula(d.u.email, d.portal.id, Number(dados.get('aulaId')));
+  // Armazenamento é foto, não soma: com um arquivo a menos, a medição
+  // precisa ser refeita, senão a fatura cobra espaço que já não existe.
+  void medirArmazenamento(d.portal.id).catch(() => {});
+  revalidarPortal(d.portal.id);
+  revalidatePath('/professor/videos');
 }
 
 // ---------- Questões ----------

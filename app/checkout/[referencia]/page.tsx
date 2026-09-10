@@ -38,21 +38,33 @@ export default async function Checkout({ params }: { params: Promise<{ referenci
       <section className="secao caixa-auth">
         <div className="cartao cartao-auth" style={{ width: 'min(560px, 92vw)' }}>
           {pago ? (
-            <>
-              <h1>Pagamento confirmado</h1>
-              <p className="sub">
-                Sua licença já está ativa. Bons estudos —
-                e lembre-se: toda alternativa dos exercícios vem comentada.
-              </p>
-              <Link className="btn btn-primario" href="/painel">Ir para o meu painel</Link>
-            </>
+            pedido.empresaPortalId !== null ? (
+              <>
+                <h1>Pagamento confirmado</h1>
+                <p className="sub">
+                  As {pedido.quantidade} vaga(s) de <strong>{pedido.materiaNome}</strong> já estão no
+                  seu lote. Agora é distribuí-las às pessoas.
+                </p>
+                <Link className="btn btn-primario" href="/empresa/atribuicoes#vagas">Distribuir as vagas</Link>
+              </>
+            ) : (
+              <>
+                <h1>Pagamento confirmado</h1>
+                <p className="sub">
+                  Sua licença já está ativa. Bons estudos —
+                  e lembre-se: toda alternativa dos exercícios vem comentada.
+                </p>
+                <Link className="btn btn-primario" href="/painel">Ir para o meu painel</Link>
+              </>
+            )
           ) : (
             <>
               <h1>Falta pouco</h1>
               <p className="sub">
                 Pedido <strong>{pedido.referencia}</strong> ·{' '}
-                {pedido.escopo === 'CATALOGO' ? 'Passe completo' : pedido.materiaNome} ·{' '}
-                plano {pedido.periodo}
+                {pedido.empresaPortalId !== null
+                  ? `${pedido.quantidade} vaga(s) de ${pedido.materiaNome} para a sua equipe · válidas por um ano`
+                  : <>{pedido.escopo === 'CATALOGO' ? 'Passe completo' : pedido.materiaNome} · plano {pedido.periodo}</>}
               </p>
 
               <div className="cartao" style={{ background: 'var(--surface-container-low)', marginBottom: 20 }}>

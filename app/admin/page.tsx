@@ -5,16 +5,22 @@ import { resumoOperacao, listarAuditoria } from '../../lib/admin.ts';
 import { brl } from '../../lib/precos.ts';
 import { tabelaVigente } from '../../lib/precos-consultas.ts';
 import { PORTAL_PLATAFORMA } from '../../lib/portal.ts';
+import { alunoAtual } from '../../lib/sessao.ts';
+import { pode, ROTULO_PAPEL } from '../../lib/permissoes.ts';
 
 export const metadata: Metadata = { title: 'Administração' };
 
 const QUANDO = (d: Date) =>
   new Date(d).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
-export default async function VisaoGeral() {
-  const [resumo, auditoria, tabela] = await Promise.all([
+export default async function VisaoGeral(
+  { searchParams }: { searchParams: Promise<{ 'sem-permissao'?: string }> },
+) {
+  const [resumo, auditoria, tabela, busca, u] = await Promise.all([
     resumoOperacao(), listarAuditoria(12), tabelaVigente(PORTAL_PLATAFORMA),
+    searchParams, alunoAtual(),
   ]);
+  const papel = u?.papel ?? '';
 
   const indicadores = [
     { rotulo: 'Alunos cadastrados', valor: String(resumo?.alunos ?? 0), icone: 'school',
@@ -32,6 +38,14 @@ export default async function VisaoGeral() {
       <h1 className="headline-lg">Visão geral</h1>
       <p className="suave">O que está acontecendo na operação agora.</p>
 
+      {busca['sem-permissao'] && (
+        <p className="alerta alerta-erro" role="alert">
+          <Icone nome="lock" tamanho={20} /> Essa tela não faz parte do seu perfil
+          ({ROTULO_PAPEL[papel as keyof typeof ROTULO_PAPEL] ?? papel}). O menu à esquerda
+          lista só o que você opera.
+        </p>
+      )}
+
       <div className="grade-4">
         {indicadores.map((i) => (
           <div className="cartao indicador" key={i.rotulo}>
@@ -47,7 +61,9 @@ export default async function VisaoGeral() {
         <p className="caption suave" style={{ marginBottom: 16 }}>
           Curso avulso a <strong>{brl(tabela.MATERIA.mensal)}</strong>/mês ·
           passe completo a <strong>{brl(tabela.CATALOGO.mensal)}</strong>/mês.{' '}
-          <Link href="/admin/precos" style={{ color: 'var(--primary)', fontWeight: 700 }}>Alterar</Link>
+          <Link href="/admin/precos" style={{ color: 'var(--primary)', fontWeight: 700 }}>
+            {pode(papel, 'financeiro.agir') ? 'Alterar' : 'Ver a tabela'}
+          </Link>
         </p>
       </div>
 
@@ -77,8 +93,7 @@ export default async function VisaoGeral() {
       </div>
 
       <div className="aviso">
-        <strong>Ainda fora do admin:</strong> financeiro e conciliação com o gateway (§8),
-        fechamento de contas do professor e apuração de comissão (§5.6.1), anunciantes (§5.7),
+        <strong>Ainda fora do admin:</strong> conciliação com o gateway (§8), anunciantes (§5.7),
         cadastro da legislação do vade-mécum (§5.4) e o autosserviço do anunciante no mural —
         hoje a vaga entra pela nossa mão e sai pela moderação, mas quem publica ainda não tem
         tela própria (§5.7.1). O §10 também pede <strong>2FA obrigatório</strong> para admin e

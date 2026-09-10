@@ -12,6 +12,7 @@ import {
 import { historicoDePrecos, tabelaVigente } from '../../../../lib/precos-consultas.ts';
 import { brl, PERIODOS, dataBR } from '../../../../lib/precos.ts';
 import { PORTAL_PLATAFORMA } from '../../../../lib/portal.ts';
+import { permissoesDaTela } from '../../guarda.ts';
 
 export const metadata: Metadata = { title: 'Portal — Administração' };
 export const dynamic = 'force-dynamic';
@@ -29,9 +30,10 @@ export default async function Portal(
   const portalId = Number(id);
   if (!Number.isInteger(portalId) || portalId === PORTAL_PLATAFORMA) notFound();
 
-  const [portal, planos, professores, contratos, precos, tabela] = await Promise.all([
+  const [portal, planos, professores, contratos, precos, tabela, pode] = await Promise.all([
     buscarPortal(portalId), listarPlanos(), listarProfessores(),
     historicoDeContratos(portalId), historicoDePrecos(portalId), tabelaVigente(portalId),
+    permissoesDaTela('cadastros.agir', 'financeiro.agir'),
   ]);
   if (!portal) notFound();
 
@@ -72,11 +74,23 @@ export default async function Portal(
         </p>
       )}
 
-      <div className="cartao">
-        <h2 className="headline-md" style={{ marginBottom: 16 }}>Dados do portal</h2>
-        <FormPortal acao={acaoEditarPortal} planos={planos} professores={professores}
-          portal={portal} />
-      </div>
+      {/* Quem só vê (financeiro) recebe os dados como texto; os
+          formulários são de quem cadastra e de quem mexe em dinheiro. */}
+      {pode['cadastros.agir'] ? (
+        <div className="cartao">
+          <h2 className="headline-md" style={{ marginBottom: 16 }}>Dados do portal</h2>
+          <FormPortal acao={acaoEditarPortal} planos={planos} professores={professores}
+            portal={portal} />
+        </div>
+      ) : (
+        <div className="cartao">
+          <h2 className="headline-md" style={{ marginBottom: 12 }}>Dados do portal</h2>
+          <p>
+            <strong>{portal.nomeExibicao}</strong> · {portal.tipo === 'EMPRESA' ? 'empresa' : 'professor'} ·
+            responsável {portal.professorNome ?? '—'} ({portal.professorEmail ?? '—'})
+          </p>
+        </div>
+      )}
 
       <div className="cartao">
         <h2 className="headline-md" style={{ marginBottom: 6 }}>A página do professor</h2>
@@ -85,7 +99,9 @@ export default async function Portal(
           acervo e a oferta são montados a partir do catálogo e da tabela de preços; o que se
           escreve aqui é o texto das outras seções.
         </p>
-        <FormSite acao={acaoEditarSite} portalId={portal.id} personalizacao={personalizacao} />
+        {pode['cadastros.agir']
+          ? <FormSite acao={acaoEditarSite} portalId={portal.id} personalizacao={personalizacao} />
+          : <p className="suave">Edição reservada a quem cadastra.</p>}
       </div>
 
       <div className="cartao">
@@ -118,8 +134,10 @@ export default async function Portal(
             )}
           </tbody>
         </table>
-        <h3 className="headline-md" style={{ marginBottom: 16 }}>Alterar um preço</h3>
-        <FormPreco acao={acaoAlterarPreco} portalId={portal.id} rotuloCatalogo="Passe do portal" />
+        {pode['financeiro.agir'] && <>
+          <h3 className="headline-md" style={{ marginBottom: 16 }}>Alterar um preço</h3>
+          <FormPreco acao={acaoAlterarPreco} portalId={portal.id} rotuloCatalogo="Passe do portal" />
+        </>}
       </div>
 
       <div className="cartao" style={{ marginBottom: 0 }}>
@@ -160,7 +178,7 @@ export default async function Portal(
                       <span className="chip chip-sm chip-secundaria">
                         {DATA(c.aceitoEm)}{c.aceitoIp ? ` · ${c.aceitoIp}` : ''}
                       </span>
-                    ) : c.vigenteAte === null ? (
+                    ) : c.vigenteAte === null && pode['financeiro.agir'] ? (
                       <form action={acaoRegistrarAceite}>
                         <input type="hidden" name="portalId" value={portal.id} />
                         <input type="hidden" name="contratoId" value={c.id} />
@@ -176,7 +194,7 @@ export default async function Portal(
           </table>
         )}
 
-        <h3 className="headline-md" style={{ marginBottom: 16 }}>Novo contrato</h3>
+        {pode['financeiro.agir'] && <><h3 className="headline-md" style={{ marginBottom: 16 }}>Novo contrato</h3>
         <FormContrato acao={acaoRegistrarContrato} portalId={portal.id} planos={planos}
           atual={vigente ? {
             planoId: vigente.planoId,
@@ -186,7 +204,7 @@ export default async function Portal(
             validadeCliqueDias: vigente.validadeCliqueDias,
             diasRetencao: vigente.diasRetencao,
             percentualReserva: vigente.percentualReserva,
-          } : undefined} />
+          } : undefined} /></>}
       </div>
     </>
   );

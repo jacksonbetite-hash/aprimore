@@ -362,6 +362,92 @@ try {
     `${atr.atribuicoes} atribuições viraram ${atr.licencas} licença(s) B2B ativa(s)`);
 
   // -------------------------------------------------------------------
+  // 6b. A Biblioteca: o acervo que a empresa disponibiliza (db/042)
+  // -------------------------------------------------------------------
+  //
+  // Não é trilha: aqui não há prazo, atribuição nem certificado. É o que
+  // a equipe consulta quando precisa — e é por isso que a tela do
+  // colaborador filtra por assunto e por autor, e não por progresso.
+  const DOCS = join(MIDIA, 'documentos');
+  const publicarNoAcervo = async (dados, arquivoPdf) => {
+    await p.goto(`${BASE}/empresa/biblioteca`, { waitUntil: 'load' });
+    const f = p.locator('form.form-editor').last();
+    if (arquivoPdf) {
+      await f.locator('input[type=file][accept="application/pdf"]').setInputFiles(join(DOCS, arquivoPdf));
+      // O envio é em stream, por XHR: o campo escondido só recebe o nome
+      // no volume quando o servidor responde. Salvar antes disso gravaria
+      // um item sem arquivo — que o CHECK do banco recusa.
+      await p.waitForFunction(
+        () => document.querySelector('input[name=arquivo]')?.value?.length > 0,
+        null, { timeout: 60000 });
+    } else {
+      await f.locator('label.opcao:has-text("Link") input').check();
+    }
+    // O setor vai à parte: `preencher` casa `selectOption` por VALOR, e o
+    // valor aqui é o id numérico do setor, não o nome que se lê na tela.
+    const { setor, ...campos } = dados;
+    if (setor) await f.locator('select[name=setorId]').selectOption({ label: setor });
+    await preencher(f, campos);
+    await f.locator('button[type=submit]').click();
+    return esperarOk(f, `item do acervo "${dados.titulo}"`);
+  };
+
+  await publicarNoAcervo({
+    titulo: 'Guia prático de LGPD para equipes',
+    autor: 'Marina Antunes',
+    assuntos: 'LGPD, Compliance',
+    descricao: 'O que muda no dia a dia de quem trata dado pessoal no atendimento.',
+    ano: '2024',
+    editora: 'Casa Editora',
+  }, 'aurora-guia-lgpd.pdf');
+
+  await publicarNoAcervo({
+    titulo: 'Manual de integração — Lojas',
+    autor: 'Equipe de Treinamento',
+    assuntos: 'Integração',
+    descricao: 'Para quem está começando na operação de loja.',
+    ano: '2026',
+    setor: 'Lojas',
+  }, 'aurora-manual-integracao.pdf');
+
+  await publicarNoAcervo({
+    titulo: 'Política de uso de IA',
+    autor: 'Comitê de Tecnologia',
+    assuntos: 'IA, Compliance',
+    descricao: 'Regras internas para ferramentas de IA generativa.',
+    url: 'https://intranet.grupoaurora.com.br/politica-ia',
+  }, null);
+
+  // Publicar é um segundo passo, de propósito: o RH sobe o arquivo,
+  // confere, e só então a equipe vê. O item nasce em rascunho e é
+  // publicado aqui, um a um.
+  //
+  // Um a um, e recarregando a cada vez: a tabela é ordenada por situação,
+  // então publicar move a linha de lugar. Percorrer uma lista capturada
+  // antes do primeiro clique pularia itens — foi o que aconteceu.
+  for (const titulo of ['Guia prático de LGPD', 'Manual de integração', 'Política de uso de IA']) {
+    await p.goto(`${BASE}/empresa/biblioteca`, { waitUntil: 'load' });
+    const linha = p.locator('table.tabela tbody tr').filter({ hasText: titulo }).first();
+    const publicar = linha.locator('button[aria-label="Publicar"]');
+    if (await publicar.count()) {
+      await publicar.click();
+      await p.waitForLoadState('networkidle');
+    }
+  }
+
+  const { rows: [biblio] } = await pool.query(
+    `SELECT count(*)::int AS itens,
+            count(*) FILTER (WHERE status = 'PUBLICADO')::int AS publicados,
+            count(*) FILTER (WHERE formato = 'LINK')::int AS links,
+            count(*) FILTER (WHERE setor_id IS NOT NULL)::int AS de_setor,
+            coalesce(sum(bytes), 0)::int AS bytes
+       FROM acervo WHERE portal_id = (SELECT id FROM portal WHERE mascara = $1)`, [MASCARA]);
+  passo(biblio.itens === 3 && biblio.publicados === 3 && biblio.links === 1 && biblio.de_setor === 1,
+    `biblioteca: ${biblio.itens} itens publicados (1 link, 1 restrito ao setor Lojas)`);
+  passo(biblio.bytes > 0,
+    `o PDF enviado pesa ${biblio.bytes} bytes e entra na cota do plano, como o vídeo`);
+
+  // -------------------------------------------------------------------
   // 7. O outro lado: a colaboradora aceita o convite, estuda e se forma
   // -------------------------------------------------------------------
   const cola = await (await b.newContext({ reducedMotion: 'reduce' })).newPage();
@@ -377,6 +463,97 @@ try {
   passo(painel.includes('Integração de novos colaboradores'),
     'ao aceitar, a colaboradora já entra com a trilha do setor liberada');
   passo(painel.includes('obrigatória'), 'a trilha obrigatória vem marcada como tal');
+
+  // O menu do colaborador: submenu que abre, e telas que trocam à direita
+  // sem o menu ir junto. Era este o defeito — em /conta aparecia o menu da
+  // PLATAFORMA, com caderno de erros e planos de venda, que a empresa não tem.
+  const menu = () => cola.locator('aside.lateral').innerText();
+  const menuInicial = await menu();
+  passo(menuInicial.includes('Minha Jornada') && menuInicial.includes('Minhas trilhas')
+     && menuInicial.includes('Todas as trilhas'),
+    'o menu abre "Minha Jornada" com os dois submenus');
+  passo(!menuInicial.includes('Caderno de erros') && !menuInicial.includes('Planos'),
+    'e não traz nada que a empresa não tem: sem caderno de erros, sem planos de venda');
+
+  const pai = cola.locator('button.item-lateral.pai');
+  passo(await pai.getAttribute('aria-expanded') === 'true',
+    'o submenu vem aberto porque a tela atual é uma das filhas');
+  await pai.click();
+  passo(await pai.getAttribute('aria-expanded') === 'false', 'e fecha no clique');
+  await pai.click();
+
+  const semSaida = await cola.locator('aside.lateral .ico-sai').count();
+  passo(semSaida === 0, 'nenhum item do menu leva para fora do painel');
+
+  // A prova do pedido: clicar no submenu troca só o lado direito.
+  await cola.click('a[href="/painel/trilhas"]');
+  await cola.waitForURL('**/painel/trilhas');
+  await cola.waitForLoadState('networkidle');
+  passo((await menu()) === menuInicial,
+    'ao abrir "Todas as trilhas", o menu continua idêntico — só o conteúdo à direita muda');
+  passo(await pai.getAttribute('aria-expanded') === 'true',
+    'e o submenu continua aberto: o menu vive no layout e não é remontado');
+  passo((await cola.locator('body').innerText()).includes('trilhas no portal'),
+    'a tela mostra o acervo inteiro do portal, dentro do painel');
+
+  // A Biblioteca — o acervo da empresa, não o vade-mécum de leis.
+  await cola.click('a[href="/painel/biblioteca"]');
+  await cola.waitForURL('**/painel/biblioteca');
+  await cola.waitForLoadState('networkidle');
+  const estante = await cola.locator('body').innerText();
+  passo(estante.includes('Guia prático de LGPD') && estante.includes('Política de uso de IA'),
+    'a Biblioteca mostra o acervo que o RH publicou');
+  passo(estante.includes('Manual de integração'),
+    'incluindo o material restrito ao setor dela (Lojas)');
+  passo((await menu()) === menuInicial, 'e o menu, de novo, não mudou');
+
+  // Filtro por assunto, que é o que o pedido descreve. `waitForURL` e não
+  // só `networkidle`: o clique é uma navegação, e sem esperar por ela o
+  // roteiro lê a página ANTERIOR e conclui que o filtro não filtrou.
+  await cola.locator('.chips-assunto a.chip').filter({ hasText: 'LGPD' }).first().click();
+  await cola.waitForURL('**/painel/biblioteca?assunto=LGPD');
+  await cola.waitForLoadState('networkidle');
+  const filtrada = await cola.locator('body').innerText();
+  passo(filtrada.includes('1 material encontrado') && !filtrada.includes('Política de uso de IA'),
+    'filtrar por assunto deixa só o que tem a etiqueta');
+
+  // O PDF abre pela rota privada, com sessão — e só com ela.
+  const bib = await pool.query(
+    `SELECT arquivo FROM acervo WHERE portal_id = (SELECT id FROM portal WHERE mascara = $1)
+       AND formato = 'PDF' AND status = 'PUBLICADO' AND setor_id IS NULL`, [MASCARA]);
+  // Do NAVEGADOR, e não do Node: `aurora.localhost` é subdomínio de
+  // localhost, que o resolvedor do Node não conhece (o do navegador,
+  // sim). É também o caminho real — a rota depende do cookie de sessão
+  // daquele domínio.
+  const abrir = (arquivo, comCookie) => cola.evaluate(async ([arq, credenciais]) => {
+    const r = await fetch(`/api/documento/${arq}`, { credentials: credenciais });
+    return { status: r.status, tipo: r.headers.get('content-type') };
+  }, [arquivo, comCookie ? 'same-origin' : 'omit']);
+
+  const comSessao = await abrir(bib.rows[0].arquivo, true);
+  passo(comSessao.status === 200 && comSessao.tipo === 'application/pdf',
+    'o PDF abre para quem tem sessão na empresa');
+  const semSessao = await abrir(bib.rows[0].arquivo, false);
+  passo(semSessao.status === 401,
+    'e NÃO abre sem sessão: acervo é conteúdo interno do cliente, não arquivo público');
+
+  // "Meu acesso" no lugar de "Planos": o colaborador não compra nada.
+  await cola.click('a[href="/painel/planos"]');
+  await cola.waitForURL('**/painel/planos');
+  await cola.waitForLoadState('networkidle');
+  const acesso = await cola.locator('body').innerText();
+  passo(acesso.includes('Meu acesso') && acesso.includes('Liberada pela empresa'),
+    '"Meu acesso" diz o que está liberado e até quando');
+  passo(!acesso.includes('R' + '$') && !acesso.includes('Assinar'),
+    'sem preço e sem botão de assinar — quem contrata é a empresa');
+
+  // A conta, que era onde o menu trocava inteiro.
+  await cola.click('a[href="/painel/conta"]');
+  await cola.waitForURL('**/painel/conta');
+  await cola.waitForLoadState('networkidle');
+  passo((await menu()) === menuInicial,
+    'em "Minha conta" o menu é o mesmo — era aqui que aparecia o da plataforma');
+  await cola.goto(`${PORTAL_URL}/painel`, { waitUntil: 'load' });
 
   // Assiste as duas aulas da trilha (o progresso é o que o RH acompanha).
   const { rows: aulasTrilha } = await pool.query(
@@ -404,17 +581,21 @@ try {
   passo(true, `${aulasTrilha.length} aulas assistidas até o fim, com o vídeo tocando de verdade`);
 
   // Responde o exercício de uma das aulas (o caderno de erros do §5.2).
-  await cola.goto(`${PORTAL_URL}/aula/${aulasTrilha[0].slug}`, { waitUntil: 'load' });
-  const alternativas = cola.locator('#exercicio button.alternativa');
-  const quantas = await alternativas.count();
-  for (let i = 0; i < Math.min(quantas, 8); i++) {
-    const alt = alternativas.nth(i);
+  // A âncora abre a aba "Exercício"; a tela mostra uma questão por vez,
+  // então o roteiro responde e clica em "Próxima questão" até o resultado.
+  await cola.goto(`${PORTAL_URL}/aula/${aulasTrilha[0].slug}#exercicio`, { waitUntil: 'load' });
+  await cola.locator('#exercicio').waitFor({ state: 'visible', timeout: 10000 });
+  for (let i = 0; i < 8; i++) {
+    const alt = cola.locator('#exercicio button.alternativa:enabled').first();
+    if (await alt.count() === 0) break;
     // force: o cabeçalho fixo cobre o alvo no meio do scroll, e o clique
     // real do usuário acontece de qualquer jeito.
-    if (await alt.isEnabled().catch(() => false)) {
-      await alt.click({ force: true }).catch(() => {});
-      await cola.waitForTimeout(250);
-    }
+    await alt.click({ force: true }).catch(() => {});
+    await cola.locator('#exercicio .comentario').first()
+      .waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+    await cola.waitForTimeout(250);
+    await cola.locator('#exercicio .nav-exercicio .btn-primario').click().catch(() => {});
+    await cola.waitForTimeout(200);
   }
   const { rows: [resp] } = await pool.query(
     'SELECT count(*)::int AS n FROM resposta WHERE usuario_id = $1', [euId.id]);
@@ -515,9 +696,14 @@ try {
   passo(!portao.includes('Criar conta') && !portao.includes('R' + '$'),
     'sem cadastro aberto e sem preço na porta');
 
+  // As quatro rotas novas do painel entram aqui: sem sessão, o layout do
+  // colaborador manda para o login como qualquer outra — e a Biblioteca,
+  // em especial, não pode listar nem o TÍTULO do que a empresa publicou.
   const ROTAS = ['/catalogo', '/planos', '/vademecum', '/blog', '/vagas',
                  '/materia/lgpd-no-atendimento-ao-cliente', '/aula/lgpd-a-lei-em-resumo',
-                 '/prova/lgpd-no-atendimento-ao-cliente', '/empresa', '/para-professores'];
+                 '/prova/lgpd-no-atendimento-ao-cliente', '/empresa', '/para-professores',
+                 '/painel', '/painel/trilhas', '/painel/biblioteca', '/painel/planos',
+                 '/painel/conta'];
   let vazou = 0;
   for (const rota of ROTAS) {
     await anon.goto(PORTAL_URL + rota, { waitUntil: 'load' });
@@ -525,7 +711,8 @@ try {
     const t = await anon.locator('body').innerText();
     const noLugar = destino === '/' || destino.startsWith('/entrar');
     const entregou = t.includes('R' + '$') || t.includes('Criar conta')
-      || t.includes('Mural de vagas') || t.includes('LGPD: a Lei');
+      || t.includes('Mural de vagas') || t.includes('LGPD: a Lei')
+      || t.includes('Guia prático de LGPD');
     if (!noLugar || entregou) { vazou++; console.log(`   ✘ ${rota} → ${destino}`); }
   }
   passo(vazou === 0, `as ${ROTAS.length} rotas públicas não entregam nada a quem não tem acesso`);

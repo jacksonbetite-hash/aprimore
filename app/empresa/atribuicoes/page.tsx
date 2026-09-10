@@ -9,6 +9,9 @@ import {
   listarAtribuicoes, listarSetores, listarColaboradores,
 } from '../../../lib/empresa-equipe.ts';
 import { listarMaterias } from '../../../lib/admin-cursos.ts';
+import FormVaga from './FormVaga.tsx';
+import { acaoDistribuirVaga, acaoDevolverVaga } from '../acoes.ts';
+import { lotesDaEmpresa, vagasOcupadas } from '../../../lib/empresa-catalogo.ts';
 
 export const metadata: Metadata = { title: 'Liberar trilhas — Painel da empresa' };
 export const dynamic = 'force-dynamic';
@@ -27,11 +30,13 @@ const DATA = (d: Date | null) => (d ? new Date(d).toLocaleDateString('pt-BR') : 
 export default async function AtribuicoesDaEmpresa() {
   const u = (await alunoAtual())!;
   const portal = (await portalDaEmpresa(u.id))!;
-  const [atribuicoes, setores, pessoas, trilhas] = await Promise.all([
+  const [atribuicoes, setores, pessoas, trilhas, lotes, vagas] = await Promise.all([
     listarAtribuicoes(portal.id), listarSetores(portal.id),
     listarColaboradores(portal.id), listarMaterias(portal.id),
+    lotesDaEmpresa(portal.id), vagasOcupadas(portal.id),
   ]);
   const ativas = pessoas.filter((p) => p.statusConta !== 'ENCERRADA');
+  const lotesVigentes = lotes.filter((l) => l.vigente);
   const publicadas = trilhas.filter((t) => t.status === 'publicado');
   const hoje = new Date();
 
@@ -53,9 +58,51 @@ export default async function AtribuicoesDaEmpresa() {
         obrigatório.
       </p>
 
-      {trilhas.length === 0 && (
+      {/* db/047 — as vagas compradas do catálogo da plataforma: outra
+          origem de acesso, ao lado das trilhas próprias. Uma vaga é uma
+          pessoa; o curso mora na plataforma e abre dentro deste portal. */}
+      {lotes.length > 0 && (
+        <div className="cartao" id="vagas">
+          <h2 className="headline-md" style={{ marginBottom: 6 }}>
+            <Icone nome="loyalty" /> Vagas compradas do catálogo
+          </h2>
+          <p className="caption suave" style={{ marginBottom: 12 }}>
+            Cada vaga vai para uma pessoa e vale até o fim do lote. Devolver a vaga libera o saldo
+            para outra pessoa. Comprar mais é em <Link href="/empresa/catalogo">Catálogo da plataforma</Link>.
+          </p>
+          {lotesVigentes.length > 0 && (
+            <FormVaga acao={acaoDistribuirVaga} lotes={lotesVigentes} pessoas={ativas} />
+          )}
+          <table className="tabela" style={{ marginTop: 16 }}>
+            <thead><tr><th>Curso</th><th>Pessoa</th><th>Setor</th><th>Vale até</th><th></th></tr></thead>
+            <tbody>
+              {vagas.map((v) => {
+                const lote = lotes.find((l) => l.id === v.loteId);
+                return (
+                  <tr key={v.licencaId}>
+                    <td><strong>{lote?.materiaNome ?? '—'}</strong></td>
+                    <td>{v.nome}<br /><span className="suave">{v.email}</span></td>
+                    <td>{v.setorNome ?? <span className="suave">—</span>}</td>
+                    <td className="apertado">{DATA(v.fimEm)}</td>
+                    <td>
+                      <form action={acaoDevolverVaga}>
+                        <input type="hidden" name="licencaId" value={v.licencaId} />
+                        <button className="btn btn-contorno btn-sm" type="submit">Devolver vaga</button>
+                      </form>
+                    </td>
+                  </tr>
+                );
+              })}
+              {vagas.length === 0 && <tr><td colSpan={5} className="suave">Nenhuma vaga distribuída ainda.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {trilhas.length === 0 && lotes.length === 0 && (
         <p className="alerta alerta-erro">
-          Você ainda não tem trilha nenhuma. Comece em <Link href="/empresa/trilhas">Trilhas e aulas</Link>.
+          Você ainda não tem trilha nenhuma. Comece em <Link href="/empresa/trilhas">Trilhas e aulas</Link>
+          {' '}ou compre cursos prontos em <Link href="/empresa/catalogo">Catálogo da plataforma</Link>.
         </p>
       )}
       {trilhas.length > 0 && publicadas.length === 0 && (

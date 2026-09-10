@@ -3,7 +3,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import {
-  autenticar, cadastrar, criarSessao, revogarSessao,
+  autenticar, cadastrar, criarSessao, revogarSessao, vincularNoPortal,
   validarEmail, validarSenha, COOKIE_SESSAO, DURACAO_SESSAO_DIAS,
 } from '../lib/auth.ts';
 import { portalIdAtual, portalAtual } from '../lib/portal-consultas.ts';
@@ -31,15 +31,24 @@ async function vincularIndicacaoDoCookie(usuarioId: number) {
 
 export interface EstadoForm { erro?: string; aviso?: string }
 
-async function abrirSessao(usuarioId: number) {
+/**
+ * `lembrar` é o "continuar conectado neste dispositivo" da tela de login.
+ *
+ * Marcado (o padrão, e o que sempre valeu), o cookie leva validade e
+ * sobrevive a fechar o navegador — 30 dias, como a sessão no banco.
+ * Desmarcado, ele vira cookie de SESSÃO DO NAVEGADOR: fechou a janela,
+ * saiu. A linha em `sessao` continua a mesma e continua revogável; o que
+ * muda é só quanto tempo este computador guarda a chave, que é o que
+ * importa no laboratório da faculdade e no computador do trabalho.
+ */
+async function abrirSessao(usuarioId: number, lembrar = true) {
   const { token, expiraEm } = await criarSessao(usuarioId);
   (await cookies()).set(COOKIE_SESSAO, token, {
     httpOnly: true,                                  // JS da página não lê o cookie
     sameSite: 'lax',                                 // barra CSRF vindo de outro site
     secure: process.env.NODE_ENV === 'production',   // só HTTPS fora do dev
     path: '/',
-    expires: expiraEm,
-    maxAge: DURACAO_SESSAO_DIAS * 86_400,
+    ...(lembrar ? { expires: expiraEm, maxAge: DURACAO_SESSAO_DIAS * 86_400 } : {}),
   });
 }
 
@@ -48,9 +57,9 @@ export async function entrar(_estado: EstadoForm, dados: FormData): Promise<Esta
   const senha = String(dados.get('senha') ?? '');
   if (!email || !senha) return { erro: 'Preencha e-mail e senha.' };
 
-  // §5.10: o login vale dentro do portal em que foi feito.
-  const portalId = await portalIdAtual();
-  const r = await autenticar(portalId, email, senha);
+  // A senha é da conta (global); o perfil é deste portal (§5.10).
+  const portal = await portalAtual();
+  const r = await autenticar(portal.id, email, senha);
   if (!r.ok) {
     // Mensagem única de propósito: dizer "e-mail não existe" entrega
     // quais e-mails estão cadastrados a quem estiver sondando.
@@ -59,12 +68,58 @@ export async function entrar(_estado: EstadoForm, dados: FormData): Promise<Esta
       : { erro: 'E-mail ou senha não conferem.' };
   }
 
-  await abrirSessao(r.usuarioId);
-  await vincularIndicacaoDoCookie(r.usuarioId);
+  let usuarioId: number;
+  let papel: string;
+  let statusConta: string;
+  let recemVinculado = false;
+  if (r.usuarioId === null) {
+    // Senha certa, perfil nenhum AQUI. Na plataforma e no portal de um
+    // professor o perfil nasce agora — é o "mesmo acesso nos três
+    // ambientes" do pedido. No portal de uma empresa a porta é fechada:
+    // só entra quem o RH cadastrou, ou quem tem e-mail do domínio que o
+    // RH autorizou (e aí é o autocadastro de sempre, com teto e setor).
+    if (portal.tipo === 'EMPRESA') {
+      if (!dominioAutorizado(portal.dominiosEmail, email)) {
+        return {
+          erro: 'Sua senha está certa, mas este portal é fechado: o acesso é liberado por '
+            + 'quem administra o treinamento na empresa. Fale com essa pessoa.',
+        };
+      }
+      let id: number | null;
+      try {
+        id = await autocadastrar(portal.id, email, email, null);
+      } catch (err) {
+        return { erro: (err as Error).message };
+      }
+      if (id === null) return { erro: 'E-mail ou senha não conferem.' };
+      usuarioId = id;
+    } else {
+      usuarioId = await vincularNoPortal(r.contaId, portal.id);
+    }
+    papel = 'aluno';
+    statusConta = 'ATIVA';
+    recemVinculado = true;
+  } else {
+    usuarioId = r.usuarioId;
+    papel = r.papel;
+    statusConta = r.statusConta;
+  }
+
+  await abrirSessao(usuarioId, dados.get('lembrar') !== null);
+  await vincularIndicacaoDoCookie(usuarioId);
   // Reativar a conta é a única coisa a fazer antes de qualquer outra:
   // ela vence até o destino pedido.
-  if (r.statusConta === 'BLOQUEADA_INATIVIDADE') redirect('/painel?reativar=1');
-  redirect(paginaInicial(r.papel, portalId, String(dados.get('destino') ?? '')));
+  if (statusConta === 'BLOQUEADA_INATIVIDADE') redirect('/painel?reativar=1');
+  if (recemVinculado) redirect('/painel?bemvindo=1');
+
+  // A aba escolhida na tela de login vale como pedido de destino, e só
+  // para MENOS: quem tem papel de operação e entrou por "sou aluno"
+  // quer estudar, não operar, e ir parar em /admin ou /professor a cada
+  // login é justamente o que a aba existe para evitar. O contrário não
+  // vale — a aba não promove ninguém: só o papel gravado na conta abre
+  // a retaguarda, aqui e nas guardas de cada rota.
+  const escolhido = dados.get('papel_escolhido') === 'aluno' ? 'aluno' : papel;
+  redirect(paginaInicial(escolhido, portal.id, String(dados.get('destino') ?? '')));
 }
 
 export async function criarConta(_estado: EstadoForm, dados: FormData): Promise<EstadoForm> {
@@ -100,7 +155,14 @@ export async function criarConta(_estado: EstadoForm, dados: FormData): Promise<
     id = await cadastrar(portal.id, nome, email, senha);
   }
   if (id === null) {
-    return { erro: 'Já existe uma conta com esse e-mail. Tente entrar.' };
+    // A credencial é uma por e-mail em TODOS os portais (db/045): quem
+    // já tem conta entra com a mesma senha e o perfil daqui nasce na
+    // primeira entrada. Acesso separado é outro e-mail — é a regra do
+    // pedido, dita com todas as letras.
+    return {
+      erro: 'Esse e-mail já tem conta. Entre com a mesma senha para usar o mesmo acesso '
+        + 'aqui — ou, se quiser um acesso separado, cadastre outro e-mail.',
+    };
   }
 
   await abrirSessao(id);

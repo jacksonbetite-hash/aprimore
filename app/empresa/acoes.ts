@@ -5,6 +5,9 @@ import { redirect } from 'next/navigation';
 import { alunoAtual } from '../../lib/sessao.ts';
 import { gerarHashSenha, validarSenha, validarEmail } from '../../lib/auth.ts';
 import { editarPortal } from '../../lib/admin-portais.ts';
+import {
+  comprarVagas, pedirOrcamento, aceitarOrcamento, cancelarOrcamento, distribuirVaga, devolverVaga,
+} from '../../lib/empresa-catalogo.ts';
 import { definirDominio, verificarDominio } from '../../lib/portal-dominio.ts';
 import {
   portalDaEmpresa, adicionarGestor, removerGestor, definirDominiosEmail,
@@ -23,6 +26,13 @@ import {
 } from '../../lib/empresa-equipe.ts';
 import { medirArmazenamento } from '../../lib/portal-financeiro.ts';
 import { enderecoDoPortal } from '../../lib/portal-consultas.ts';
+import { unlink } from 'node:fs/promises';
+import { join, dirname } from 'node:path';
+import { pertenceAoPortal } from '../../lib/upload.ts';
+import {
+  salvarItem, lerItem, mudarStatus, excluirItem, registrarBytes, partirAssuntos,
+  validarItem, type RascunhoItem,
+} from '../../lib/acervo.ts';
 import type { EstadoAdmin } from '../admin/acoes.ts';
 
 /**
@@ -402,9 +412,14 @@ export async function acaoCadastrarColaborador(_e: EstadoAdmin, dados: FormData)
   if (r.erro) return { erro: r.erro };
   revalidatePath('/empresa', 'layout');
   const t = r.valor!.trilhas;
+  const trilhas = t ? ` — e já recebeu ${t === 1 ? '1 trilha' : `${t} trilhas`} do setor.` : '.';
+  // Credencial global (db/045): quem já tinha conta entra com a senha de
+  // sempre; a provisória digitada aqui não valeu, e o RH precisa saber.
   return {
-    ok: `${email} já pode entrar no portal com a senha provisória`
-      + (t ? ` — e já recebeu ${t === 1 ? '1 trilha' : `${t} trilhas`} do setor.` : '.'),
+    ok: r.valor!.ligadoAExistente
+      ? `${email} já tinha conta na plataforma: entra neste portal com a senha que já usa `
+        + `(a provisória informada foi ignorada)${trilhas}`
+      : `${email} já pode entrar no portal com a senha provisória${trilhas}`,
   };
 }
 
@@ -507,4 +522,168 @@ export async function acaoImportar(_e: EstadoEquipe, dados: FormData): Promise<E
     linhas,
     endereco: await enderecoDoPortal(d.portal.mascara),
   };
+}
+
+// ---------------------------------------------------------------------
+// Biblioteca — o acervo que a empresa disponibiliza (db/042)
+// ---------------------------------------------------------------------
+
+/**
+ * Salva a ficha de um item. O arquivo já subiu antes, pela rota de
+ * upload — aqui ele só é amarrado ao item, junto com o tamanho, que é o
+ * que entra na cota de GB do plano.
+ *
+ * `validarItem` roda antes do banco de propósito: o CHECK da migração
+ * derruba a transação com "violates check constraint acervo_tem_conteudo",
+ * e o RH precisa ler "Envie o arquivo PDF".
+ */
+export async function acaoSalvarItemAcervo(
+  _e: EstadoAdmin, dados: FormData,
+): Promise<EstadoAdmin> {
+  let d;
+  try { d = await gestor(); } catch (err) { return { erro: (err as Error).message }; }
+
+  const bruto = String(dados.get('id') ?? '');
+  const id = bruto ? Number(bruto) : null;
+  const formato = String(dados.get('formato') ?? 'PDF') === 'LINK' ? 'LINK' : 'PDF';
+  const anoBruto = String(dados.get('ano') ?? '').trim();
+  const setorBruto = String(dados.get('setorId') ?? '').trim();
+
+  const item: RascunhoItem = {
+    titulo: String(dados.get('titulo') ?? ''),
+    autor: String(dados.get('autor') ?? ''),
+    assuntos: partirAssuntos(String(dados.get('assuntos') ?? '')),
+    descricao: String(dados.get('descricao') ?? ''),
+    formato,
+    arquivo: String(dados.get('arquivo') ?? '') || null,
+    url: String(dados.get('url') ?? '') || null,
+    capa: String(dados.get('capa') ?? '') || null,
+    ano: anoBruto ? Number(anoBruto) : null,
+    editora: String(dados.get('editora') ?? ''),
+    setorId: setorBruto ? Number(setorBruto) : null,
+  };
+
+  /* Na EDIÇÃO de um item PDF, campo de arquivo vazio significa "manter o
+     que está lá" — o RH abriu para corrigir o título, não para trocar o
+     livro. Sem esta linha a validação recusaria a edição pedindo um
+     arquivo que já existe. */
+  if (id && formato === 'PDF' && !item.arquivo) {
+    const atual = await lerItem(d.portal.id, id);
+    item.arquivo = atual?.arquivo ?? null;
+  }
+
+  const problema = validarItem(item);
+  if (problema) return { erro: problema };
+
+  const r = await tentar(() => salvarItem(d.portal.id, d.u.id, item, id));
+  if (r.erro) return { erro: r.erro };
+
+  // O tamanho do arquivo enviado nesta submissão, medido pela rota de
+  // upload e devolvido ao formulário. Só grava quando veio: na edição
+  // sem troca de arquivo, o valor de antes continua valendo.
+  const bytes = Number(String(dados.get('bytes') ?? '').trim());
+  if (formato === 'PDF' && Number.isFinite(bytes) && bytes > 0) {
+    await registrarBytes(d.portal.id, r.valor!, bytes);
+  }
+  // Cota: o acervo pesa como vídeo, e a fatura precisa saber. Fora do
+  // caminho da resposta — medir percorre o volume, e o RH veio salvar
+  // uma ficha.
+  void medirArmazenamento(d.portal.id).catch(() => {});
+
+  revalidarBiblioteca();
+  return { ok: id ? 'Item atualizado.' : 'Item criado. Publique quando estiver pronto.' };
+}
+
+export async function acaoStatusItemAcervo(dados: FormData) {
+  const d = await gestor();
+  const status = String(dados.get('status')) === 'PUBLICADO' ? 'PUBLICADO' : 'RASCUNHO';
+  await mudarStatus(d.portal.id, Number(dados.get('id')), status);
+  revalidarBiblioteca();
+}
+
+/**
+ * Exclui o item e, só depois, o arquivo do volume.
+ *
+ * Nesta ordem porque o inverso deixa rastro pior: apagado o arquivo e
+ * falhando o banco, sobra um item que aparece na estante e não abre
+ * nada. Ao contrário, sobra um arquivo órfão — que não abre para
+ * ninguém, porque a entrega exige item publicado, e some na próxima
+ * medição de cota.
+ */
+export async function acaoExcluirItemAcervo(dados: FormData) {
+  const d = await gestor();
+  const arquivo = await excluirItem(d.portal.id, Number(dados.get('id')));
+  if (arquivo && pertenceAoPortal(arquivo, d.portal.id)) {
+    const raiz = process.env.DOCUMENTO_RAIZ
+      ?? join(dirname(process.env.VIDEO_RAIZ ?? './midia/video'), 'documento');
+    await unlink(join(raiz, arquivo)).catch(() => {});
+  }
+  void medirArmazenamento(d.portal.id).catch(() => {});
+  revalidarBiblioteca();
+}
+
+function revalidarBiblioteca() {
+  revalidatePath('/empresa/biblioteca');
+  // A estante do colaborador vive no portal da empresa, noutra rota.
+  revalidatePath('/painel/biblioteca');
+}
+
+// ---------------------------------------------------------------------
+// Catálogo da plataforma: vagas, orçamentos e distribuição (db/047)
+// ---------------------------------------------------------------------
+
+export async function acaoComprarVagas(_e: EstadoAdmin, dados: FormData): Promise<EstadoAdmin> {
+  let d;
+  try { d = await gestor(); } catch (err) { return { erro: (err as Error).message }; }
+  const meio = String(dados.get('meio') ?? 'PIX');
+  if (meio !== 'PIX' && meio !== 'CARTAO') return { erro: 'Meio de pagamento inválido.' };
+  const r = await tentar(() => comprarVagas(
+    { id: d.u.id, email: d.u.email }, d.portal.id,
+    Number(dados.get('materiaId')), Number(dados.get('quantidade')), meio));
+  if (r.erro) return { erro: r.erro };
+  // O checkout é o de sempre; quem paga é o gestor, a venda é da plataforma.
+  redirect(`/checkout/${r.valor!.referencia}`);
+}
+
+export async function acaoPedirOrcamento(_e: EstadoAdmin, dados: FormData): Promise<EstadoAdmin> {
+  let d;
+  try { d = await gestor(); } catch (err) { return { erro: (err as Error).message }; }
+  const r = await tentar(() => pedirOrcamento(d.u.email, d.portal.id,
+    Number(dados.get('materiaId')), Number(dados.get('quantidade')), String(dados.get('mensagem') ?? '')));
+  if (r.erro) return { erro: r.erro };
+  revalidatePath('/empresa/catalogo');
+  revalidatePath('/admin/empresas');
+  return { ok: 'Orçamento pedido. O comercial responde aqui mesmo, com o valor.' };
+}
+
+export async function acaoAceitarOrcamento(dados: FormData) {
+  const d = await gestor();
+  const meio = String(dados.get('meio') ?? 'PIX');
+  const pedido = await aceitarOrcamento({ id: d.u.id, email: d.u.email }, d.portal.id,
+    Number(dados.get('id')), meio === 'CARTAO' ? 'CARTAO' : 'PIX');
+  revalidatePath('/empresa/catalogo');
+  redirect(`/checkout/${pedido.referencia}`);
+}
+
+export async function acaoCancelarOrcamento(dados: FormData) {
+  const d = await gestor();
+  await cancelarOrcamento(d.u.email, d.portal.id, Number(dados.get('id')));
+  revalidatePath('/empresa/catalogo');
+  revalidatePath('/admin/empresas');
+}
+
+export async function acaoDistribuirVaga(_e: EstadoAdmin, dados: FormData): Promise<EstadoAdmin> {
+  let d;
+  try { d = await gestor(); } catch (err) { return { erro: (err as Error).message }; }
+  const r = await tentar(() => distribuirVaga(d.u.email, d.portal.id,
+    Number(dados.get('loteId')), Number(dados.get('usuarioId'))));
+  if (r.erro) return { erro: r.erro };
+  revalidatePath('/empresa', 'layout');
+  return { ok: 'Vaga liberada: o curso já aparece nas trilhas da pessoa.' };
+}
+
+export async function acaoDevolverVaga(dados: FormData) {
+  const d = await gestor();
+  await devolverVaga(d.u.email, d.portal.id, Number(dados.get('licencaId')));
+  revalidatePath('/empresa', 'layout');
 }

@@ -2,7 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { alterarPreco, concederLicenca, estenderLicenca, mudarStatusLicenca } from '../../lib/admin.ts';
-import { exigirAdmin } from '../../lib/sessao.ts';
+import { exigirPermissao } from '../../lib/sessao.ts';
+import type { Permissao } from '../../lib/permissoes.ts';
 import type { Periodo, Produto } from '../../lib/precos.ts';
 
 export interface EstadoAdmin { erro?: string; ok?: string }
@@ -11,15 +12,17 @@ export interface EstadoAdmin { erro?: string; ok?: string }
  * Toda ação administrativa reconfere o papel no servidor. Esconder o
  * link no cabeçalho não é controle de acesso — é decoração.
  */
-async function admin() {
-  const u = await exigirAdmin();
+async function admin(permissao: Permissao) {
+  // A permissão é da AÇÃO, não da tela: o financeiro vê a tabela de
+  // preços e não a altera; o suporte estende licença e não concede.
+  const u = await exigirPermissao(permissao);
   if (!u) throw new Error('acesso negado');
   return u;
 }
 
 export async function acaoAlterarPreco(_e: EstadoAdmin, dados: FormData): Promise<EstadoAdmin> {
   let u;
-  try { u = await admin(); } catch { return { erro: 'Acesso negado.' }; }
+  try { u = await admin('financeiro.agir'); } catch { return { erro: 'Acesso negado.' }; }
 
   const produto = String(dados.get('produto') ?? '') as Produto;
   const periodo = String(dados.get('periodo') ?? '') as Periodo;
@@ -53,7 +56,7 @@ export async function acaoAlterarPreco(_e: EstadoAdmin, dados: FormData): Promis
 
 export async function acaoConcederLicenca(_e: EstadoAdmin, dados: FormData): Promise<EstadoAdmin> {
   let u;
-  try { u = await admin(); } catch { return { erro: 'Acesso negado.' }; }
+  try { u = await admin('licencas.conceder'); } catch { return { erro: 'Acesso negado.' }; }
 
   const usuarioId = Number(dados.get('usuarioId'));
   const materiaBruta = String(dados.get('materiaId') ?? '');
@@ -74,13 +77,13 @@ export async function acaoConcederLicenca(_e: EstadoAdmin, dados: FormData): Pro
 }
 
 export async function acaoEstender(dados: FormData) {
-  const u = await admin();
+  const u = await admin('licencas.suporte');
   await estenderLicenca(u.email, Number(dados.get('licencaId')), Number(dados.get('dias') ?? 30));
   revalidatePath('/admin/licencas');
 }
 
 export async function acaoSuspender(dados: FormData) {
-  const u = await admin();
+  const u = await admin('licencas.suporte');
   const status = String(dados.get('status') ?? 'SUSPENSA') as 'ATIVA' | 'SUSPENSA' | 'CANCELADA';
   await mudarStatusLicenca(u.email, Number(dados.get('licencaId')), status);
   revalidatePath('/admin/licencas');

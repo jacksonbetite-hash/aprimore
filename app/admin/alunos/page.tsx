@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { Icone } from '../../componentes.tsx';
 import { listarAlunos } from '../../../lib/admin.ts';
 
@@ -22,7 +23,11 @@ export default async function Alunos(
   return (
     <>
       <h1 className="headline-lg">Alunos</h1>
-      <p className="suave">{alunos.length} {alunos.length === 1 ? 'conta' : 'contas'}{q && ` para “${q}”`}.</p>
+      <p className="suave">
+        {alunos.length} {alunos.length === 1 ? 'conta' : 'contas'}{q && ` para “${q}”`} — alunos da
+        plataforma. Todo mundo, de todos os portais, está em{' '}
+        <Link href="/admin/usuarios" style={{ color: 'var(--primary-texto)', fontWeight: 700 }}>Usuários</Link>.
+      </p>
 
       <form className="busca-vade" style={{ maxWidth: '520px' }}>
         <Icone nome="search" tamanho={22} />
@@ -39,7 +44,12 @@ export default async function Alunos(
               const inat = inatividade(a.ultimoLoginEm);
               return (
                 <tr key={a.id}>
-                  <td><strong>{a.nome}</strong><br /><span className="suave">{a.email}</span></td>
+                  <td>
+                    <Link href={`/admin/usuarios/${a.id}`} style={{ color: 'var(--primary-texto)', fontWeight: 700 }}>
+                      {a.nome}
+                    </Link>
+                    <br /><span className="suave">{a.email}</span>
+                  </td>
                   <td>
                     <span className={`chip ${a.statusConta === 'ATIVA' ? 'chip-secundaria' : 'chip-neutra'}`}>
                       {a.statusConta.toLowerCase().replace(/_/g, ' ')}

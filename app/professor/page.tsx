@@ -6,6 +6,7 @@ import { portalDoProfessor } from '../../lib/professor.ts';
 import { listarFaturas } from '../../lib/portal-financeiro.ts';
 import { enderecoDoPortal } from '../../lib/portal-consultas.ts';
 import { brl } from '../../lib/precos.ts';
+import VisaoGeralCatalogo from './catalogo/VisaoGeral.tsx';
 
 export const metadata: Metadata = { title: 'Painel do professor' };
 
@@ -18,7 +19,9 @@ const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um :
 
 export default async function VisaoGeralProfessor() {
   const u = (await alunoAtual())!;
-  const portal = (await portalDoProfessor(u.id))!;
+  const portal = await portalDoProfessor(u.id);
+  // Sem portal = professor do catálogo (etapa 5): outro painel, mesma rota.
+  if (!portal) return <VisaoGeralCatalogo u={u} />;
   const faturas = (await listarFaturas(portal.id)).filter((f) => f.status !== 'PAGA' && f.status !== 'CANCELADA');
   const endereco = await enderecoDoPortal(portal.mascara);
   const visivel = endereco.replace(/^https?:\/\//, '');
@@ -75,6 +78,16 @@ export default async function VisaoGeralProfessor() {
         ? 'nenhuma aula publicada'
         : `${plural(portal.aulasPublicadas, 'aula publicada', 'aulas publicadas')} · ${portal.aulasComExercicio} com exercício`,
       href: '/professor/cursos',
+    },
+    {
+      feito: portal.aulasPublicadas > 0 && portal.aulasComVideo === portal.aulasPublicadas,
+      texto: 'Vídeo anexado nas aulas publicadas',
+      detalhe: portal.aulasPublicadas === 0
+        ? 'nenhuma aula publicada ainda'
+        : portal.aulasComVideo === portal.aulasPublicadas
+          ? `${plural(portal.aulasComVideo, 'aula com gravação', 'aulas com gravação')}`
+          : `${portal.aulasComVideo} de ${portal.aulasPublicadas} com gravação — a aula sem vídeo vai ao ar com resumo e exercício, mas o vídeo é o produto`,
+      href: '/professor/videos',
     },
     {
       feito: portal.materiasNoAr > 0,

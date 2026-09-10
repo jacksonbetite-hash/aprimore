@@ -105,9 +105,12 @@ check(repetida.corpo.jaProcessado || repetida.corpo.processado === false,
 await p.goto(base + '/checkout/' + referencia, { waitUntil: 'load' });
 check(await p.getByText('Pagamento confirmado').isVisible(), 'checkout reflete o pagamento');
 
-// acesso liberado na matéria comprada
-await p.goto(base + '/aula/clausulas-petreas', { waitUntil: 'load' });
-check(await p.locator('.alternativa').first().isVisible(),
+// acesso liberado na matéria comprada. O exercício mora na aba
+// "Exercício" (docs/plano-exercicio-sequencial.md): a âncora a abre, e a
+// prova de que a aula abriu é haver alternativa para marcar.
+await p.goto(base + '/aula/clausulas-petreas#exercicio', { waitUntil: 'load' });
+await p.waitForLoadState('networkidle');
+check(await p.locator('#exercicio .alternativa').first().isVisible(),
   'a aula antes bloqueada abriu com a licença comprada');
 
 // E a licença de uma matéria NÃO abre outra.
@@ -118,8 +121,10 @@ check(await p.locator('.alternativa').first().isVisible(),
 // cima, na matéria padrão da lista. Se uma onda de conteúdo puser esta
 // aula no teste, o certo é trocar a aula aqui, não afrouxar a asserção:
 // o que está sob teste é o vazamento de licença, não a cota.
-await p.goto(base + '/aula/sete-dicas-para-quem-esta-comecando', { waitUntil: 'load' });
-check(!(await p.locator('.alternativa').first().isVisible().catch(() => false)),
+// Contagem, e não visibilidade: aula bloqueada não recebe o gabarito —
+// nem escondido numa aba.
+await p.goto(base + '/aula/sete-dicas-para-quem-esta-comecando#exercicio', { waitUntil: 'load' });
+check((await p.locator('.alternativa').count()) === 0,
   'licença de uma matéria não vaza para outra');
 
 // ---------- conta: pedidos, cancelamento e reembolso ----------
@@ -132,8 +137,8 @@ await p.click('button:has-text("Pedir reembolso")');
 await p.waitForTimeout(2000);
 check(await p.getByText('reembolsado').first().isVisible(), 'reembolso em 7 dias aplicado');
 
-await p.goto(base + '/aula/clausulas-petreas', { waitUntil: 'load' });
-check(!(await p.locator('.alternativa').first().isVisible().catch(() => false)),
+await p.goto(base + '/aula/clausulas-petreas#exercicio', { waitUntil: 'load' });
+check((await p.locator('.alternativa').count()) === 0,
   'depois do reembolso o acesso é encerrado');
 
 await b.close();

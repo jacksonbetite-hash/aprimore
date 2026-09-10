@@ -1,6 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
-  <rect width="32" height="32" rx="10" fill="#6d28d9"/>
-  <path d="M16 8.5a5.4 5.4 0 0 0-3.2 9.75c.5.37.8.94.8 1.55v.2h4.8v-.2c0-.61.3-1.18.8-1.55A5.4 5.4 0 0 0 16 8.5Z"
-        fill="none" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/>
-  <path d="M14.1 23h3.8" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="40" height="40">
+  <!-- O mesmo desenho da <Marca> em app/ui.tsx: ladrilho roxo de canto
+       12, a lâmpada em traço branco. Aqui a cor vai cravada porque a aba
+       do navegador não tem folha de estilo — é o roxo --primary-container. -->
+  <rect width="40" height="40" rx="12" fill="#7c3aed"/>
+  <path d="M20 10.5a6.6 6.6 0 0 0-3.9 11.94c.6.44.97 1.14.97 1.89v.42h5.86v-.42c0-.75.36-1.45.97-1.89A6.6 6.6 0 0 0 20 10.5Z"
+        fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M17.6 27.8h4.8M18.6 30.4h2.8" fill="none" stroke="#fff"
+        stroke-width="2" stroke-linecap="round"/>
 </svg>

@@ -2,7 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { exigirAdmin } from '../../../lib/sessao.ts';
+import { exigirPermissao } from '../../../lib/sessao.ts';
+import type { Permissao } from '../../../lib/permissoes.ts';
 import { PORTAL_PLATAFORMA } from '../../../lib/portal.ts';
 import {
   salvarArea, excluirArea, criarMateria, editarMateria, mudarStatusMateria,
@@ -13,8 +14,8 @@ import {
 } from '../../../lib/admin-cursos.ts';
 import type { EstadoAdmin } from '../acoes.ts';
 
-async function admin() {
-  const u = await exigirAdmin();
+async function admin(permissao: Permissao) {
+  const u = await exigirPermissao(permissao);
   if (!u) throw new Error('acesso negado');
   return u;
 }
@@ -55,7 +56,7 @@ function revalidarCatalogo(portalId: number) {
 
 export async function acaoSalvarArea(_e: EstadoAdmin, dados: FormData): Promise<EstadoAdmin> {
   let u;
-  try { u = await admin(); } catch { return { erro: 'Acesso negado.' }; }
+  try { u = await admin('conteudo.agir'); } catch { return { erro: 'Acesso negado.' }; }
   const portalId = portalDo(dados);
   const bruto = String(dados.get('id') ?? '');
   try {
@@ -69,7 +70,7 @@ export async function acaoSalvarArea(_e: EstadoAdmin, dados: FormData): Promise<
 }
 
 export async function acaoEditarAreaLinha(dados: FormData) {
-  const u = await admin();
+  const u = await admin('conteudo.agir');
   const portalId = portalDo(dados);
   await salvarArea(u.email, portalId, Number(dados.get('id')),
     String(dados.get('nome') ?? ''), numero(dados.get('ordem')));
@@ -77,7 +78,7 @@ export async function acaoEditarAreaLinha(dados: FormData) {
 }
 
 export async function acaoExcluirArea(dados: FormData) {
-  const u = await admin();
+  const u = await admin('conteudo.agir');
   const portalId = portalDo(dados);
   await excluirArea(u.email, portalId, Number(dados.get('id')));
   revalidarCatalogo(portalId);
@@ -96,12 +97,14 @@ function lerMateria(dados: FormData): DadosMateria {
     professor: String(dados.get('professor') ?? ''),
     ordem: numero(dados.get('ordem')),
     naVitrinePlataforma: dados.get('naVitrinePlataforma') === 'on',
+    destaque: dados.get('destaque') === 'on',
+    nivel: String(dados.get('nivel') ?? ''),
   };
 }
 
 export async function acaoCriarMateria(_e: EstadoAdmin, dados: FormData): Promise<EstadoAdmin> {
   let u;
-  try { u = await admin(); } catch { return { erro: 'Acesso negado.' }; }
+  try { u = await admin('conteudo.agir'); } catch { return { erro: 'Acesso negado.' }; }
   const portalId = portalDo(dados);
   let id: number;
   try {
@@ -115,7 +118,7 @@ export async function acaoCriarMateria(_e: EstadoAdmin, dados: FormData): Promis
 
 export async function acaoEditarMateria(_e: EstadoAdmin, dados: FormData): Promise<EstadoAdmin> {
   let u;
-  try { u = await admin(); } catch { return { erro: 'Acesso negado.' }; }
+  try { u = await admin('conteudo.agir'); } catch { return { erro: 'Acesso negado.' }; }
   const portalId = portalDo(dados);
   const id = Number(dados.get('id'));
   try {
@@ -129,7 +132,7 @@ export async function acaoEditarMateria(_e: EstadoAdmin, dados: FormData): Promi
 }
 
 export async function acaoStatusMateria(dados: FormData) {
-  const u = await admin();
+  const u = await admin('conteudo.agir');
   const portalId = portalDo(dados);
   const id = Number(dados.get('id'));
   await mudarStatusMateria(u.email, portalId, id, situacao(dados.get('status')));
@@ -141,7 +144,7 @@ export async function acaoStatusMateria(dados: FormData) {
 
 export async function acaoSalvarAssunto(_e: EstadoAdmin, dados: FormData): Promise<EstadoAdmin> {
   let u;
-  try { u = await admin(); } catch { return { erro: 'Acesso negado.' }; }
+  try { u = await admin('conteudo.agir'); } catch { return { erro: 'Acesso negado.' }; }
   const portalId = portalDo(dados);
   const materiaId = Number(dados.get('materiaId'));
   const bruto = String(dados.get('id') ?? '');
@@ -157,7 +160,7 @@ export async function acaoSalvarAssunto(_e: EstadoAdmin, dados: FormData): Promi
 }
 
 export async function acaoEditarAssuntoLinha(dados: FormData) {
-  const u = await admin();
+  const u = await admin('conteudo.agir');
   const portalId = portalDo(dados);
   const materiaId = Number(dados.get('materiaId'));
   await salvarAssunto(u.email, portalId, materiaId, Number(dados.get('id')),
@@ -167,7 +170,7 @@ export async function acaoEditarAssuntoLinha(dados: FormData) {
 }
 
 export async function acaoExcluirAssunto(dados: FormData) {
-  const u = await admin();
+  const u = await admin('conteudo.agir');
   const portalId = portalDo(dados);
   const materiaId = Number(dados.get('materiaId'));
   await excluirAssunto(u.email, portalId, Number(dados.get('id')));
@@ -198,7 +201,7 @@ function lerAula(dados: FormData): DadosAula {
 
 export async function acaoCriarAula(_e: EstadoAdmin, dados: FormData): Promise<EstadoAdmin> {
   let u;
-  try { u = await admin(); } catch { return { erro: 'Acesso negado.' }; }
+  try { u = await admin('conteudo.agir'); } catch { return { erro: 'Acesso negado.' }; }
   const portalId = portalDo(dados);
   let id: number;
   try {
@@ -212,7 +215,7 @@ export async function acaoCriarAula(_e: EstadoAdmin, dados: FormData): Promise<E
 
 export async function acaoEditarAula(_e: EstadoAdmin, dados: FormData): Promise<EstadoAdmin> {
   let u;
-  try { u = await admin(); } catch { return { erro: 'Acesso negado.' }; }
+  try { u = await admin('conteudo.agir'); } catch { return { erro: 'Acesso negado.' }; }
   const portalId = portalDo(dados);
   const id = Number(dados.get('id'));
   try {
@@ -226,7 +229,7 @@ export async function acaoEditarAula(_e: EstadoAdmin, dados: FormData): Promise<
 }
 
 export async function acaoStatusAula(dados: FormData) {
-  const u = await admin();
+  const u = await admin('conteudo.agir');
   const portalId = portalDo(dados);
   const id = Number(dados.get('id'));
   await mudarStatusAula(u.email, portalId, id, situacao(dados.get('status')));
@@ -265,7 +268,7 @@ function lerQuestao(dados: FormData): DadosQuestao {
 
 export async function acaoSalvarQuestao(_e: EstadoAdmin, dados: FormData): Promise<EstadoAdmin> {
   let u;
-  try { u = await admin(); } catch { return { erro: 'Acesso negado.' }; }
+  try { u = await admin('conteudo.agir'); } catch { return { erro: 'Acesso negado.' }; }
   const portalId = portalDo(dados);
   const aulaId = Number(dados.get('aulaId'));
   const bruto = String(dados.get('id') ?? '');
@@ -281,7 +284,7 @@ export async function acaoSalvarQuestao(_e: EstadoAdmin, dados: FormData): Promi
 }
 
 export async function acaoExcluirQuestao(dados: FormData) {
-  const u = await admin();
+  const u = await admin('conteudo.agir');
   const portalId = portalDo(dados);
   const aulaId = Number(dados.get('aulaId'));
   await excluirQuestao(u.email, portalId, aulaId, Number(dados.get('id')));

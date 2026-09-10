@@ -55,6 +55,18 @@ export type Decisao =
   | { libera: true; motivo: MotivoLiberacao; licencaId?: number }
   | { libera: false; motivo: MotivoBloqueio };
 
+/**
+ * Acesso ao CURSO inteiro, sem olhar uma aula específica — o que a
+ * página do curso precisa saber para decidir entre mostrar a oferta ou
+ * mostrar o progresso de quem já comprou.
+ *
+ * A amostra gratuita não entra aqui de propósito: ela abre UMA aula, não
+ * o curso. Quem só tem amostra continua vendo o preço, que é a verdade.
+ */
+export type AcessoAoCurso =
+  | { libera: true; motivo: 'LICENCA_CATALOGO' | 'LICENCA_MATERIA' | 'TRIAL'; licenca: Licenca }
+  | { libera: false; motivo: MotivoBloqueio };
+
 /** Uma licença só vale se está ATIVA e a vigência contém o instante. */
 export function licencaVigente(l: Licenca, agora: Date): boolean {
   return l.status === 'ATIVA' && l.inicioEm <= agora && l.fimEm > agora;
@@ -73,6 +85,31 @@ export function podeAcessar(espectador: Espectador, aula: AulaAlvo, agora = new 
     return { libera: true, motivo: 'AMOSTRA_GRATUITA' };
   }
 
+  const curso = acessoAoCurso(espectador, aula.materiaId, agora);
+  if (!curso.libera) return curso;
+
+  // O trial é a única licença que não abre o curso inteiro: ela respeita
+  // a cota de ~20% das aulas (§6.1), marcada aula a aula em `no_trial`.
+  if (curso.motivo === 'TRIAL') {
+    return aula.noTrial
+      ? { libera: true, motivo: 'TRIAL', licencaId: curso.licenca.id }
+      : { libera: false, motivo: 'FORA_DA_COTA_DO_TRIAL' };
+  }
+  return { libera: true, motivo: curso.motivo, licencaId: curso.licenca.id };
+}
+
+/**
+ * A mesma escada de decisão de `podeAcessar`, parando um degrau antes:
+ * quem tem acesso a este CURSO, e por qual licença.
+ *
+ * Nasceu porque a página do curso mostrava o preço até para quem já
+ * tinha comprado — ela só sabia decidir aula a aula. Manter as duas
+ * respostas no mesmo lugar é o que impede a tela de dizer uma coisa e o
+ * cadeado da aula dizer outra.
+ */
+export function acessoAoCurso(
+  espectador: Espectador, materiaId: number, agora = new Date(),
+): AcessoAoCurso {
   // §6.5: conta bloqueada por inatividade não acessa nada — mas o progresso
   // e as licenças ficam preservados, e a reativação é self-service.
   if (espectador.statusConta === 'BLOQUEADA_INATIVIDADE' || espectador.statusConta === 'ENCERRADA') {
@@ -83,7 +120,7 @@ export function podeAcessar(espectador: Espectador, aula: AulaAlvo, agora = new 
 
   const catalogo = vigentes.find((l) => l.escopo === 'CATALOGO');
   if (catalogo) {
-    return { libera: true, motivo: 'LICENCA_CATALOGO', licencaId: catalogo.id };
+    return { libera: true, motivo: 'LICENCA_CATALOGO', licenca: catalogo };
   }
 
   // A comparação é numérica de propósito. O driver do Postgres devolve
@@ -93,21 +130,15 @@ export function podeAcessar(espectador: Espectador, aula: AulaAlvo, agora = new 
   // (§15.14), mas não por acidente de tipo.
   const mesmaMateria = (a: unknown, b: unknown) => Number(a) === Number(b);
   const daMateria = vigentes.filter(
-    (l) => l.escopo === 'MATERIA' && mesmaMateria(l.materiaId, aula.materiaId),
+    (l) => l.escopo === 'MATERIA' && mesmaMateria(l.materiaId, materiaId),
   );
 
   // Licença paga/promocional/cortesia da matéria libera a matéria inteira.
   const plena = daMateria.find((l) => l.origem !== 'TRIAL');
-  if (plena) {
-    return { libera: true, motivo: 'LICENCA_MATERIA', licencaId: plena.id };
-  }
+  if (plena) return { libera: true, motivo: 'LICENCA_MATERIA', licenca: plena };
 
   const trial = daMateria.find((l) => l.origem === 'TRIAL');
-  if (trial) {
-    return aula.noTrial
-      ? { libera: true, motivo: 'TRIAL', licencaId: trial.id }
-      : { libera: false, motivo: 'FORA_DA_COTA_DO_TRIAL' };
-  }
+  if (trial) return { libera: true, motivo: 'TRIAL', licenca: trial };
 
   return { libera: false, motivo: 'SEM_LICENCA' };
 }

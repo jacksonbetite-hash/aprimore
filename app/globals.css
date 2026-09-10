@@ -448,8 +448,23 @@ a.cartao:active, .cartao-toque:active { transform: translateY(-1px) scale(.994);
 }
 .marca .rotulo {
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  display: block; line-height: 1.15;
 }
-.marca-simbolo { flex-shrink: 0; display: block; }
+/* O ladrilho da lâmpada, com o halo roxo do layout. `drop-shadow`, e não
+   `box-shadow`: a sombra segue o canto arredondado do próprio desenho,
+   sem uma caixa a mais em volta do SVG. */
+.marca-simbolo {
+  flex-shrink: 0; display: block; width: 40px; height: 40px;
+  filter: drop-shadow(0 4px 12px color-mix(in oklab, var(--primary-container) 34%, transparent));
+}
+.marca-nomes { display: flex; flex-direction: column; min-width: 0; }
+/* Quem opera o portal, na linha de baixo. Miúda e em versalete: ela
+   informa, não disputa o nome do professor logo acima. */
+.marca-assinatura {
+  font-family: var(--font-display); font-size: 11.5px; font-weight: 600;
+  letter-spacing: .04em; color: var(--primary-texto);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 /* A navegação ocupa a coluna do meio; marca à esquerda, ação à direita.
    Os estilos de link do topo usam o combinador de filho porque o submenu
    mora dentro desta nav: sem ele, o item do submenu herdaria o nowrap e a
@@ -598,6 +613,281 @@ a.cartao:active, .cartao-toque:active { transform: translateY(-1px) scale(.994);
 .hero-selo .texto { font-size: 11px; color: var(--on-surface-variant); }
 .hero-selo strong { display: block; font-family: var(--font-display); font-size: 14px; color: var(--on-surface); }
 
+/* ----------------------------------------------------------------
+   O celular no hero — a mídia do portal do professor
+   ----------------------------------------------------------------
+   A `.hero-figura` acima é 4:3 e nasceu para o vídeo de divulgação da
+   plataforma. A foto do app é retrato (765×1374) e entraria cortada
+   nela, então a mídia do portal tem a proporção que a foto tem — mesmo
+   canto, mesma sombra de marca, mesma âncora para os chips e o selo.
+
+   O quadro é uma camada à parte da figura porque o selo de conteúdo
+   ilustrativo fica FORA dele: `.hero-chips` e `.hero-selo` se prendem à
+   borda da foto, e a legenda vem embaixo de tudo.
+   ---------------------------------------------------------------- */
+.hero-celular { margin: 0; display: grid; justify-items: center; }
+.hero-celular-quadro { position: relative; width: 100%; max-width: 320px; }
+.hero-celular-quadro > img {
+  display: block; width: 100%; height: auto;
+  border-radius: var(--r-xl); box-shadow: var(--e-marca);
+}
+/* Presos à borda da FOTO, e não à da coluna: a foto é estreita, e as
+   posições da `.hero-chips` (calculadas para a figura larga) jogariam os
+   chips para o meio da imagem. */
+.hero-celular .hero-chips span:nth-child(1) { top: 9%;  left: -16%; }
+.hero-celular .hero-chips span:nth-child(2) { top: 38%; right: -16%; }
+.hero-celular .hero-chips span:nth-child(3) { bottom: 8%; left: -12%; }
+/* Baixo o bastante para o selo cair sobre a mão e a mesa, e não sobre a
+   TELA do celular — que é justamente o que a foto veio mostrar. */
+.hero-celular .hero-selo { left: -14px; bottom: 9%; }
+.hero-celular .selo-ilustrativo { margin-top: 20px; }
+/* Na plataforma os chips flutuantes somem em tela estreita (são enfeite
+   sobre o vídeo). Aqui não podem sumir: eles são a CONTAGEM do acervo —
+   quantos cursos, quantas aulas, quantas horas. Em vez de esconder, a
+   nuvem vira uma linha comum embaixo da foto. Seletor mais específico
+   que o `.hero-chips { display: none }` do bloco de 900px, então vence
+   sem depender da ordem no arquivo. */
+@media (max-width: 900px) {
+  .hero-celular .hero-chips {
+    display: flex; position: static; flex-wrap: wrap;
+    justify-content: center; gap: 8px; margin-top: 16px;
+  }
+  .hero-celular .hero-chips span { position: static; }
+}
+
+/* ----------------------------------------------------------------
+   Vitrine do portal do professor — o layout de 09/09/2026
+   ----------------------------------------------------------------
+   O que este bloco veste é `app/PaginaPortal.tsx`, e só ele: a home da
+   plataforma continua com o hero de vídeo e a `.vitrine-app` de sempre.
+
+   Duas regras valem em todas as classes daqui, e explicam quase todas as
+   linhas:
+
+   1. **A cor sai de `--primary`, nunca de um roxo cravado.** O portal é
+      white-label e o professor escolhe a cor dele — `#0f766e` no portal
+      de demonstração. Fundo tingido é `color-mix(... , #fff)`, que
+      clareia qualquer matiz; fundo escuro é `color-mix(... , #150f2e)`,
+      o mesmo teto de 36% das capas, que garante 6,4:1 com branco mesmo
+      quando a cor escolhida é clara (ver `.capa-tom-*` e o
+      `npm run contraste`).
+
+   2. **Texto branco só existe sobre cortina.** A capa do curso é foto
+      enviada pelo professor: pode ser clara, escura ou branca. Quem
+      sustenta o par de contraste é a `.capa-cortina`, não a imagem.
+   ---------------------------------------------------------------- */
+
+/* ---- 1. Abertura ---- */
+/* O degradê de topo tingido com a cor do portal, atrás do hero. 10% é o
+   bastante para o olho ver a marca e pouco para a luminância cair: o
+   texto continua sendo o preto de sempre. */
+.hero-vitrine {
+  background: linear-gradient(180deg,
+    var(--surface) 0%,
+    color-mix(in oklab, var(--primary) 10%, #fff) 42%,
+    var(--surface) 100%);
+}
+/* O ponto do chip com o nome do portal. Não pisca: seria movimento
+   permanente ao lado de um texto que se lê uma vez. */
+.chip .ponto {
+  width: 8px; height: 8px; border-radius: var(--r-full);
+  background: var(--primary-container); flex-shrink: 0;
+}
+
+/* A foto da abertura. Recorte em 16/10 (a original é 16/9): tira uma
+   fatia estreita das laterais e mantém o grupo inteiro em quadro. */
+.hero-foto { margin: 0; display: grid; justify-items: start; }
+.hero-foto-quadro {
+  position: relative; width: 100%; border-radius: var(--r-xl);
+  overflow: hidden; box-shadow: var(--e-marca);
+}
+.hero-foto-quadro > img { width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; }
+/* Sombra de baixo para cima: dá pé à foto e assenta o selo do professor
+   sobre ela. Decorativa — nenhum texto se apoia nela. */
+.hero-foto-quadro::after {
+  content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: linear-gradient(to top, rgba(15, 23, 42, .45), rgba(15, 23, 42, 0) 55%);
+}
+/* Dentro do quadro, e não pendurado para fora dele: o `overflow: hidden`
+   cortaria o selo no recuo negativo que a `.hero-figura` usa. */
+.hero-foto .hero-selo {
+  left: 20px; bottom: 20px; right: auto; z-index: 2; max-width: calc(100% - 40px);
+}
+.hero-foto .selo-ilustrativo { margin-top: 16px; }
+
+/* A contagem do acervo, embaixo dos botões. Era a nuvem de chips sobre a
+   mídia; em linha ela sobrevive ao celular sem regra de exceção. */
+.hero-numeros {
+  display: flex; flex-wrap: wrap; gap: 20px 40px;
+  margin-top: 36px; padding-top: 26px; border-top: 1px solid var(--outline-variant);
+}
+.hero-numeros b {
+  display: block; font-family: var(--font-display); font-weight: 800;
+  font-size: clamp(26px, 3vw, 34px); line-height: 1.1; letter-spacing: -0.02em;
+}
+.hero-numeros span { font-size: 13.5px; color: var(--on-surface-variant); }
+
+/* ---- 2. Acervo ---- */
+/* Cabeçalho alinhado à esquerda: a `.secao-titulo` centralizada não
+   serve aqui, porque à direita fica a nota da amostra gratuita. */
+.acervo-cabeca {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 16px 32px; flex-wrap: wrap; margin-bottom: clamp(24px, 3vw, 40px);
+}
+.acervo-cabeca h2 {
+  font-size: clamp(28px, 3.6vw, 48px); font-weight: 700;
+  line-height: 1.08; letter-spacing: -0.02em; margin: 14px 0 10px;
+}
+.acervo-cabeca h2 em { font-style: normal; color: var(--primary-texto); }
+.acervo-cabeca p { color: var(--on-surface-variant); font-size: clamp(15px, 1.2vw, 18px); font-weight: 300; }
+/* Pílula lavanda do sistema, só um pouco maior: o par de cores é o da
+   `.chip-primaria`, que `npm run contraste` já confere. Cor nova aqui
+   seria um par a mais para sustentar, e sem ganho nenhum. */
+.acervo-nota { font-size: 13.5px; padding: 10px 16px; }
+/* A fila do cartão grande: dois por linha em 1200px, um no celular. */
+.prateleira-trilho.largo { grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); }
+
+/* O cartão grande. Mesmo cartão da casa (borda, canto, sombra), com a
+   capa em tamanho de cartaz e três informações sobre ela. */
+.cartao-vitrine { display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+.capa-vitrine { aspect-ratio: 16 / 9; }
+/* A cortina que sustenta o texto branco sobre QUALQUER capa. Ela fecha
+   em 88% embaixo, onde ficam a amostra e a duração: mesmo sobre uma foto
+   branca o par passa de 5:1. */
+.capa-cortina {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: linear-gradient(to top,
+    rgba(15, 23, 42, .88) 0%, rgba(15, 23, 42, .72) 24%,
+    rgba(15, 23, 42, .18) 62%, rgba(15, 23, 42, .35) 100%);
+}
+.capa-marcas {
+  position: absolute; top: 14px; left: 14px; right: 14px; z-index: 2;
+  display: flex; flex-wrap: wrap; gap: 8px;
+}
+.capa-marcas span {
+  font-family: var(--font-display); font-size: 12px; font-weight: 700;
+  border-radius: var(--r-full); padding: 6px 12px; white-space: nowrap;
+}
+/* A onda na tinta do portal, escurecida para caber texto branco; a
+   contagem na pílula branca do blog, com sombra para recortar. */
+.marca-onda { background: color-mix(in oklab, var(--primary) 36%, #150f2e); color: #fff; }
+.marca-clara {
+  background: var(--surface-container-lowest); color: var(--on-primary-container);
+  box-shadow: 0 2px 10px rgba(15, 23, 42, .28);
+}
+.capa-rodape {
+  position: absolute; left: 16px; right: 16px; bottom: 14px; z-index: 2;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  color: #fff; font-size: 13px; font-weight: 600;
+}
+.capa-amostra { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.capa-amostra .ico { flex-shrink: 0; }
+.capa-duracao { flex-shrink: 0; opacity: .92; }
+.corpo-vitrine { display: flex; flex-direction: column; gap: 10px; padding: 24px; flex: 1; }
+.corpo-vitrine h3 { font-size: 22px; font-weight: 800; line-height: 1.2; }
+.corpo-vitrine .ementa {
+  font-size: 14.5px; color: var(--on-surface-variant); line-height: 1.6;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+/* Empurrado para o pé: numa fila, cartões de alturas diferentes têm de
+   alinhar o preço e o botão na mesma linha. */
+.rodape-vitrine {
+  margin-top: auto; padding-top: 16px; border-top: 1px solid var(--outline-variant);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.rodape-vitrine strong { display: block; font-family: var(--font-display); font-size: 17px; color: var(--primary-texto); }
+.cartao-vitrine:hover .rodape-vitrine .btn { background: var(--primary-fixed); border-color: var(--primary); }
+
+/* A faixa embaixo do acervo: o que o passe completo faz com o curso que
+   ainda vai existir. */
+.faixa-novidade {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px 24px;
+  flex-wrap: wrap; padding: 20px 24px; border-radius: var(--r-lg);
+  background: color-mix(in oklab, var(--primary) 10%, #fff);
+  border: 1px solid color-mix(in oklab, var(--primary) 30%, #fff);
+}
+.faixa-novidade-texto { display: flex; align-items: center; gap: 16px; min-width: 0; }
+.faixa-novidade .selo {
+  width: 44px; height: 44px; border-radius: var(--r-full); flex-shrink: 0;
+  display: grid; place-items: center;
+  background: color-mix(in oklab, var(--primary) 36%, #150f2e); color: #fff;
+}
+.faixa-novidade strong { display: block; font-family: var(--font-display); font-size: 16px; }
+.faixa-novidade span { font-size: 14px; color: var(--on-surface-variant); }
+
+/* ---- 3. Como o estudo funciona ---- */
+/* A mesma `.vitrine-app` da home, espelhada: a figura à esquerda e as
+   caixas à direita, como o layout pede. A ordem no HTML já é essa, então
+   basta inverter a proporção das colunas. */
+.vitrine-app.espelhada { grid-template-columns: .85fr 1.15fr; }
+.vitrine-app.espelhada .vitrine-app-figura > img { max-width: 300px; }
+.metodo-cartoes { gap: 16px; }
+/* O ícone acima do título, e não ao lado: é a caixa do layout novo. A
+   `.icone-caixa` de origem (ícone à esquerda) segue em uso na home. */
+.icone-caixa.empilhada { flex-direction: column; gap: 14px; }
+.icone-caixa.empilhada .selo { border-radius: var(--r-md); width: 48px; height: 48px; }
+/* O cartãozinho embaixo do celular — "estudo na palma da mão". */
+.metodo-nota {
+  display: flex; align-items: center; gap: 14px; margin-top: 18px; max-width: 340px;
+  background: var(--surface-container-lowest); border: 1px solid var(--outline-variant);
+  border-radius: var(--r-md); box-shadow: var(--e1); padding: 14px 16px; text-align: left;
+}
+.metodo-nota .selo {
+  width: 38px; height: 38px; border-radius: var(--r-full); flex-shrink: 0;
+  display: grid; place-items: center;
+  background: var(--primary-fixed); color: var(--on-primary-fixed-variant);
+}
+.metodo-nota strong { display: block; font-family: var(--font-display); font-size: 15px; }
+.metodo-nota span { font-size: 12.5px; color: var(--on-surface-variant); line-height: 1.45; }
+
+/* ---- 4. Oferta ---- */
+/* As três garantias no pé dos planos. */
+.confianca {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 14px 32px;
+  margin-top: clamp(28px, 4vw, 48px); font-size: 14px; color: var(--on-surface-variant);
+}
+.confianca li { display: flex; align-items: center; gap: 8px; }
+.confianca .ico { color: var(--primary); flex-shrink: 0; }
+
+/* ---- 5. Quem ensina e contato ---- */
+.grade-7-5 {
+  display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  gap: var(--gutter); align-items: stretch;
+}
+.cartao-professor, .cartao-contato { padding: clamp(24px, 3vw, 36px); }
+.cartao-professor p { margin-top: 14px; color: var(--on-surface-variant); line-height: 1.7; }
+.professor-cabeca { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.professor-cabeca img {
+  width: 128px; height: 128px; border-radius: var(--r-lg);
+  object-fit: cover; box-shadow: var(--e-marca); flex-shrink: 0;
+}
+.professor-vazio {
+  width: 128px; height: 128px; border-radius: var(--r-lg); display: grid; place-items: center;
+  background: var(--primary-fixed); color: var(--on-primary-fixed-variant); flex-shrink: 0;
+}
+.cartao-contato { display: flex; flex-direction: column; gap: 12px; }
+.cartao-contato > .selo {
+  width: 48px; height: 48px; border-radius: var(--r-md); display: grid; place-items: center;
+  background: color-mix(in oklab, var(--primary) 36%, #150f2e); color: #fff; margin-bottom: 4px;
+}
+.contato-itens { display: grid; gap: 12px; margin-top: 6px; }
+.contato-itens li {
+  display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px;
+  border-radius: var(--r-md); background: var(--surface-container-low);
+}
+.contato-itens .ico { color: var(--primary-texto); flex-shrink: 0; margin-top: 2px; }
+/* Rótulo em cima, valor embaixo: os dois são inline por natureza (um
+   `span`, um `strong`), e sem isto "Fale com o professor" e o endereço
+   saem colados na mesma linha. */
+.contato-itens li > div { display: grid; gap: 2px; min-width: 0; }
+.contato-itens strong { display: block; font-family: var(--font-display); font-size: 15px; word-break: break-word; }
+.contato-itens a:hover strong { color: var(--primary-texto); }
+.contato-garantia {
+  display: flex; align-items: center; gap: 10px; margin-top: auto; padding-top: 14px;
+  font-size: 13px; color: var(--on-surface-variant);
+}
+.contato-garantia .ico { color: var(--primary); flex-shrink: 0; }
+
 /* Busca do hero */
 .busca-hero {
   display: flex; align-items: center; gap: 8px; background: var(--surface-container-lowest);
@@ -613,7 +903,13 @@ a.cartao:active, .cartao-toque:active { transform: translateY(-1px) scale(.994);
 .secao { padding: var(--secao-y) 0; }
 .secao.tinta { background: var(--surface-container); }
 .secao.clara { background: var(--surface-container-low); }
-.secao.marca { background: var(--surface-marca); }
+/* `lavanda`, e não `marca`: `.secao.marca` casava com `.marca`, que é a
+   classe do LOGOTIPO — e trazia junto `display:flex`, `font-weight:700`,
+   `overflow:hidden` e `color: var(--primary-texto)`. O efeito visível era
+   o título da seção inteiro na cor da marca, `<em>` e tudo, em vez de
+   preto com metade em cor. Nome de fundo de seção e nome de componente
+   não podem ser a mesma palavra. */
+.secao.lavanda { background: var(--surface-marca); }
 .secao-titulo { text-align: center; max-width: 46rem; margin: 0 auto clamp(32px, 4vw, 56px); }
 /* Título de seção grande e pesado, com metade em roxo via <em>. */
 .secao-titulo h2 {
@@ -714,6 +1010,22 @@ a.cartao:active, .cartao-toque:active { transform: translateY(-1px) scale(.994);
 /* A seta do item que leva para fora do painel: lá a barra lateral não
    existe, e o aviso precisa vir antes do clique, não depois. */
 .item-lateral .ico-sai { margin-left: auto; opacity: .55; }
+
+/* Item com submenu (o "Minha Jornada" do colaborador). A seta gira em
+   vez de trocar de ícone: o giro diz que é o MESMO item mudando de
+   estado, enquanto dois ícones diferentes leriam como dois botões. */
+.item-lateral .ico-abre { margin-left: auto; opacity: .55; transition: transform .18s; }
+.item-lateral .ico-abre.virado { transform: rotate(180deg); }
+.lateral-filhos { display: flex; flex-direction: column; gap: 4px; margin: 4px 0 6px; }
+/* `display:flex` acima venceria o `hidden` do HTML, e o submenu fechado
+   continuaria na tela — daí a regra explícita. */
+.lateral-filhos[hidden] { display: none; }
+/* O filho é menor e recuado: a indentação é o que diz "isto está DENTRO
+   daquilo" sem precisar de linha, borda ou segundo ícone. */
+.item-lateral.filho {
+  font-size: 14px; padding: 9px 16px 9px 30px; gap: 12px;
+}
+.item-lateral.filho.ativo { background: var(--primary-fixed); }
 .lateral-rodape { margin-top: auto; padding-top: 18px; }
 
 .conteudo { min-width: 0; }
@@ -734,6 +1046,13 @@ a.cartao:active, .cartao-toque:active { transform: translateY(-1px) scale(.994);
   content: ''; position: absolute; top: 2px; right: 2px; width: 8px; height: 8px;
   border-radius: var(--r-full); background: var(--error);
 }
+/* "Sair" no canto superior direito dos painéis que não têm barra
+   superior (admin, professor, empresa). Fica em linha própria acima do
+   conteúdo, não flutuando sobre ele: sobreposto, cobriria o começo do
+   título da página em telas curtas. Nos painéis com barra superior o
+   mesmo botão entra dentro de `.usuario`, e esta regra não se aplica. */
+.sair-topo { display: flex; justify-content: flex-end; padding: 16px 40px 0; }
+
 .miolo { padding: 32px 40px; display: grid; gap: 24px; align-content: start; }
 
 /* Saudação do painel */
@@ -755,6 +1074,15 @@ a.cartao:active, .cartao-toque:active { transform: translateY(-1px) scale(.994);
   background: var(--secondary-fixed); color: var(--secondary);
   display: grid; place-items: center; font-size: 26px;
 }
+/* O rótulo do progresso nasceu dentro do cartão "continue de onde
+   parou" e ficou preso a ele. A barra de envio da Biblioteca precisa do
+   mesmo par (o que está acontecendo, à esquerda; a porcentagem, à
+   direita), então a regra sai do cartão e passa a valer sozinha. */
+.rotulo-progresso {
+  display: flex; justify-content: space-between; font-size: 13px;
+  color: var(--on-surface-variant); margin-bottom: 6px;
+}
+.rotulo-progresso b { color: var(--primary-texto); }
 .retomar .rotulo-progresso {
   display: flex; justify-content: space-between; font-size: 13px;
   color: var(--on-surface-variant); margin-bottom: 6px;
@@ -832,6 +1160,14 @@ a.cartao:active, .cartao-toque:active { transform: translateY(-1px) scale(.994);
 .caixa-compra { position: sticky; top: 88px; }
 .caixa-compra .preco { font-family: var(--font-display); font-size: 34px; font-weight: 700; color: var(--primary-texto); }
 .caixa-compra .preco small { font-size: 15px; font-family: var(--font-body); color: var(--on-surface-variant); font-weight: 600; }
+/* A mesma caixa da direita, quando quem olha JÁ TEM o curso: no lugar do
+   preço, o andamento. Ver ConteudoMateria — a decisão de qual das duas
+   mostrar é `acessoAoCurso`. */
+.caixa-progresso .progresso-resumo {
+  display: flex; gap: 16px; align-items: center; margin-top: 12px;
+}
+.caixa-progresso .progresso-resumo > div { display: grid; gap: 4px; min-width: 0; }
+.caixa-progresso .progresso-resumo strong { font-family: var(--font-display); font-size: 16px; }
 .lista-inclui { display: grid; gap: 10px; margin: 20px 0; font-size: 14px; }
 .lista-inclui li { display: flex; gap: 10px; align-items: flex-start; }
 .lista-inclui .mi { color: var(--primary); font-size: 20px; }
@@ -904,27 +1240,153 @@ a.linha-aula:hover { transform: translateX(4px); border-color: var(--primary); b
 .cabeca-area { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; }
 
 /* ----------------------------------------------------------------
-   Cartão de curso
-   O pé do cartão é empurrado por margin-top:auto, de modo que cartões
-   de alturas diferentes alinham preço e botão na mesma altura.
+   Cartão do acervo (Biblioteca da empresa)
+
+   Irmão do cartão de curso, com duas diferenças que vêm do conteúdo:
+   a capa de livro é RETRATO (3/4), não 16/9 de vídeo; e o pé traz quem
+   pode ver e quanto pesa, no lugar do preço.
    ---------------------------------------------------------------- */
-.cartao-curso { display: flex; flex-direction: column; gap: 10px; }
-.cartao-curso > .chip { align-self: flex-start; }
+.cartao-acervo { display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+/* Altura fixa em vez de proporção: a maioria dos itens não tem capa, e
+   um retrato 3/4 de gradiente vazio empurrava o título do material para
+   fora da primeira tela. 190 px é o suficiente para a etiqueta e o
+   desenho, e mantém três cartões visíveis de uma vez. */
+.capa-acervo {
+  position: relative; display: grid; place-items: center; height: 190px;
+  color: rgba(255, 255, 255, .55); overflow: hidden;
+  background: linear-gradient(135deg, color-mix(in oklab, var(--primary) 34%, #150f2e), var(--primary));
+}
+/* `contain`, não `cover`: capa de livro é retrato, e recortar para
+   preencher uma faixa deitada cortaria justamente o título impresso
+   nela. O gradiente atrás faz as bordas. */
+.capa-acervo img { width: 100%; height: 100%; object-fit: contain; }
+.corpo-acervo { display: flex; flex-direction: column; gap: 10px; padding: 20px; flex: 1; }
+.corpo-acervo h3 { font-size: 18px; font-weight: 800; line-height: 1.25; }
+.corpo-acervo .autor {
+  font-family: var(--font-display); font-size: 13px; font-weight: 600;
+  color: var(--primary-texto); margin-top: -4px;
+}
+.corpo-acervo .ementa {
+  color: var(--on-surface-variant); font-size: 14px; line-height: 1.55;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+/* O pé é empurrado para baixo: numa grade, cartões de alturas
+   diferentes precisam alinhar o botão na mesma linha. */
+.rodape-acervo {
+  margin-top: auto; padding-top: 14px; display: flex; align-items: center;
+  justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  border-top: 1px solid var(--surface-variant);
+}
+/* Fila de etiquetas clicáveis — o atalho que o select não dá. */
+.chips-assunto { display: flex; flex-wrap: wrap; gap: 8px; }
+a.chip { text-decoration: none; }
+a.chip:hover { border-color: var(--primary); color: var(--primary-texto); }
+
+/* ----------------------------------------------------------------
+   Cartão de curso
+   Capa em cima, texto embaixo. O pé do cartão é empurrado por
+   margin-top:auto, de modo que cartões de alturas diferentes alinham
+   preço e botão na mesma altura — o que numa fila deixa de ser refinamento
+   e passa a ser requisito.
+   ---------------------------------------------------------------- */
+.cartao-curso { display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+.corpo-curso { display: flex; flex-direction: column; gap: 10px; padding: 22px; flex: 1; }
+/* A área acima do título, no cartão que aparece fora da fila da própria
+   área. Rótulo, não manchete: 12px, versalete e cinza — quem lê o cartão
+   está atrás do nome do curso, e a área é só a etiqueta de prateleira. */
+.area-do-cartao {
+  font-family: var(--font-display); font-size: 12px; font-weight: 700;
+  letter-spacing: .04em; text-transform: uppercase; color: var(--on-surface-variant);
+  margin-bottom: -4px;
+}
 .cartao-curso h3 { font-size: 20px; font-weight: 800; line-height: 1.2; }
 .cartao-curso .autor {
   font-family: var(--font-display); font-size: 13px; font-weight: 600;
   color: var(--primary-texto); margin-top: -4px;
 }
-.cartao-curso .ementa { font-size: 14px; color: var(--on-surface-variant); flex: 1; }
+/* Duas linhas e reticências: numa fila, ementa de tamanho livre faria
+   cada cartão terminar numa altura, e o botão de cada um numa linha.
+
+   Sem `flex: 1` aqui, e não por engano: esticada pelo flex, a caixa fica
+   mais alta que as duas linhas, o `overflow: hidden` passa a cortar mais
+   embaixo, e o texto continua pintando DEPOIS das reticências — o corte
+   aparece no meio de uma frase. Quem empurra o pé do cartão para baixo é
+   o `margin-top: auto` do rodapé, logo abaixo. */
+.cartao-curso .ementa {
+  font-size: 14px; color: var(--on-surface-variant);
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+}
 .cartao-curso .rodape-cartao {
-  display: grid; gap: 12px; margin-top: auto;
+  display: grid; gap: 10px; margin-top: auto;
   padding-top: 16px; border-top: 1px solid var(--outline-variant);
 }
 .cartao-curso .linha-preco {
   display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13px;
 }
 .cartao-curso .linha-preco strong { font-size: 15px; color: var(--primary-texto); }
+.cartao-curso .prazo-vencido { color: var(--error); font-weight: 600; }
 .cartao-fantasma { opacity: .78; border-style: dashed; box-shadow: none; }
+
+/* A capa do curso: a imagem enviada quando existe (fase 2 do plano) e,
+   enquanto não existe, o desenho — gradiente com o ícone por cima, o
+   mesmo recurso que o blog usa em post sem foto.
+
+   A COR SAI DE `--primary`, não de hexadecimais fixos. Num portal
+   white-label o professor escolhe a própria cor, e ela já sobrescreve
+   `--primary`: seis roxos cravados aqui apareceriam roxos na página
+   verde dele. O que muda de um tom para outro é só quanto de tinta
+   escura entra na ponta de cima e quanto de branco na de baixo — a
+   matiz continua sendo a da casa, qualquer que seja a casa.
+
+   A área escolhe o tom por hash do slug (tomDaCapa), sem nada no banco.
+
+   Texto nenhum vai sobre a capa: a pílula é a `.capa-etiqueta` do blog,
+   branca com texto roxo escuro, que passa AA sobre qualquer imagem. */
+.capa-curso {
+  position: relative; display: grid; place-items: center;
+  aspect-ratio: 16 / 9; color: rgba(255, 255, 255, .55);
+  background: linear-gradient(135deg, color-mix(in oklab, var(--primary) 34%, #150f2e), var(--primary));
+}
+.capa-tom-1 { background: linear-gradient(135deg, color-mix(in oklab, var(--primary) 26%, #150f2e), var(--primary)); }
+.capa-tom-2 { background: linear-gradient(145deg, color-mix(in oklab, var(--primary) 42%, #150f2e), color-mix(in oklab, var(--primary) 90%, #fff)); }
+.capa-tom-3 { background: linear-gradient(125deg, color-mix(in oklab, var(--primary) 16%, #150f2e), color-mix(in oklab, var(--primary) 84%, #fff)); }
+.capa-tom-4 { background: linear-gradient(160deg, color-mix(in oklab, var(--primary) 52%, #150f2e), var(--primary)); }
+.capa-tom-5 { background: linear-gradient(135deg, color-mix(in oklab, var(--primary) 34%, #150f2e), color-mix(in oklab, var(--primary) 74%, #fff)); }
+.capa-tom-6 { background: linear-gradient(115deg, color-mix(in oklab, var(--primary) 20%, #150f2e), color-mix(in oklab, var(--primary) 96%, #fff)); }
+
+/* ----------------------------------------------------------------
+   Prateleira — o catálogo em filas de cartões
+   ----------------------------------------------------------------
+   A fila QUEBRA, não rola: `auto-fill` cria quantas colunas couberem na
+   largura disponível, e o cartão que não coube desce para a linha
+   seguinte. Quem conta as colunas é o navegador, em qualquer largura e
+   sem uma linha de JavaScript.
+
+   Foi rolagem lateral com encaixe na primeira versão, como na
+   referência. O que a derrubou foi a barra de rolagem horizontal que ela
+   trouxe para dentro da página: o cartão fora da tela dependia de
+   arrastar para ser descoberto, e página que rola em dois eixos confunde
+   no toque. Rolando só a página, o acervo inteiro aparece.
+
+   `1fr` no máximo faz as colunas dividirem a sobra em vez de deixarem um
+   vão à direita; o mínimo de 264px é o que impede a capa 16:9 de ficar
+   pequena demais para se enxergar do que ela é.
+
+   `min-width: 0` continua necessário: a prateleira costuma ser item de
+   grid (`.pilha-lg` no catálogo), e item de grid nasce com
+   `min-width: auto` — sem isto o conteúdo pode esticar o item, e o item,
+   a página.
+   ---------------------------------------------------------------- */
+.prateleira { margin-bottom: 36px; min-width: 0; }
+.prateleira-cabeca {
+  display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 14px;
+}
+.prateleira-trilho {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(264px, 1fr)); gap: 24px;
+}
+/* Em 1200px são QUATRO por linha, como no layout: 264px de mínimo com
+   24px de vão dá 4 colunas de 282px, e o cartão volta a ter capa 16:9
+   grande o bastante para se reconhecer de longe. */
 
 /* Faixa de chamada com o botão ao lado do texto, e dois círculos de
    branco a 6% dando profundidade sem virar ilustração. */
@@ -941,6 +1403,295 @@ a.linha-aula:hover { transform: translateX(4px); border-color: var(--primary); b
 }
 .chamada-lado .bolha-a { width: 260px; height: 260px; top: -130px; right: -60px; }
 .chamada-lado .bolha-b { width: 190px; height: 190px; bottom: -80px; left: -50px; }
+
+/* ----------------------------------------------------------------
+   O catálogo em vitrine — o layout de 09/09/2026
+   ----------------------------------------------------------------
+   O que este bloco veste é `app/catalogo/` inteiro: o banner do curso em
+   destaque, a barra de filtros, o cartão com prévia e o pé da página
+   (celular, passe e dúvidas). Ele substituiu a `.banner-catalogo`, a
+   faixa de marca com o mosaico de três capas — a página deixou de falar
+   do catálogo e passou a mostrar um curso.
+
+   As duas regras da vitrine do portal valem aqui igual, e explicam quase
+   todas as linhas:
+
+   1. **A cor sai de `--primary`, nunca de um roxo cravado.** O professor
+      escolhe a cor dele. Fundo escuro é `color-mix(…, #150f2e)` com teto
+      de 36%, o mesmo das capas, que garante 6,4:1 com branco mesmo
+      quando a cor escolhida é clara (ver `npm run contraste`).
+
+   2. **Texto branco só existe sobre cortina.** A capa do banner é foto
+      enviada pelo professor — pode ser branca. Quem sustenta o par de
+      contraste é a `.destaque-cortina`, não a imagem.
+   ---------------------------------------------------------------- */
+
+/* ---- 1. O curso em destaque ---- */
+.destaque-catalogo {
+  position: relative; isolation: isolate; overflow: hidden;
+  color: #fff; min-height: clamp(380px, 46vw, 520px);
+  display: grid; align-items: end;
+  background: color-mix(in oklab, var(--primary) 18%, #150f2e);
+}
+.destaque-fundo { position: absolute; inset: 0; z-index: -1; }
+.destaque-fundo img {
+  width: 100%; height: 100%; object-fit: cover; object-position: center;
+  /* A imagem entra rebaixada e dessaturada para virar FUNDO: em cima
+     dela vão um título de 44px e dois botões, e capa em brilho cheio
+     transformaria os dois em texto sobre estampa. */
+  opacity: .42; filter: grayscale(.25);
+}
+/* Escura à esquerda, onde o texto mora; mais clara à direita, onde a
+   figura aparece. As duas camadas juntas sustentam o branco no pior
+   caso, que é o portal de cor clara. */
+.destaque-cortina {
+  position: absolute; inset: 0;
+  background:
+    linear-gradient(100deg,
+      color-mix(in oklab, var(--primary) 24%, #0d0718) 0%,
+      color-mix(in oklab, var(--primary) 30%, #0d0718) 42%,
+      rgba(13, 7, 24, .35) 100%),
+    linear-gradient(to top, rgba(13, 7, 24, .92), rgba(13, 7, 24, 0) 62%);
+}
+/* Mesma medida da `.container` da casa, para o texto do banner nascer na
+   mesma coluna do resto da página — largura cravada aqui sairia do
+   alinhamento no dia em que `--container` mudasse. */
+.destaque-texto {
+  position: relative;
+  width: min(var(--container), 100% - 2 * var(--gutter)); margin-inline: auto;
+  padding: clamp(32px, 5vw, 56px) 0;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 14px;
+}
+.destaque-texto > * { max-width: 46rem; }
+.destaque-marcas { display: flex; flex-wrap: wrap; gap: 8px; }
+.marca-destaque, .marca-vidro {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--font-display); font-size: 12.5px; font-weight: 700;
+  letter-spacing: .04em; text-transform: uppercase;
+  border-radius: var(--r-full); padding: 7px 14px; white-space: nowrap;
+}
+/* A pílula do destaque é a única cheia: ela é a etiqueta da vitrine.
+   36% é o teto de mistura que mantém o texto branco em AA. */
+.marca-destaque { background: color-mix(in oklab, var(--primary) 36%, #150f2e); color: #fff; }
+/* "Vidro": branco a 16% com desfoque. Sobre a cortina escura o par
+   passa de 7:1 — e ela não cobre a figura como um bloco sólido. */
+.marca-vidro, .btn-vidro, .chip-vidro {
+  background: rgba(255, 255, 255, .16); color: #fff;
+  border: 1px solid rgba(255, 255, 255, .28);
+  backdrop-filter: blur(8px);
+}
+.destaque-catalogo h1, .destaque-catalogo h2 {
+  font-family: var(--font-display); font-size: clamp(30px, 4vw, 48px);
+  font-weight: 800; line-height: 1.06; letter-spacing: -0.02em; margin: 0;
+}
+.destaque-ementa {
+  color: rgba(255, 255, 255, .92); font-weight: 300;
+  font-size: clamp(15px, 1.2vw, 18px); line-height: 1.6; margin: 0;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden;
+}
+.destaque-acoes { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 6px; }
+/* O CTA do banner é branco sólido com texto roxo, como o da `.chamada`:
+   sobre fundo escuro, o gradiente roxo do botão da casa desaparece. */
+.destaque-acoes .btn-primario {
+  background: #fff; color: var(--on-primary-container); box-shadow: none;
+}
+.destaque-acoes .btn-primario:hover { background: var(--primary-fixed); }
+.btn-vidro:hover { background: rgba(255, 255, 255, .26); color: #fff; }
+.destaque-numeros {
+  display: flex; flex-wrap: wrap; gap: 8px 22px; list-style: none;
+  padding: 14px 0 0; margin: 6px 0 0; border-top: 1px solid rgba(255, 255, 255, .22);
+  width: 100%; max-width: 46rem;
+}
+.destaque-numeros li {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 13.5px; color: rgba(255, 255, 255, .9);
+}
+.destaque-assinatura {
+  display: inline-flex; align-items: center; gap: 7px; margin: 0;
+  font-family: var(--font-display); font-size: 14px; font-weight: 600;
+  color: rgba(255, 255, 255, .92);
+}
+/* O selo da imagem de reserva, como nas figuras ilustrativas da home —
+   aqui sobre fundo escuro, então em branco. */
+.destaque-selo { color: rgba(255, 255, 255, .82); background: rgba(13, 7, 24, .45); }
+
+/* ---- 2. A faixa embaixo do banner ---- */
+/* A seção logo abaixo do banner entra colada nele: o respiro de topo da
+   `.secao` (que existe para separar faixas de mesma cor) abriria um vão
+   branco entre a capa do curso e a faixa de garantias. */
+.destaque-catalogo + .secao { padding-top: clamp(24px, 3vw, 40px); }
+.faixa-garantias {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px 32px; flex-wrap: wrap; padding: 18px 22px; border-radius: var(--r-lg);
+  background: color-mix(in oklab, var(--primary) 8%, #fff);
+  border: 1px solid color-mix(in oklab, var(--primary) 28%, #fff);
+}
+.faixa-garantias-marca { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.faixa-garantias .selo {
+  width: 42px; height: 42px; border-radius: var(--r-full); flex-shrink: 0;
+  display: grid; place-items: center;
+  background: color-mix(in oklab, var(--primary) 36%, #150f2e); color: #fff;
+}
+.faixa-garantias strong { display: block; font-family: var(--font-display); font-size: 15.5px; }
+.faixa-garantias-marca span { font-size: 13.5px; color: var(--on-surface-variant); }
+.faixa-garantias-itens {
+  display: flex; flex-wrap: wrap; gap: 8px 20px; list-style: none; padding: 0; margin: 0;
+}
+.faixa-garantias-itens li {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 13px; color: var(--on-surface-variant);
+}
+.faixa-garantias-itens .ico { color: var(--primary-texto); }
+
+/* ---- 3. Cabeçalho da seção do acervo ---- */
+.cabeca-catalogo {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 16px 32px; flex-wrap: wrap;
+}
+.cabeca-catalogo h1, .cabeca-catalogo h2 { margin-bottom: 6px; }
+.cabeca-catalogo em { font-style: normal; color: var(--primary-texto); }
+.cabeca-catalogo p { max-width: 44rem; }
+
+/* ---- 4. Pílulas do filtro ativo ---- */
+.filtro-rodape {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px 20px; flex-wrap: wrap;
+}
+.filtro-pilulas { display: flex; flex-wrap: wrap; gap: 8px; }
+/* Cada pílula APAGA o próprio filtro. Botão, e não enfeite: com quatro
+   seletores lado a lado, "limpar tudo" obriga a recomeçar quem só
+   queria tirar um deles. */
+.filtro-pilula {
+  display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+  font-family: var(--font-display); font-size: 12.5px; font-weight: 600;
+  padding: 6px 12px; border-radius: var(--r-full);
+  background: var(--primary-fixed); color: var(--on-primary-fixed-variant);
+  border: 1px solid var(--contorno-pill);
+}
+.filtro-pilula:hover { background: var(--primary-fixed-dim); }
+.filtro-pilula .ico { opacity: .8; }
+
+/* ---- 5. A prévia na capa do cartão ---- */
+/* A camada que cobre a capa: o vídeo por baixo e, sobre ele, o botão de
+   play e o aviso de que está sem som. Ela NÃO intercepta o clique — o
+   cartão inteiro continua sendo o link para o curso. */
+.capa-previa { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+.capa-previa video {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  opacity: 0; transition: opacity .25s ease;
+}
+.capa-previa.tocando video { opacity: 1; }
+/* O play aparece no hover do cartão, como na referência. Ele é um SINAL,
+   não o comando: quem toca a tela não passa o mouse, e para essa pessoa
+   o cartão inteiro leva ao curso — onde a aula abre de verdade. */
+.previa-play {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(.86);
+  width: 54px; height: 54px; border-radius: var(--r-full);
+  display: grid; place-items: center;
+  background: rgba(255, 255, 255, .94); color: var(--primary-texto);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, .32);
+  opacity: 0; transition: opacity .2s ease, transform .2s ease;
+}
+.cartao-curso:hover .previa-play, .cartao-curso:focus-within .previa-play {
+  opacity: 1; transform: translate(-50%, -50%) scale(1);
+}
+.previa-selo {
+  position: absolute; left: 12px; bottom: 12px;
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11.5px; font-weight: 600; color: #fff;
+  background: rgba(13, 7, 24, .72); border-radius: var(--r-full); padding: 5px 10px;
+  opacity: 0; transition: opacity .2s ease;
+}
+.capa-previa.tocando .previa-selo { opacity: 1; }
+/* Quem pediu menos movimento não recebe vídeo começando sozinho — o
+   componente já não toca (PreviaCapa.tsx); aqui somem também as
+   transições, para o play não piscar. */
+@media (prefers-reduced-motion: reduce) {
+  .capa-previa video, .previa-play, .previa-selo { transition: none; }
+}
+
+/* ---- 6. O cartão de curso, no layout novo ---- */
+.cartao-rotulos { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+/* O nível fica ao lado da área, no mesmo corpo de rótulo, com a tinta da
+   marca para separar um do outro sem virar mais uma pílula colorida. */
+.nivel-do-cartao {
+  font-family: var(--font-display); font-size: 12px; font-weight: 700;
+  letter-spacing: .04em; text-transform: uppercase; color: var(--primary-texto);
+}
+.cartao-rotulos .area-do-cartao + .nivel-do-cartao::before {
+  content: '·'; margin-right: 8px; color: var(--outline);
+}
+.meta-curso {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  font-size: 12.5px; color: var(--on-surface-variant);
+}
+.meta-curso span { display: inline-flex; align-items: center; gap: 5px; }
+.meta-curso .ico { color: var(--outline); }
+.meta-amostra { color: var(--primary-texto); font-weight: 600; }
+.meta-amostra .ico { color: var(--primary-texto); }
+/* A caixa de preço do layout: fundo cinza claro, "valor avulso" miúdo em
+   cima do número e a pílula do passe à direita. */
+.cartao-curso .caixa-preco {
+  background: var(--surface-container); border-radius: var(--r);
+  padding: 10px 12px; align-items: center; flex-wrap: wrap; row-gap: 8px;
+}
+/* O preço não quebra: numa coluna de 264px, "Valor avulso" partido em
+   duas linhas encavala o número. Quem desce para a linha de baixo é a
+   pílula do passe, que é o item dispensável dos dois. */
+.preco-avulso { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.preco-avulso .caption { white-space: nowrap; }
+.preco-avulso strong { font-family: var(--font-display); font-size: 17px; color: var(--primary-texto); }
+.cartao-curso .caixa-preco .chip { flex-shrink: 0; }
+
+/* ---- 7. Dúvidas frequentes ---- */
+/* `<details>`, e não estado de React: abrir e fechar é trabalho do
+   navegador, e assim a seção inteira continua sendo servidor. */
+.faq-catalogo { display: grid; gap: 20px; }
+.faq-item { padding: 0; overflow: hidden; }
+.faq-item summary {
+  display: flex; align-items: center; gap: 10px; cursor: pointer;
+  padding: 18px 20px; list-style: none;
+  font-family: var(--font-display); font-weight: 700; font-size: 15.5px;
+}
+.faq-item summary::-webkit-details-marker { display: none; }
+.faq-item summary > span { flex: 1; min-width: 0; }
+.faq-item summary > .ico:first-child { color: var(--primary-texto); flex-shrink: 0; }
+.faq-seta { color: var(--outline); transition: transform .2s ease; flex-shrink: 0; }
+.faq-item[open] .faq-seta { transform: rotate(180deg); }
+.faq-item[open] summary { padding-bottom: 8px; }
+.faq-item > p {
+  margin: 0; padding: 0 20px 20px; font-size: 14.5px; line-height: 1.7;
+  color: var(--on-surface-variant);
+}
+@media (prefers-reduced-motion: reduce) { .faq-seta { transition: none; } }
+
+/* ---- 8. A faixa do passe, com dois botões ---- */
+.chamada-acoes {
+  position: relative; z-index: 1; display: flex; flex-direction: column; gap: 10px;
+}
+.chamada-lado .chip-vidro { margin-bottom: 12px; }
+/* Dentro da `.chamada` o vidro é MAIS FINO que no banner, e não por
+   estética: ali o fundo é o degradê roxo da casa, e na ponta clara
+   (#7c3aed) um branco a 16% deixa o par em 4,28:1 — reprova. A 10% ele
+   volta a 4,8:1, e o hover fica no mesmo teto. No banner o fundo é a
+   cortina escura, e lá os 16% passam com folga. */
+.chamada .btn-vidro, .chamada .chip-vidro {
+  background: rgba(255, 255, 255, .10); border-color: rgba(255, 255, 255, .55);
+}
+.chamada .btn-vidro:hover { background: rgba(255, 255, 255, .10); border-color: #fff; }
+
+@media (max-width: 700px) {
+  .destaque-catalogo { min-height: 0; }
+  /* A arte da casa (`.destaque-fundo-casa`) tem a figura a ~70% da
+     largura, posta ali para não ficar atrás do texto no desktop. Aqui a
+     faixa visível é a do MEIO da imagem, e a 70% o rosto seria cortado
+     na borda direita: mover a janela traz a figura de volta ao centro.
+     Só vale para a nossa arte — a capa do professor é enquadrada por
+     ele, e deslocá-la cortaria o que ele escolheu mostrar. */
+  .destaque-fundo-casa img { object-position: 70% center; }
+  .destaque-acoes .btn { flex: 1; justify-content: center; }
+  .faixa-garantias-itens { gap: 6px 14px; }
+}
 
 /* ================================================================
    Página do curso
@@ -1095,9 +1846,57 @@ a.linha-aula:hover { transform: translateX(4px); border-color: var(--primary); b
 }
 .abas button:hover { color: var(--on-surface); }
 .abas button.ativa { color: var(--primary-texto); border-bottom-color: var(--primary); }
+.abas .aba-contador {
+  margin-left: 8px; padding: 2px 8px; border-radius: var(--r-full);
+  background: var(--surface-container); font-size: 12px; font-weight: 700;
+}
+.abas button.ativa .aba-contador { background: var(--primary-fixed); color: var(--primary-texto); }
 .painel-aba { display: none; }
 .painel-aba.ativa { display: block; }
 .painel-aba p { margin-bottom: 16px; font-size: 17px; line-height: 1.7; }
+
+/* ---- Exercício passo a passo (docs/plano-exercicio-sequencial.md) ----
+   Os marcadores no alto são o mapa: um por questão, cor pelo estado, e o
+   último é o resultado. Botões, e não pontos decorativos — voltar a uma
+   questão respondida para reler o comentário é parte do método. */
+.passos-exercicio {
+  display: flex; flex-wrap: wrap; gap: 8px; list-style: none; margin: 0 0 28px; padding: 0;
+}
+.passos-exercicio .passo {
+  width: 36px; height: 36px; border-radius: var(--r-full); display: grid; place-items: center;
+  border: 2px solid var(--borda-controle); background: var(--surface-container-lowest);
+  color: var(--on-surface-variant); font-family: var(--font-display); font-weight: 700;
+  font-size: 14px; cursor: pointer; transition: transform .15s, border-color .15s;
+}
+.passos-exercicio .passo:hover { border-color: var(--primary); transform: translateY(-1px); }
+.passos-exercicio .passo.certa { background: var(--secondary-fixed); border-color: var(--secondary); color: var(--on-secondary-fixed-variant); }
+.passos-exercicio .passo.errada { background: var(--error-container); border-color: var(--error); color: var(--on-error-container); }
+.passos-exercicio .passo.atual { box-shadow: 0 0 0 3px var(--primary-fixed); border-color: var(--primary); }
+.passos-exercicio .passo.resultado:disabled { opacity: .45; cursor: default; transform: none; }
+.nav-exercicio {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  margin-top: 24px; flex-wrap: wrap;
+}
+.resultado-exercicio p { margin: 0 0 12px; font-size: 15px; }
+.lista-resultado { list-style: none; margin: 16px 0 0; padding: 0; display: grid; gap: 8px; }
+.lista-resultado button {
+  display: flex; gap: 12px; align-items: center; width: 100%; text-align: left; cursor: pointer;
+  background: var(--surface-container-lowest); border: 1px solid var(--surface-variant);
+  border-radius: var(--r-md); padding: 10px 14px; color: inherit; font: inherit;
+}
+.lista-resultado button:hover { border-color: var(--primary); }
+.lista-resultado .marca {
+  width: 28px; height: 28px; border-radius: var(--r-full); display: grid; place-items: center; flex-shrink: 0;
+  background: var(--surface-container-high); color: var(--on-surface-variant);
+}
+.lista-resultado .marca.certa { background: var(--secondary-fixed); color: var(--on-secondary-fixed-variant); }
+.lista-resultado .marca.errada { background: var(--error-container); color: var(--on-error-container); }
+.lista-resultado .texto { flex: 1; min-width: 0; display: grid; }
+.lista-resultado .texto strong { font-family: var(--font-display); font-size: 14px; }
+.lista-resultado .texto span {
+  font-size: 13px; color: var(--on-surface-variant);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 
 /* Convite ao exercício, ao fim da aula */
 .convite-exercicio {
@@ -1648,6 +2447,164 @@ a.selo-vade:hover { border-color: var(--contorno-pill); color: var(--primary-tex
 .alerta-erro { background: var(--error-container); color: var(--on-error-container); }
 .alerta-ok { background: var(--secondary-fixed); color: var(--on-secondary-fixed-variant); }
 
+/* ---- A tela de acesso (/entrar) ----
+   Uma coluna estreita e três blocos empilhados: a trilha de migalhas, o
+   cartão do login e — só no site principal — o convite ao professor.
+
+   Tudo o que carrega a cor da marca aqui sai de `--primary`/
+   `--primary-texto`, que o portal de cada professor sobrescreve
+   (app/componentes.tsx). Os fundos tingidos são `color-mix(..., #fff)`
+   em cima da MESMA variável, e não `--primary-fixed`: aquele é um
+   lavanda fixo, e num portal verde-petróleo o selo teria ícone verde
+   sobre fundo roxo. */
+.auth-pilha { width: min(480px, 92vw); display: grid; gap: 18px; }
+
+.migalhas {
+  display: flex; align-items: center; gap: 8px; padding-inline: 4px;
+  font-family: var(--font-display); font-size: 13px; font-weight: 600;
+  color: var(--on-surface-variant);
+}
+.migalhas a { display: inline-flex; align-items: center; gap: 6px; color: inherit; }
+.migalhas a:hover { color: var(--primary-texto); }
+.migalhas span[aria-hidden] { color: var(--outline-variant); }
+.migalhas [aria-current] { color: var(--on-surface); font-weight: 700; }
+
+/* Padding inferior zero: quem fecha o cartão é a faixa de confiança, que
+   sangra até as bordas (margens negativas iguais ao respiro lateral). */
+.cartao-auth { width: auto; padding: 32px 28px 0; position: relative; overflow: hidden; }
+.auth-fita {
+  position: absolute; inset: 0 0 auto; height: 4px;
+  background: linear-gradient(90deg, var(--primary-container), var(--primary));
+}
+.auth-cabeca { display: grid; justify-items: center; text-align: center; gap: 12px; }
+.auth-selo {
+  width: 52px; height: 52px; border-radius: var(--r-md); display: grid; place-items: center;
+  background: color-mix(in oklab, var(--primary) 14%, #fff); color: var(--primary-texto);
+}
+.cartao-auth h1 { font-size: 26px; font-weight: 700; margin: 0; }
+.auth-corpo { display: grid; gap: 18px; margin-top: 18px; }
+.auth-corpo .sub {
+  margin: 0; text-align: center; font-size: 15px; line-height: 1.6;
+  color: var(--on-surface-variant);
+}
+
+/* Seletor de papel: duas abas dentro de uma calha, a ativa "levantada"
+   em branco. É guia, não credencial — quem abre a retaguarda é o papel
+   gravado na conta (app/acoes-auth.ts). */
+.seletor-papel {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px;
+  background: var(--surface-container-high); border-radius: var(--r-md);
+}
+.seletor-papel button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 11px 8px; border: 0; border-radius: var(--r); background: transparent;
+  font-family: var(--font-display); font-size: 14px; font-weight: 600;
+  color: var(--on-surface-variant); cursor: pointer;
+  transition: background var(--t-rapida) ease, color var(--t-rapida) ease;
+}
+.seletor-papel button:hover { color: var(--on-surface); }
+.seletor-papel button.ativo {
+  background: var(--surface-container-lowest); color: var(--primary-texto);
+  font-weight: 700; box-shadow: var(--e1);
+}
+
+.auth-porta { display: grid; gap: 18px; }
+.pilula-destino {
+  display: flex; align-items: center; gap: 8px; margin: 0; padding: 10px 14px;
+  border-radius: var(--r-md); font-size: 13px; line-height: 1.45;
+  background: color-mix(in oklab, var(--primary) 9%, #fff); color: var(--on-surface-variant);
+}
+.pilula-destino .ico { color: var(--primary-texto); flex-shrink: 0; }
+.pilula-destino strong { color: var(--on-surface); font-weight: 700; }
+
+/* Campo com ícone à esquerda. O `:not([type=checkbox])` não é enfeite:
+   sem ele esta regra perde em especificidade para a do input comum, logo
+   acima, e o texto fica embaixo do ícone. */
+.campo-cabeca { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.dica-campo { font-size: 12px; font-weight: 500; color: var(--on-surface-variant); }
+.campo-icone { position: relative; display: flex; align-items: center; }
+.campo-icone > .ico { position: absolute; left: 14px; color: var(--outline); pointer-events: none; }
+.formulario .campo-icone input:not([type=checkbox]) { padding-left: 44px; }
+.formulario .campo-icone:has(.btn-olho) input:not([type=checkbox]) { padding-right: 50px; }
+.btn-olho {
+  position: absolute; right: 8px; display: grid; place-items: center;
+  width: 34px; height: 34px; border: 0; border-radius: var(--r);
+  background: transparent; color: var(--outline); cursor: pointer;
+}
+.btn-olho:hover { color: var(--on-surface); background: var(--surface-container); }
+
+.formulario label.lembrar {
+  display: flex; align-items: center; gap: 10px; cursor: pointer;
+  font-family: var(--font-body); font-size: 14px; font-weight: 500;
+  color: var(--on-surface-variant);
+}
+.lembrar input { width: 18px; height: 18px; flex-shrink: 0; cursor: pointer; accent-color: var(--primary-container); }
+
+/* "Esqueceu a senha?" mora na linha do rótulo, como no layout de
+   referência, e a resposta abre logo abaixo do campo. */
+.link-senha {
+  border: 0; padding: 0; background: transparent; cursor: pointer;
+  font-family: var(--font-display); font-size: 13px; font-weight: 700;
+  color: var(--primary-texto);
+}
+.link-senha:hover { text-decoration: underline; }
+.aviso-senha {
+  margin: -6px 0 0; padding: 12px 14px; border-radius: var(--r-md);
+  font-size: 13px; line-height: 1.6;
+  background: var(--surface-container); color: var(--on-surface-variant);
+}
+.aviso-senha a { color: var(--primary-texto); font-weight: 700; }
+
+/* A porta de serviço: dentro do portal do professor, a aba dele não tem
+   formulário — a conta está na plataforma. Campo que nunca vai
+   autenticar aqui seria armadilha, não conveniência. */
+.porta-de-fora {
+  display: grid; gap: 14px; justify-items: center; text-align: center;
+  padding: 22px 18px; border-radius: var(--r-lg);
+  background: color-mix(in oklab, var(--primary) 8%, #fff);
+  border: 1px solid color-mix(in oklab, var(--primary) 26%, var(--surface-variant));
+}
+.porta-de-fora .selo {
+  width: 46px; height: 46px; border-radius: var(--r-full); display: grid; place-items: center;
+  background: var(--surface-container-lowest); color: var(--primary-texto);
+}
+.porta-de-fora strong {
+  display: block; margin-bottom: 6px; font-family: var(--font-display); font-size: 16px;
+}
+.porta-de-fora p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--on-surface-variant); }
+
+.auth-confianca {
+  display: grid; gap: 14px; margin: 28px -28px 0; padding: 22px 28px;
+  background: var(--surface-container-low); border-top: 1px solid var(--surface-variant);
+}
+.auth-confianca li { display: flex; align-items: flex-start; gap: 12px; }
+.auth-confianca .selo {
+  width: 36px; height: 36px; border-radius: var(--r-full); display: grid; place-items: center;
+  background: color-mix(in oklab, var(--primary) 12%, #fff); color: var(--primary-texto);
+  flex-shrink: 0;
+}
+.auth-confianca strong { display: block; font-family: var(--font-display); font-size: 14px; }
+.auth-confianca span { font-size: 13px; line-height: 1.5; color: var(--on-surface-variant); }
+
+.faixa-professor {
+  display: flex; align-items: center; gap: 14px; padding: 18px 20px;
+  background: var(--surface-container-low); box-shadow: none;
+}
+.faixa-professor .selo {
+  width: 42px; height: 42px; border-radius: var(--r-md); display: grid; place-items: center;
+  background: var(--surface-container-highest); color: var(--primary-texto); flex-shrink: 0;
+}
+/* O bloco de texto cresce; sem isto o título quebra em duas linhas com
+   metade da faixa vazia à direita. */
+.faixa-professor > div { flex: 1; min-width: 0; }
+.faixa-professor h2 { font-size: 15px; font-weight: 700; margin: 0; }
+.faixa-professor p { margin: 2px 0 0; font-size: 13px; color: var(--on-surface-variant); }
+.faixa-professor-link {
+  display: inline-flex; align-items: center; gap: 4px; margin-left: auto; flex-shrink: 0;
+  font-family: var(--font-display); font-size: 13px; font-weight: 700; color: var(--primary-texto);
+}
+.faixa-professor-link:hover { text-decoration: underline; }
+
 /* ================================================================
    Tabelas do admin
    ================================================================ */
@@ -1782,6 +2739,78 @@ a.selo-vade:hover { border-color: var(--contorno-pill); color: var(--primary-tex
   padding-top: 4px; border-top: 1px solid var(--surface-variant); margin-top: 4px;
 }
 .form-editor .acoes .btn { margin-top: 16px; }
+
+/* Escolha entre alternativas exclusivas dentro de um formulário — o
+   formato do item da Biblioteca (PDF ou link). Fieldset e não um select:
+   são duas opções que mudam o CAMPO seguinte, e vê-las lado a lado
+   explica a troca antes do clique. */
+.campo-grupo {
+  border: 1px solid var(--outline-variant); border-radius: var(--r-md);
+  padding: 16px; margin: 0; display: grid; gap: 14px;
+}
+.campo-grupo legend {
+  font-family: var(--font-display); font-weight: 600; font-size: 14px;
+  padding: 0 6px; color: var(--on-surface-variant);
+}
+.opcoes-linha { display: flex; gap: 10px; flex-wrap: wrap; }
+/* O cartão inteiro é clicável: acertar 18 px de botão de rádio em tela
+   de toque é o que faz a pessoa desistir. Mesma lição da .caixa-marcar. */
+.form-editor .opcao, .opcao {
+  display: flex; align-items: center; gap: 10px; cursor: pointer;
+  padding: 10px 16px; border-radius: var(--r-md); font-size: 14px;
+  border: 1px solid var(--outline-variant); background: var(--surface-container-lowest);
+}
+.opcao:hover { border-color: var(--primary); }
+.opcao input { width: 18px; height: 18px; padding: 0; margin: 0; }
+.opcao span { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
+.opcao:has(input:checked) {
+  border-color: var(--primary); background: var(--primary-fixed);
+  color: var(--on-primary-fixed-variant);
+}
+
+/* Escolha de ferramentas do portal (§5.10): uma lista de caixas de
+   marcar com descrição. Cada opção é um cartão inteiro clicável — em
+   telas de toque, acertar 18 px de caixa é o que faz o professor
+   desistir e concluir que "não dá para marcar". */
+.campo-ferramentas { border: 0; padding: 0; margin: 0; display: grid; gap: 10px; }
+.campo-ferramentas legend {
+  font-family: var(--font-display); font-weight: 600; font-size: 14px; padding: 0;
+}
+/* `.form-editor label` empilha em grid, e ele vence pela especificidade:
+   por isso a regra da caixa nasce com o pai no seletor. */
+.form-editor .caixa-marcar, .caixa-marcar {
+  display: flex; align-items: flex-start; gap: 12px; cursor: pointer;
+  padding: 12px 14px; border-radius: var(--r-md);
+  border: 1px solid var(--outline-variant); background: var(--surface-container-lowest);
+}
+.caixa-marcar:hover { border-color: var(--primary); }
+.caixa-marcar:has(input:checked) {
+  border-color: var(--primary); background: var(--surface-container);
+}
+.caixa-marcar input { width: 18px; height: 18px; padding: 0; margin-top: 2px; flex: none; }
+.caixa-marcar strong { display: block; font-size: 14px; }
+.caixa-marcar small {
+  display: block; margin-top: 2px; font-size: 13px; font-weight: 500;
+  color: var(--on-surface-variant);
+}
+
+/* Uma aula por cartão na tela de vídeos do professor: o envio, a
+   conferência e a troca do arquivo lado a lado com o que a aula é. */
+.cartao-video {
+  display: grid; gap: 16px; grid-template-columns: minmax(240px, 1fr) minmax(280px, 1.2fr);
+  padding: 16px; border-radius: var(--r-md);
+  border: 1px solid var(--outline-variant); background: var(--surface-container-lowest);
+}
+.cartao-video video { width: 100%; max-width: 420px; border-radius: var(--r-md); background: #000; }
+/* O envio mora fora de `.form-editor`, então o rótulo não herda o
+   empilhamento de lá: sem isto, "Trocar o vídeo desta aula" e o seletor
+   de arquivo brigam pela mesma linha. */
+.cartao-video label {
+  display: grid; gap: 6px; font-family: var(--font-display);
+  font-weight: 600; font-size: 14px;
+}
+.cartao-video .dica { font-size: 13px; font-weight: 500; color: var(--on-surface-variant); }
+@media (max-width: 760px) { .cartao-video { grid-template-columns: 1fr; } }
 
 /* Cabeçalho de tela da retaguarda: título à esquerda, ação principal à
    direita. Sem isto, "Novo artigo" acabaria no fim da página, depois da
@@ -2338,6 +3367,10 @@ select:focus-visible, textarea:focus-visible {
   .empresas-grade { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .anuncio-nativo-corpo .btn { width: 100%; }
   .vitrine-app { grid-template-columns: minmax(0, 1fr); }
+  /* Mais específica que a linha acima (duas classes contra uma), então
+     precisa ser desfeita por nome — senão a seção do método continua em
+     duas colunas no tablet. */
+  .vitrine-app.espelhada, .grade-7-5 { grid-template-columns: minmax(0, 1fr); }
   .vitrine-app-figura { order: -1; }
   .pills-grade { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .hero-grade, .grade-2, .grade-3, .grade-4, .planos,
@@ -2367,8 +3400,16 @@ select:focus-visible, textarea:focus-visible {
   .lateral-rodape { margin: 0 0 0 10px; padding-top: 0; }
   .item-lateral { width: auto; white-space: nowrap; padding: 10px 14px; }
   .item-lateral .ico-sai { display: none; }
+  /* Barra de UMA linha: não há altura para submenu que desce. O pai vira
+     rótulo do grupo e os filhos ficam sempre à vista, em linha — esconder
+     dois destinos atrás de um clique numa tela pequena é onde o menu
+     compacto costuma perder a pessoa. */
+  .item-lateral.pai { display: none; }
+  .lateral-filhos { flex-direction: row; align-items: center; margin: 0; gap: 6px; }
+  .lateral-filhos[hidden] { display: flex; }
+  .item-lateral.filho { font-size: 15px; padding: 10px 14px; }
   .item-lateral form { display: contents; }
-  .miolo, .barra-superior { padding-inline: 20px; }
+  .miolo, .barra-superior, .sair-topo { padding-inline: 20px; }
   /* Sem a coluna do meio, o topo volta a ser marca + ação — senão o botão
      "Entrar" ficaria pousado no centro da barra. */
   .topo-links, .busca-topo { display: none; }
@@ -2406,6 +3447,15 @@ select:focus-visible, textarea:focus-visible {
   .plano { padding: 24px; }
   .btn-lg { padding: 16px 24px; width: 100%; }
 
+  /* Vitrine do portal: os números do acervo apertam o vão e o cartão do
+     acervo perde a segunda coluna interna — em 320px, "preço" e "Ver o
+     curso" lado a lado espremem os dois. */
+  .hero-numeros { gap: 16px 28px; margin-top: 28px; padding-top: 20px; }
+  .rodape-vitrine { flex-wrap: wrap; }
+  .rodape-vitrine .btn { width: 100%; justify-content: center; }
+  .faixa-novidade .btn { width: 100%; justify-content: center; }
+  .confianca { justify-content: flex-start; }
+
   /* No celular o topo guarda a marca e a ação — que agora é uma só, o
      botão de entrar (ou o de sair, para quem já entrou). */
   .topo-nav { gap: 10px; }
@@ -2436,6 +3486,13 @@ select:focus-visible, textarea:focus-visible {
   .btn { padding: 12px 18px; font-size: 14px; }
   .chamada { padding: 28px 24px; }
   .cartao, .vade-norma, .cartao-auth { padding: 20px; }
+  /* O cartão de acesso continua com a faixa de confiança sangrando até a
+     borda: o respiro encolheu, e a margem negativa dela tem de encolher
+     junto, senão sobra um degrau branco dos dois lados. */
+  .cartao-auth { padding: 26px 20px 0; }
+  .auth-confianca { margin-inline: -20px; padding-inline: 20px; }
+  .faixa-professor { flex-wrap: wrap; }
+  .faixa-professor-link { margin-left: 54px; }
   .retomar { padding: 22px; }
   .retomar .play { position: static; margin-bottom: 8px; }
   .retomar h3 { font-size: 22px; }
@@ -2447,8 +3504,10 @@ select:focus-visible, textarea:focus-visible {
   .convite-exercicio .btn { width: 100%; }
   .form-linha .campos { flex-direction: column; align-items: stretch; }
   .form-linha .campos > * { width: 100%; }
-  /* tabela larga rola dentro do cartão, sem empurrar a página */
-  .cartao { overflow-x: auto; }
+  /* tabela larga rola dentro do cartão, sem empurrar a página. O cartão
+     de curso fica de fora: ali o que transborda é a capa, que precisa ser
+     cortada pelo canto arredondado, não ganhar barra de rolagem. */
+  .cartao:not(.cartao-curso) { overflow-x: auto; }
   /* …e é justamente esse `overflow` que recortaria o painel de edição da
      linha, que é posicionado por cima. Na tela estreita ele deixa de
      flutuar e passa a abrir dentro da própria célula, empilhado. */
@@ -2671,3 +3730,45 @@ a.calc-ref:hover { text-decoration: underline; }
   .calc-artigo { break-inside: avoid; }
   .calc-trilha { flex-wrap: wrap; overflow: visible; }
 }
+
+
+/* =====================================================================
+   Cadastro de usuários da retaguarda (docs/plano-perfis-e-acessos.md)
+   ===================================================================== */
+
+/* Botão de ação destrutiva em texto (bloquear, encerrar): contorno neutro
+   que fica vermelho ao passar — a mesma linguagem do .btn-icone-perigo. */
+.btn-perigo { border-color: var(--outline-variant); color: var(--on-surface-variant); background: var(--surface-container-lowest); }
+.btn-perigo:hover { background: var(--error-container); border-color: var(--error); color: var(--on-error-container); }
+
+/* Pares rótulo/valor da ficha. */
+.lista-dados { display: grid; gap: 8px; margin: 0; }
+.lista-dados > div { display: grid; grid-template-columns: 150px 1fr; gap: 12px; align-items: baseline; }
+.lista-dados dt { font-family: var(--font-display); font-size: 13px; font-weight: 600; color: var(--on-surface-variant); }
+.lista-dados dd { margin: 0; font-size: 15px; }
+
+.lista-vinculos { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.lista-vinculos li { font-size: 14px; line-height: 1.6; }
+
+/* O seletor "o que está sendo criado": cartões-rádio, um por tipo. */
+.seletor-tipo { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.cartao-tipo {
+  display: grid; gap: 6px; justify-items: start; text-align: left;
+  padding: 14px 16px; border-radius: var(--r-md); cursor: pointer;
+  border: 1.5px solid var(--outline-variant); background: var(--surface-container-lowest);
+  color: var(--on-surface); font-family: var(--font-corpo);
+  transition: border-color var(--t-rapida) ease, background var(--t-rapida) ease;
+}
+.cartao-tipo:hover { border-color: var(--contorno-pill); }
+.cartao-tipo.ativo { border-color: var(--primary); background: var(--primary-fixed); }
+.cartao-tipo .selo {
+  display: inline-flex; width: 36px; height: 36px; border-radius: 10px; align-items: center;
+  justify-content: center; background: var(--surface-container-high); color: var(--primary-texto);
+}
+.cartao-tipo.ativo .selo { background: var(--surface-container-lowest); }
+.cartao-tipo strong { font-family: var(--font-display); font-size: 15px; }
+.cartao-tipo:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* Três portas no site principal (aluno, professor, empresa); duas no portal do professor. */
+.seletor-papel[data-abas="3"] { grid-template-columns: 1fr 1fr 1fr; }
+@media (max-width: 480px) { .seletor-papel[data-abas="3"] { grid-template-columns: 1fr; } }

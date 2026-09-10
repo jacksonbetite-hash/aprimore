@@ -1,5 +1,7 @@
 import { query, queryOne } from './db.ts';
-import { conferirSenha, gerarHashSenha, validarEmail, validarSenha } from './auth.ts';
+import {
+  conferirSenha, gerarHashSenha, validarEmail, validarSenha, revogarSessoesDaConta,
+} from './auth.ts';
 
 /**
  * O próprio usuário mudando os dados dele — §10.
@@ -33,10 +35,12 @@ export interface PerfilAtual {
 }
 
 export function lerPerfil(usuarioId: number, portalId: number) {
+  // A senha mora na conta (db/045); o perfil só sabe se ela existe.
   return queryOne<PerfilAtual>(
-    `SELECT id, nome, email, papel, criado_em AS "criadoEm",
-            ultimo_login_em AS "ultimoLoginEm", (senha_hash IS NOT NULL) AS "temSenha"
-       FROM usuario WHERE id = $1 AND portal_id = $2`,
+    `SELECT u.id, u.nome, u.email, u.papel, u.criado_em AS "criadoEm",
+            u.ultimo_login_em AS "ultimoLoginEm", (c.senha_hash IS NOT NULL) AS "temSenha"
+       FROM usuario u JOIN conta c ON c.id = u.conta_id
+      WHERE u.id = $1 AND u.portal_id = $2`,
     [usuarioId, portalId],
   );
 }
@@ -50,9 +54,10 @@ export interface ResultadoPerfil {
 export async function atualizarPerfil(
   usuarioId: number, portalId: number, d: DadosPerfil,
 ): Promise<ResultadoPerfil> {
-  const atual = await queryOne<{ nome: string; email: string; senhaHash: string | null }>(
-    `SELECT nome, email, senha_hash AS "senhaHash"
-       FROM usuario WHERE id = $1 AND portal_id = $2`,
+  const atual = await queryOne<{ nome: string; email: string; senhaHash: string | null; contaId: number }>(
+    `SELECT u.nome, c.email, c.senha_hash AS "senhaHash", c.id::int AS "contaId"
+       FROM usuario u JOIN conta c ON c.id = u.conta_id
+      WHERE u.id = $1 AND u.portal_id = $2`,
     [usuarioId, portalId],
   );
   if (!atual) throw new Error('conta não encontrada');
@@ -83,12 +88,16 @@ export async function atualizarPerfil(
 
   const hash = senhaTrocada ? await gerarHashSenha(d.senhaNova) : null;
   try {
+    // O nome é do perfil (cada portal pode conhecer a pessoa por um nome);
+    // e-mail e senha são da CONTA, e valem em todos os portais de uma vez
+    // — o gatilho de db/045 propaga o e-mail novo aos perfis.
     await query(
-      `UPDATE usuario
-          SET nome = $3, email = $4,
-              senha_hash = coalesce($5, senha_hash)
-        WHERE id = $1 AND portal_id = $2`,
-      [usuarioId, portalId, nome, email, hash],
+      `UPDATE usuario SET nome = $3 WHERE id = $1 AND portal_id = $2`,
+      [usuarioId, portalId, nome],
+    );
+    await query(
+      `UPDATE conta SET email = $2, senha_hash = coalesce($3, senha_hash) WHERE id = $1`,
+      [atual.contaId, email, hash],
     );
   } catch (err) {
     // 23505 = violação de unicidade; aqui só existe uma, a do e-mail.
@@ -97,6 +106,8 @@ export async function atualizarPerfil(
     }
     throw err;
   }
+  // Senha nova: a chave antiga deixou de valer em TODOS os portais.
+  if (senhaTrocada) await revogarSessoesDaConta(atual.contaId);
 
   await query(
     `INSERT INTO log_auditoria (ator, acao, entidade, entidade_id, detalhe)

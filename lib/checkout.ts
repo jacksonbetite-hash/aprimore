@@ -56,36 +56,64 @@ export interface PedidoCriado {
  * recusariam a combinação errada de qualquer forma, mas errar aqui daria
  * um erro de banco no meio do checkout — e o aluno já teria visto o Pix.
  */
+/**
+ * db/047 — a compra de VAGAS por uma empresa: `quantidade` multiplica o
+ * preço (ou `centavosTotal` o substitui, quando veio de um orçamento), e
+ * `empresaPortalId` diz para quem o lote nasce no pagamento. O pedido
+ * continua sendo venda da plataforma (portal 0) feita pelo gestor.
+ */
+export interface OpcoesDeEmpresa {
+  quantidade: number;
+  empresaPortalId: number;
+  centavosTotal?: number;
+}
+
 export async function abrirPedido(
   portalId: number, usuarioId: number, email: string, produto: Produto, periodo: Periodo,
-  materiaId: number | null, meio: MeioPagamento,
+  materiaId: number | null, meio: MeioPagamento, empresa?: OpcoesDeEmpresa,
 ): Promise<PedidoCriado> {
   if (produto === 'MATERIA' && materiaId === null) throw new Error('escolha a matéria');
   if (produto === 'CATALOGO') materiaId = null;
   // BIGINT chega como string de quem leu o id do banco; a comparação
   // "de quem é o curso" abaixo precisa de número dos dois lados.
   portalId = Number(portalId);
+  if (empresa) {
+    if (portalId !== 0) throw new Error('a compra de vagas é feita na plataforma');
+    if (!Number.isInteger(empresa.quantidade) || empresa.quantidade < 1) throw new Error('quantidade de vagas inválida');
+    if (produto !== 'MATERIA') throw new Error('a empresa compra vagas de um curso');
+  }
 
-  const preco = await queryOne<{ centavos: number }>(
+  const precoUnitario = await queryOne<{ centavos: number }>(
     `SELECT centavos FROM preco
       WHERE portal_id = $1 AND produto = $2 AND periodo = $3
         AND vigente_ate IS NULL AND vigente_de <= current_date`,
     [portalId, produto, periodo],
   );
-  if (!preco) throw new Error('não há preço vigente para este produto');
+  if (!precoUnitario) throw new Error('não há preço vigente para este produto');
+  const preco = {
+    centavos: empresa
+      ? (empresa.centavosTotal ?? precoUnitario.centavos * empresa.quantidade)
+      : precoUnitario.centavos,
+  };
 
   // §5.10.2, etapa 5 — a matéria é do portal do aluno, OU é de um
   // parceiro que a pôs na nossa vitrine e o comprador é da plataforma.
   // Portal de professor nunca vende curso de outro (o CHECK do banco
   // recusaria de qualquer forma; aqui a mensagem é humana).
   const materia = materiaId
-    ? await queryOne<{ nome: string; portalId: number; portalStatus: string; comissao: string | null }>(
+    ? await queryOne<{
+        nome: string; portalId: number; portalStatus: string; comissao: string | null;
+        professorId: number | null; comissaoProfessor: string | null;
+      }>(
         `SELECT m.nome, m.portal_id::int AS "portalId", p.status AS "portalStatus",
-                c.comissao_vitrine_pp AS comissao
+                c.comissao_vitrine_pp AS comissao,
+                m.professor_id::int AS "professorId", cp.comissao_pp AS "comissaoProfessor"
            FROM materia m
            JOIN portal p ON p.id = m.portal_id
            LEFT JOIN portal_contrato c
                   ON c.portal_id = m.portal_id AND c.vigente_ate IS NULL AND c.aceito_em IS NOT NULL
+           LEFT JOIN contrato_professor cp
+                  ON cp.usuario_id = m.professor_id AND cp.vigente_ate IS NULL AND cp.aceito_em IS NOT NULL
           WHERE m.id = $1
             AND (m.portal_id = $2
                  OR ($2 = 0 AND m.na_vitrine_plataforma AND m.status = 'publicado'))`,
@@ -103,6 +131,14 @@ export async function abrirPedido(
     if (materia.portalStatus !== 'ATIVO') throw new Error('este curso não está à venda no momento');
     if (materia.comissao === null) throw new Error('o portal deste curso está sem contrato vigente');
     comissaoProfessorPp = Number(materia.comissao);
+  }
+  // Curso do catálogo assinado por um professor SEM portal (db/046): a
+  // venda é nossa e ele recebe a comissão do contrato dele, gravada aqui.
+  let professorId: number | null = null;
+  if (materia?.professorId && portalId === 0 && materiaPortalId === 0) {
+    if (materia.comissaoProfessor === null) throw new Error('este curso está sem contrato de professor vigente');
+    comissaoProfessorPp = Number(materia.comissaoProfessor);
+    professorId = materia.professorId;
   }
 
   // §5.10.2, etapa 2 — a trava: venda de portal só com a subconta do
@@ -151,14 +187,17 @@ export async function abrirPedido(
   // compra). Vai o que a conta tem; sem documento, o adaptador real recusa
   // com mensagem para o aluno — o simulado dispensa.
   const pagador = await queryOne<{ cpf: string | null; nome: string }>(
-    `SELECT cpf, nome FROM usuario WHERE id = $1`, [usuarioId]);
+    `SELECT c.documento AS cpf, u.nome FROM usuario u JOIN conta c ON c.id = u.conta_id
+      WHERE u.id = $1`, [usuarioId]);
 
   const referencia = novaReferencia();
   const provedor = provedorAtual();
   const cobranca = await provedor.criarCobranca({
     referencia, centavos: preco.centavos, meio, emailPagador: email,
     documentoPagador: pagador?.cpf ?? null, nomePagador: pagador?.nome ?? null,
-    descricao: nomeMateria ? `Licença — ${nomeMateria}` : 'Passe completo',
+    descricao: empresa
+      ? `${empresa.quantidade} vaga(s) — ${nomeMateria}`
+      : nomeMateria ? `Licença — ${nomeMateria}` : 'Passe completo',
     split,
   });
 
@@ -166,10 +205,12 @@ export async function abrirPedido(
     const [p] = await exec<{ id: number }>(
       `INSERT INTO pedido (referencia, usuario_id, portal_id, escopo, materia_id, periodo,
                            centavos, meio, expira_em, percentual_aplicado, indicacao_id,
-                           materia_portal_id, comissao_professor_pp)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
+                           materia_portal_id, comissao_professor_pp, professor_id,
+                           quantidade, empresa_portal_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING id`,
       [referencia, usuarioId, portalId, produto, materiaId, periodo, preco.centavos, meio,
-       cobranca.expiraEm, percentualAplicado, indicacaoId, materiaPortalId, comissaoProfessorPp],
+       cobranca.expiraEm, percentualAplicado, indicacaoId, materiaPortalId, comissaoProfessorPp,
+       professorId, empresa?.quantidade ?? 1, empresa?.empresaPortalId ?? null],
     );
     await exec(
       `INSERT INTO pagamento (pedido_id, meio, centavos, detalhe)
@@ -191,6 +232,8 @@ export async function abrirPedido(
 
 export type ResultadoConfirmacao =
   | { ok: true; licencaId: number; jaProcessado: false }
+  /** db/047 — compra de vagas por empresa: nasce um lote, não uma licença. */
+  | { ok: true; licencaId: null; jaProcessado: false; loteId: number }
   | { ok: true; licencaId: number | null; jaProcessado: true }
   | { ok: false; motivo: string };
 
@@ -230,10 +273,12 @@ export async function confirmarPagamento(
       id: number; usuarioId: number; portalId: number; escopo: 'CATALOGO' | 'MATERIA';
       materiaId: number | null; periodo: Periodo; centavos: number; meio: MeioPagamento;
       indicacaoId: number | null; materiaPortalId: number;
+      quantidade: number; empresaPortalId: number | null;
     }>(
       `SELECT id, usuario_id AS "usuarioId", portal_id AS "portalId", escopo,
               materia_id AS "materiaId", periodo, centavos, meio,
-              indicacao_id AS "indicacaoId", materia_portal_id AS "materiaPortalId"
+              indicacao_id AS "indicacaoId", materia_portal_id AS "materiaPortalId",
+              quantidade, empresa_portal_id::int AS "empresaPortalId"
          FROM pedido WHERE referencia = $1 AND status = 'ABERTO'
          FOR UPDATE`,
       [evento.referencia],
@@ -249,6 +294,30 @@ export async function confirmarPagamento(
       await exec(`UPDATE evento_gateway SET processado_em = now(), resultado = 'pagamento falhou'
                    WHERE id = $1`, [registrado.id]);
       return { ok: false as const, motivo: 'pagamento não aprovado' };
+    }
+
+    // db/047 — compra de VAGAS por uma empresa: em vez de licença para o
+    // comprador (o gestor não estuda), nasce o LOTE, e o RH distribui as
+    // vagas aos colaboradores. Sem assinatura: renova-se comprando outro
+    // lote. A comissão do professor (se houver) já está carimbada no
+    // pedido e entra na apuração do jeito de sempre.
+    if (pedido.empresaPortalId !== null) {
+      const [lote] = await exec<{ id: number }>(
+        `INSERT INTO licenca_lote (portal_id, materia_id, materia_portal_id, quantidade, pedido_id,
+                                   inicio_em, fim_em, orcamento_id)
+         VALUES ($1, $2, $3, $4, $5, now(), now() + ($6 || ' months')::interval,
+                 (SELECT id FROM orcamento_empresa WHERE pedido_id = $5))
+         RETURNING id`,
+        [pedido.empresaPortalId, pedido.materiaId, pedido.materiaPortalId, pedido.quantidade,
+         pedido.id, String(MESES_DO_PERIODO[pedido.periodo])],
+      );
+      await exec(`UPDATE pedido SET status = 'PAGO', pago_em = now() WHERE id = $1`, [pedido.id]);
+      await exec(`UPDATE pagamento SET confirmado_em = now() WHERE pedido_id = $1`, [pedido.id]);
+      await exec(`UPDATE evento_gateway SET processado_em = now(), resultado = $2 WHERE id = $1`,
+        [registrado.id, `lote ${lote.id} com ${pedido.quantidade} vaga(s)`]);
+      await auditar(exec, `webhook:${provedorNome}`, 'lote.criado', 'licenca_lote', lote.id,
+        { pedidoId: pedido.id, empresaPortalId: pedido.empresaPortalId, quantidade: pedido.quantidade });
+      return { ok: true as const, licencaId: null, jaProcessado: false as const, loteId: lote.id };
     }
 
     // Assinatura: cartão e Pix Automático renovam sozinhos; Pix avulso não (§6.4)
@@ -418,8 +487,10 @@ export function buscarPedidoPorReferencia(referencia: string, usuarioId: number)
   return queryOne<{
     id: number; referencia: string; centavos: number; status: string; meio: MeioPagamento;
     materiaNome: string | null; escopo: string; periodo: string; expiraEm: Date; detalhe: unknown;
+    quantidade: number; empresaPortalId: number | null;
   }>(
     `SELECT p.id, p.referencia, p.centavos, p.status, p.meio, p.escopo, p.periodo,
+            p.quantidade, p.empresa_portal_id::int AS "empresaPortalId",
             p.expira_em AS "expiraEm", m.nome AS "materiaNome", pg.detalhe
        FROM pedido p
        LEFT JOIN materia m ON m.id = p.materia_id
@@ -437,7 +508,12 @@ export function buscarPedidoPorReferencia(referencia: string, usuarioId: number)
 export async function garantirCpf(usuarioId: number, informado: string): Promise<void> {
   if (informado.trim()) {
     if (!validarCpf(informado)) throw new Error('CPF inválido — confira os 11 dígitos.');
-    await query(`UPDATE usuario SET cpf = $2 WHERE id = $1`, [usuarioId, somenteDigitos(informado)]);
+    // O documento é da CONTA (db/045): informado numa compra, vale em
+    // todos os portais em que a pessoa entra.
+    await query(
+      `UPDATE conta SET documento = $2, tipo_documento = 'CPF'
+        WHERE id = (SELECT conta_id FROM usuario WHERE id = $1)`,
+      [usuarioId, somenteDigitos(informado)]);
     return;
   }
   if (!(await temCpf(usuarioId)) && provedorAtual().cobraDeVerdade) {
@@ -446,6 +522,8 @@ export async function garantirCpf(usuarioId: number, informado: string): Promise
 }
 
 export async function temCpf(usuarioId: number): Promise<boolean> {
-  const u = await queryOne<{ cpf: string | null }>(`SELECT cpf FROM usuario WHERE id = $1`, [usuarioId]);
+  const u = await queryOne<{ cpf: string | null }>(
+    `SELECT c.documento AS cpf FROM usuario u JOIN conta c ON c.id = u.conta_id WHERE u.id = $1`,
+    [usuarioId]);
   return Boolean(u?.cpf);
 }

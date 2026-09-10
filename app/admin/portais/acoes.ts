@@ -3,7 +3,8 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
-import { exigirAdmin } from '../../../lib/sessao.ts';
+import { exigirPermissao } from '../../../lib/sessao.ts';
+import type { Permissao } from '../../../lib/permissoes.ts';
 import {
   criarPortal, editarPortal, mudarStatusPortal, salvarPlano, criarProfessor,
   registrarContrato, registrarAceite,
@@ -17,11 +18,12 @@ import {
 import { concederLicenca } from '../../../lib/admin.ts';
 import { brl } from '../../../lib/precos.ts';
 import { apurarComissao, aprovarApuracao, registrarRepasse, pagarRepasse } from '../../../lib/apuracao.ts';
+import { lerFerramentas } from '../../../lib/ferramentas.ts';
 
 // ---------- Apuração da comissão de vitrine (§5.6.1) ----------
 
 export async function acaoApurar(_e: EstadoAdmin, dados: FormData): Promise<EstadoAdmin> {
-  const u = await admin();
+  const u = await admin('financeiro.agir');
   const portalId = numero(dados.get('portalId'));
   const mes = String(dados.get('mes') ?? '');
   const competencia = /^\d{4}-\d{2}$/.test(mes) ? `${mes}-01` : mes;
@@ -35,7 +37,7 @@ export async function acaoApurar(_e: EstadoAdmin, dados: FormData): Promise<Esta
 }
 
 export async function acaoAprovarApuracao(_e: EstadoAdmin, dados: FormData): Promise<EstadoAdmin> {
-  const u = await admin();
+  const u = await admin('financeiro.agir');
   const portalId = numero(dados.get('portalId'));
   try {
     await aprovarApuracao(u.email, numero(dados.get('apuracaoId')), String(dados.get('resposta') ?? ''));
@@ -47,7 +49,7 @@ export async function acaoAprovarApuracao(_e: EstadoAdmin, dados: FormData): Pro
 }
 
 export async function acaoRegistrarRepasse(_e: EstadoAdmin, dados: FormData): Promise<EstadoAdmin> {
-  const u = await admin();
+  const u = await admin('financeiro.agir');
   const portalId = numero(dados.get('portalId'));
   try {
     await registrarRepasse(u.email, numero(dados.get('apuracaoId')), String(dados.get('comprovante') ?? ''));
@@ -59,7 +61,7 @@ export async function acaoRegistrarRepasse(_e: EstadoAdmin, dados: FormData): Pr
 }
 
 export async function acaoPagarRepasse(_e: EstadoAdmin, dados: FormData): Promise<EstadoAdmin> {
-  const u = await admin();
+  const u = await admin('financeiro.agir');
   const portalId = numero(dados.get('portalId'));
   try {
     const r = await pagarRepasse(u.email, numero(dados.get('apuracaoId')));
@@ -70,8 +72,8 @@ export async function acaoPagarRepasse(_e: EstadoAdmin, dados: FormData): Promis
   }
 }
 
-async function admin() {
-  const u = await exigirAdmin();
+async function admin(permissao: Permissao) {
+  const u = await exigirPermissao(permissao);
   if (!u) throw new Error('acesso negado');
   return u;
 }
@@ -94,7 +96,7 @@ const STATUS: StatusPortal[] = ['RASCUNHO', 'ATIVO', 'SUSPENSO', 'ENCERRADO'];
 
 export async function acaoCriarProfessor(_e: EstadoAdmin, dados: FormData): Promise<EstadoAdmin> {
   let u;
-  try { u = await admin(); } catch { return { erro: 'Acesso negado.' }; }
+  try { u = await admin('cadastros.agir'); } catch { return { erro: 'Acesso negado.' }; }
   try {
     await criarProfessor(u.email, String(dados.get('nome') ?? ''),
       String(dados.get('email') ?? ''), String(dados.get('senha') ?? ''));
@@ -127,7 +129,7 @@ function lerPlano(dados: FormData): DadosPlano {
 
 export async function acaoSalvarPlano(_e: EstadoAdmin, dados: FormData): Promise<EstadoAdmin> {
   let u;
-  try { u = await admin(); } catch { return { erro: 'Acesso negado.' }; }
+  try { u = await admin('financeiro.agir'); } catch { return { erro: 'Acesso negado.' }; }
   const bruto = String(dados.get('id') ?? '');
   try {
     await salvarPlano(u.email, bruto ? Number(bruto) : null, lerPlano(dados));
@@ -158,7 +160,7 @@ function lerPortal(dados: FormData): DadosPortal {
 
 export async function acaoCriarPortal(_e: EstadoAdmin, dados: FormData): Promise<EstadoAdmin> {
   let u;
-  try { u = await admin(); } catch { return { erro: 'Acesso negado.' }; }
+  try { u = await admin('cadastros.agir'); } catch { return { erro: 'Acesso negado.' }; }
   let id: number;
   try {
     id = await criarPortal(u.email, lerPortal(dados));
@@ -171,7 +173,7 @@ export async function acaoCriarPortal(_e: EstadoAdmin, dados: FormData): Promise
 
 export async function acaoEditarPortal(_e: EstadoAdmin, dados: FormData): Promise<EstadoAdmin> {
   let u;
-  try { u = await admin(); } catch { return { erro: 'Acesso negado.' }; }
+  try { u = await admin('cadastros.agir'); } catch { return { erro: 'Acesso negado.' }; }
   const id = Number(dados.get('id'));
   try {
     await editarPortal(u.email, id, {
@@ -189,7 +191,7 @@ export async function acaoEditarPortal(_e: EstadoAdmin, dados: FormData): Promis
 /** A página única do §5.10: as seções fixas que o professor preenche. */
 export async function acaoEditarSite(_e: EstadoAdmin, dados: FormData): Promise<EstadoAdmin> {
   let u;
-  try { u = await admin(); } catch { return { erro: 'Acesso negado.' }; }
+  try { u = await admin('cadastros.agir'); } catch { return { erro: 'Acesso negado.' }; }
   const id = Number(dados.get('id'));
   const personalizacao: Personalizacao = {
     chamada: String(dados.get('chamada') ?? '').trim(),
@@ -198,6 +200,7 @@ export async function acaoEditarSite(_e: EstadoAdmin, dados: FormData): Promise<
     contato: String(dados.get('contato') ?? '').trim(),
     corPrimaria: String(dados.get('corPrimaria') ?? '').trim(),
     foto: String(dados.get('foto') ?? '').trim(),
+    ferramentas: lerFerramentas(dados.getAll('ferramentas').map(String)),
   };
   try {
     await editarPortal(u.email, id, { personalizacao });
@@ -209,7 +212,7 @@ export async function acaoEditarSite(_e: EstadoAdmin, dados: FormData): Promise<
 }
 
 export async function acaoStatusPortal(dados: FormData) {
-  const u = await admin();
+  const u = await admin('cadastros.agir');
   const id = Number(dados.get('id'));
   const status = String(dados.get('status') ?? '') as StatusPortal;
   if (!STATUS.includes(status)) throw new Error('situação inválida');
@@ -237,7 +240,7 @@ export async function acaoRegistrarContrato(
   _e: EstadoAdmin, dados: FormData,
 ): Promise<EstadoAdmin> {
   let u;
-  try { u = await admin(); } catch { return { erro: 'Acesso negado.' }; }
+  try { u = await admin('financeiro.agir'); } catch { return { erro: 'Acesso negado.' }; }
   const portalId = Number(dados.get('portalId'));
   try {
     await registrarContrato(u.email, portalId, lerContrato(dados));
@@ -254,7 +257,7 @@ export async function acaoRegistrarContrato(
  * porque um aceite sem origem registrada não prova nada.
  */
 export async function acaoRegistrarAceite(dados: FormData) {
-  const u = await admin();
+  const u = await admin('financeiro.agir');
   const portalId = Number(dados.get('portalId'));
   const cabecalhos = await headers();
   const ip = (cabecalhos.get('x-forwarded-for') ?? '').split(',')[0].trim()
@@ -268,7 +271,7 @@ export async function acaoRegistrarAceite(dados: FormData) {
 
 /** Fecha a competência do portal: licença + excedente + ajuste opcional. */
 export async function acaoFecharFatura(_e: EstadoAdmin, dados: FormData): Promise<EstadoAdmin> {
-  const u = await admin();
+  const u = await admin('financeiro.agir');
   const portalId = numero(dados.get('portalId'));
   const competencia = String(dados.get('competencia') ?? '');
   const motivo = String(dados.get('ajusteMotivo') ?? '').trim();
@@ -291,7 +294,7 @@ export async function acaoFecharFatura(_e: EstadoAdmin, dados: FormData): Promis
 
 /** Mede o que o portal ocupa em disco agora. */
 export async function acaoMedirConsumo(dados: FormData) {
-  await admin();
+  await admin('financeiro.agir');
   const portalId = numero(dados.get('portalId'));
   await medirArmazenamento(portalId);
   revalidatePath(`/admin/portais/${portalId}/financeiro`);
@@ -299,14 +302,14 @@ export async function acaoMedirConsumo(dados: FormData) {
 
 /** Régua de inadimplência de todos os portais (§5.10). */
 export async function acaoReguaInadimplencia() {
-  const u = await admin();
+  const u = await admin('financeiro.agir');
   await suspenderInadimplentes(u.email);
   revalidatePath('/admin/portais');
 }
 
 /** Cortesia a um aluno DO PORTAL — o admin dá suporte; a base é do professor. */
 export async function acaoCortesiaPortal(_e: EstadoAdmin, dados: FormData): Promise<EstadoAdmin> {
-  const u = await admin();
+  const u = await admin('licencas.conceder');
   const portalId = numero(dados.get('portalId'));
   const materiaBruta = String(dados.get('materiaId') ?? '');
   try {

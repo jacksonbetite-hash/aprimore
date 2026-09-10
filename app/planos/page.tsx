@@ -46,9 +46,13 @@ const RECURSOS_EMPRESA = [
 ];
 
 export default async function Planos() {
-  // §5.11 — página de preço não existe na empresa: o colaborador não
-  // contrata nada, e mostrar oferta a ele seria vender pelas costas do RH.
-  await recusarNoPortalDeEmpresa();
+  /* §5.11 — página de preço não existe na empresa: o colaborador não
+     contrata nada, e mostrar oferta a ele seria vender pelas costas do
+     RH. A recusa continua; o que muda é o destino. Mandar para a home
+     era mudo — quem clicava em "Planos" no menu caía na página inicial
+     sem entender por quê. Agora vai para "Meu acesso", que responde a
+     pergunta que ele de fato tinha: até quando eu tenho acesso a quê. */
+  await recusarNoPortalDeEmpresa('/painel/planos');
   const portalId = await portalIdAtual();
   const plataforma = portalId === 0;
   const [tabela, materias, aluno, planoPortal] = await Promise.all([

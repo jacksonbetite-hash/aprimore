@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { query, queryOne } from './db.ts';
 import { emTransacao, auditar, type Exec } from './auditoria.ts';
-import { revogarSessoesDo } from './auth.ts';
+import { revogarSessoesDo, garantirConta } from './auth.ts';
 import { exigirVaga } from './empresa.ts';
 
 /**
@@ -218,18 +218,22 @@ export async function cadastrarColaborador(
   return emTransacao(async (exec) => {
     await exigirVaga(portalId);
     await conferirSetor(exec, portalId, d.setorId);
+    // A credencial é global (db/045): e-mail que já tem conta em outro
+    // portal ganha só o PERFIL aqui, e entra com a senha que já usa — a
+    // provisória informada é ignorada. A tela diz isso ao RH.
+    const conta = await garantirConta(exec, { nome, email, senhaHash });
     const [novo] = await exec<{ id: number }>(
-      `INSERT INTO usuario (portal_id, nome, email, senha_hash, papel, setor_id, matricula)
+      `INSERT INTO usuario (portal_id, conta_id, nome, email, papel, setor_id, matricula)
        VALUES ($1, $2, $3, $4, 'aluno', $5, $6)
        ON CONFLICT (portal_id, lower(email)) DO NOTHING
        RETURNING id::int AS id`,
-      [portalId, nome, email, senhaHash, d.setorId, d.matricula.trim() || null],
+      [portalId, conta.id, nome, email, d.setorId, d.matricula.trim() || null],
     );
     if (!novo) throw new Error(`${email} já tem conta neste portal`);
     const trilhas = await materializarParaPessoa(exec, portalId, novo.id);
     await auditar(exec, ator, 'empresa.colaborador.cadastrado', 'usuario', novo.id,
-      { portalId, email, setorId: d.setorId, trilhasLiberadas: trilhas });
-    return { id: novo.id, trilhas };
+      { portalId, email, setorId: d.setorId, trilhasLiberadas: trilhas, ligadoAExistente: conta.existia });
+    return { id: novo.id, trilhas, ligadoAExistente: conta.existia };
   });
 }
 
@@ -542,11 +546,15 @@ export async function aceitarConvite(
     if (c.expirado) throw new Error('este convite expirou — peça um novo ao RH');
     await exigirVaga(portalId);
 
+    // Conta global (db/045): quem já tem conta com este e-mail ganha o
+    // perfil e continua com a senha que já usa; a que escolheu aqui só
+    // vale quando a conta é nova (ou ainda não tinha senha).
+    const conta = await garantirConta(exec, { nome: limpo, email: c.email, senhaHash });
     const [u] = await exec<{ id: number }>(
-      `INSERT INTO usuario (portal_id, nome, email, senha_hash, papel, setor_id)
+      `INSERT INTO usuario (portal_id, conta_id, nome, email, papel, setor_id)
        VALUES ($1, $2, $3, $4, 'aluno', $5)
        ON CONFLICT (portal_id, lower(email)) DO NOTHING RETURNING id::int AS id`,
-      [portalId, limpo, c.email, senhaHash, c.setorId],
+      [portalId, conta.id, limpo, c.email, c.setorId],
     );
     if (!u) throw new Error(`${c.email} já tem conta neste portal — entre com a sua senha`);
     await exec(`UPDATE convite SET aceito_em = now(), usuario_id = $2 WHERE id = $1`, [c.id, u.id]);
@@ -562,8 +570,8 @@ export async function aceitarConvite(
     }
     const trilhas = await materializarParaPessoa(exec, portalId, u.id);
     await auditar(exec, `convite:${c.email}`, 'empresa.convite.aceito', 'usuario', u.id,
-      { portalId, conviteId: c.id, trilhasLiberadas: trilhas });
-    return { usuarioId: u.id, trilhas };
+      { portalId, conviteId: c.id, trilhasLiberadas: trilhas, ligadoAExistente: conta.existia });
+    return { usuarioId: u.id, trilhas, ligadoAExistente: conta.existia && conta.temSenha };
   });
 }
 
@@ -639,16 +647,20 @@ export async function importarConvites(
  * setor chegam. Passa pelo teto como qualquer outra.
  */
 export async function autocadastrar(
-  portalId: number, nome: string, email: string, senhaHash: string,
+  portalId: number, nome: string, email: string, senhaHash: string | null,
 ) {
   const limpo = email.trim().toLowerCase();
   return emTransacao(async (exec) => {
     await exigirVaga(portalId);
+    // `senhaHash` nulo é o caso do login com conta que já existe (db/045):
+    // a senha é a de sempre, e só o perfil neste portal nasce agora.
+    const conta = await garantirConta(exec, { nome, email: limpo, senhaHash });
+    if (!conta.temSenha) throw new Error('escolha uma senha para criar a conta');
     const [u] = await exec<{ id: number }>(
-      `INSERT INTO usuario (portal_id, nome, email, senha_hash, papel)
-       VALUES ($1, $2, $3, $4, 'aluno')
+      `INSERT INTO usuario (portal_id, conta_id, nome, email, papel)
+       SELECT $1, $2, coalesce(nullif($3, ''), c.nome), $4, 'aluno' FROM conta c WHERE c.id = $2
        ON CONFLICT (portal_id, lower(email)) DO NOTHING RETURNING id::int AS id`,
-      [portalId, nome.trim().slice(0, 120), limpo, senhaHash],
+      [portalId, conta.id, nome.trim().slice(0, 120), limpo],
     );
     if (!u) return null;
     await materializarParaPessoa(exec, portalId, u.id);

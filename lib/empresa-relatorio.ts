@@ -48,6 +48,8 @@ export function resumoPorTrilha(portalId: number) {
 export interface LinhaPessoa {
   usuarioId: number; nome: string; email: string; setorNome: string | null;
   materiaId: number; trilha: string; trilhaSlug: string;
+  /** 0 = curso da plataforma comprado como vaga (db/047); o link muda de base. */
+  materiaPortalId: number;
   obrigatoria: boolean; prazoEm: Date | null;
   aulasTotal: number; aulasConcluidas: number; percentual: number;
   nota: number | null; tentativas: number;
@@ -67,6 +69,7 @@ const LINHAS_PESSOA = `
      GROUP BY l.usuario_id, l.materia_id)
   SELECT u.id::int AS "usuarioId", u.nome, u.email, s.nome AS "setorNome",
          m.id::int AS "materiaId", m.nome AS trilha, m.slug AS "trilhaSlug",
+         m.portal_id::int AS "materiaPortalId",
          b.obrigatoria, b.prazo_em AS "prazoEm",
          (SELECT count(*)::int FROM aula a JOIN assunto ss ON ss.id = a.assunto_id
            WHERE ss.materia_id = m.id AND a.status = 'publicado') AS "aulasTotal",

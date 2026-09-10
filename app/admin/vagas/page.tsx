@@ -9,7 +9,7 @@ import { listarVagasAdmin, contarPorStatus, expirarVencidas } from '../../../lib
 import {
   ROTULO_STATUS, ROTULO_TIPO, ROTULO_MODALIDADE, type StatusVaga,
 } from '../../../lib/vagas-rotulos.ts';
-import { exigirAdmin } from '../../../lib/sessao.ts';
+import { exigirPermissao } from '../../../lib/sessao.ts';
 
 export const metadata: Metadata = { title: 'Mural de vagas — Administração' };
 export const dynamic = 'force-dynamic';
@@ -38,7 +38,7 @@ export default async function VagasAdmin(
   { searchParams }: { searchParams: Promise<{ status?: string; q?: string }> },
 ) {
   const { status = 'em_moderacao', q = '' } = await searchParams;
-  const u = await exigirAdmin();
+  const u = await exigirPermissao('conteudo.agir');
 
   // Carimba quem venceu antes de listar. O mural público nunca precisou
   // disto (filtra por data); a retaguarda precisa, senão "no ar" mistura

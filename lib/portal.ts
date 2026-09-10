@@ -60,6 +60,12 @@ export interface Personalizacao {
   contato?: string;
   corPrimaria?: string;
   foto?: string;
+  /**
+   * As ferramentas de estudo que o professor vinculou ao topo do portal
+   * (lib/ferramentas.ts). Ausente ou vazio = nenhuma, e o submenu nem
+   * aparece: o padrão é a página dele, sem enfeite que ele não pediu.
+   */
+  ferramentas?: string[];
 }
 
 export interface Portal {

@@ -20,11 +20,16 @@ const check = (c, m) => { if (!c) falhas++; console.log((c ? '✔' : '✘') + ' 
 const ctx = await b.newContext({ viewport: { width: 1360, height: 900 }, reducedMotion: 'reduce' });
 const p = await ctx.newPage();
 
-// ---------- o menu leva até a ferramenta ----------
+// ---------- o rodapé leva até a ferramenta ----------
+// O submenu "Ferramentas" saiu do topo do site principal: ele passou a
+// ser do portal do professor, que escolhe o que vincular à página dele
+// (lib/ferramentas.ts). No site da casa, a porta da calculadora é o
+// rodapé — e é ela que este passo confere, para a ferramenta não virar
+// página órfã, alcançável só por quem digita o endereço.
 await p.goto(base + '/', { waitUntil: 'load' });
-await p.click('.menu-ferramentas > button');
-check(await p.locator('.menu-caixa a[href="/calculadora-penal"]').isVisible(), 'o menu Ferramentas mostra a Calculadora Penal');
-await p.click('.menu-caixa a[href="/calculadora-penal"]');
+check(await p.locator('.menu-ferramentas').count() === 0,
+  'o site principal não tem mais o submenu Ferramentas no topo');
+await p.click('footer a[href="/calculadora-penal"]');
 await p.waitForURL('**/calculadora-penal', { timeout: 20000 });
 check(await p.locator('h1', { hasText: 'Calculadora Penal' }).isVisible(), 'a página abre com o título');
 check(await p.locator('.calc-vazio').isVisible(), 'sem caso, a área do resultado explica o que fazer');

@@ -5,14 +5,15 @@ import { acaoAlterarPreco } from '../acoes.ts';
 import { brl, PERIODOS, MESES, porMes, dataBR } from '../../../lib/precos.ts';
 import { historicoDePrecos, tabelaVigente } from '../../../lib/precos-consultas.ts';
 import { PORTAL_PLATAFORMA } from '../../../lib/portal.ts';
+import { permissoesDaTela } from '../guarda.ts';
 
 export const metadata: Metadata = { title: 'Preços — Administração' };
 
 export default async function Precos() {
   // A administração é a retaguarda da plataforma (§5.9). O painel do
   // professor, com os preços do portal dele, é trabalho à parte (§5.10).
-  const [historico, tabela] = await Promise.all([
-    historicoDePrecos(), tabelaVigente(PORTAL_PLATAFORMA),
+  const [historico, tabela, pode] = await Promise.all([
+    historicoDePrecos(), tabelaVigente(PORTAL_PLATAFORMA), permissoesDaTela('financeiro.agir'),
   ]);
   const vigentes = historico.filter((h) => h.vigenteAte === null);
   const passados = historico.filter((h) => h.vigenteAte !== null);
@@ -57,10 +58,14 @@ export default async function Precos() {
         </table>
       </div>
 
-      <div className="cartao">
-        <h2 className="headline-md">Alterar um preço</h2>
-        <FormPreco acao={acaoAlterarPreco} />
-      </div>
+      {/* O financeiro lê a tabela e não a altera (lib/permissoes.ts):
+          o formulário some, e a ação recusa mesmo que ele apareça. */}
+      {pode['financeiro.agir'] && (
+        <div className="cartao">
+          <h2 className="headline-md">Alterar um preço</h2>
+          <FormPreco acao={acaoAlterarPreco} />
+        </div>
+      )}
 
       <div className="cartao" style={{ marginBottom: 0 }}>
         <h2 className="headline-md">Histórico</h2>

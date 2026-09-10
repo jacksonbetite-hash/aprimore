@@ -112,21 +112,51 @@ export interface MateriaAdmin {
   areaId: number; areaNome: string; onda: number | null;
   status: StatusPublicacao; professor: string | null; ordem: number;
   naVitrinePlataforma: boolean;
+  /** `/api/imagem/<id>` — do quadro do vídeo ou enviada pelo professor. */
+  capa: string | null;
   assuntos: number; aulas: number; aulasPublicadas: number;
   /** §5.11: a trilha de empresa tem avaliação final; o curso da plataforma, não. */
   avaliacaoPublicada: boolean;
+  /** db/043 — o curso que abre o catálogo, e a quem ele se dirige. */
+  destaque: boolean;
+  nivel: string | null;
+  /**
+   * db/047 — até quantas vagas uma EMPRESA compra deste curso na hora;
+   * acima disso, pede orçamento. É parâmetro do curso, decidido no
+   * cadastro (pedido do responsável, 10/09/2026).
+   */
+  vagasSemOrcamento: number;
+  /**
+   * A aula que o cartão do catálogo roda ao passar o mouse: a primeira
+   * amostra gratuita publicada com vídeo. Aparece na tela do curso para
+   * o professor saber QUAL aula está sendo mostrada — sem isso, o
+   * marcador "amostra gratuita" ganhou um efeito que ninguém vê de onde
+   * vem.
+   */
+  previaAula: string | null;
 }
 
 export interface DadosMateria {
   areaId: number; nome: string; ementa: string; onda?: number | null;
   status: StatusPublicacao; professor?: string | null; ordem: number;
   naVitrinePlataforma: boolean;
+  /** Opcionais: quem não manda (os testes, e qualquer chamada de script)
+      cria curso sem destaque e sem nível — que é o padrão do banco. */
+  destaque?: boolean;
+  nivel?: string | null;
+  /** Ausente = mantém o padrão do banco (10). */
+  vagasSemOrcamento?: number | null;
 }
 
 const CAMPOS_MATERIA = `
   m.id, m.slug, m.nome, m.ementa, m.area_id AS "areaId", a.nome AS "areaNome",
-  m.onda, m.status, m.professor, m.ordem,
-  m.na_vitrine_plataforma AS "naVitrinePlataforma",
+  m.onda, m.status, m.professor, m.ordem, m.capa,
+  m.na_vitrine_plataforma AS "naVitrinePlataforma", m.destaque, m.nivel,
+  m.vagas_sem_orcamento AS "vagasSemOrcamento",
+  (SELECT au.titulo FROM aula au JOIN assunto s0 ON s0.id = au.assunto_id
+    WHERE s0.materia_id = m.id AND au.status = 'publicado' AND au.amostra_gratuita
+      AND au.video_id IS NOT NULL
+    ORDER BY s0.ordem, au.ordem LIMIT 1) AS "previaAula",
   (SELECT count(*)::int FROM assunto s WHERE s.materia_id = m.id) AS assuntos,
   (SELECT count(*)::int FROM aula au JOIN assunto s2 ON s2.id = au.assunto_id
     WHERE s2.materia_id = m.id) AS aulas,
@@ -135,6 +165,17 @@ const CAMPOS_MATERIA = `
   EXISTS (SELECT 1 FROM avaliacao av
            WHERE av.materia_id = m.id AND av.status = 'publicado') AS "avaliacaoPublicada"
 `;
+
+/** Os cursos do catálogo que são de um professor sem portal (db/046). */
+export function listarMateriasDoProfessor(professorId: number) {
+  return query<MateriaAdmin>(
+    `SELECT ${CAMPOS_MATERIA}
+       FROM materia m JOIN area a ON a.id = m.area_id
+      WHERE m.portal_id = ${PORTAL_PLATAFORMA} AND m.professor_id = $1
+      ORDER BY m.ordem, m.nome`,
+    [professorId],
+  );
+}
 
 export function listarMaterias(portalId = PORTAL_PLATAFORMA, busca = '') {
   return query<MateriaAdmin>(
@@ -156,6 +197,29 @@ export function buscarMateria(portalId: number, id: number) {
   );
 }
 
+/**
+ * Os níveis já cadastrados neste portal, para o formulário sugerir em
+ * vez de exigir digitação idêntica. Vem do DISTINCT do que existe, e não
+ * de uma tabela de taxonomia: o portal é white-label, e obrigar o
+ * professor a cadastrar níveis antes do primeiro curso seria uma tela a
+ * mais no caminho de quem só quer publicar (mesma escolha do `assuntos`
+ * do acervo, db/042).
+ */
+export async function niveisDoPortal(portalId: number) {
+  const linhas = await query<{ nivel: string }>(
+    `SELECT DISTINCT nivel FROM materia
+      WHERE portal_id = $1 AND nivel IS NOT NULL AND nivel <> ''
+      ORDER BY nivel`, [portalId]);
+  return linhas.map((l) => l.nivel);
+}
+
+/** db/047 — o limite de vagas sem orçamento: inteiro ≥ 0, ou nulo para manter. */
+function vagasValidas(v: number | null | undefined): number | null {
+  if (v === null || v === undefined) return null;
+  if (!Number.isInteger(v) || v < 0 || v > 100_000) throw new Error('o limite de vagas sem orçamento precisa ser um número inteiro (0 = sempre por orçamento)');
+  return v;
+}
+
 function validarMateria(d: DadosMateria) {
   if (!d.nome.trim()) throw new Error('o nome da matéria é obrigatório');
   if (d.ementa.trim().length < 60) {
@@ -175,10 +239,11 @@ export async function criarMateria(ator: string, portalId: number, d: DadosMater
     const [nova] = await exec<{ id: number }>(
       `INSERT INTO materia
          (portal_id, area_id, slug, nome, ementa, onda, status, professor, ordem,
-          na_vitrine_plataforma)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,
+          na_vitrine_plataforma, destaque, nivel, vagas_sem_orcamento)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12, coalesce($13, 10)) RETURNING id`,
       [portalId, d.areaId, slug, d.nome.trim(), normalizarParagrafos(d.ementa),
-       d.onda ?? null, d.status, d.professor?.trim() || null, d.ordem, d.naVitrinePlataforma],
+       d.onda ?? null, d.status, d.professor?.trim() || null, d.ordem, d.naVitrinePlataforma,
+       d.destaque ?? false, d.nivel?.trim() || null, vagasValidas(d.vagasSemOrcamento)],
     );
     await auditar(exec, ator, 'materia.criada', 'materia', nova.id,
       { portalId, slug, nome: d.nome.trim(), status: d.status });
@@ -198,10 +263,13 @@ export async function editarMateria(
     if (!antes) throw new Error('matéria não encontrada neste portal');
     await exec(
       `UPDATE materia SET area_id=$3, nome=$4, ementa=$5, onda=$6, status=$7,
-              professor=$8, ordem=$9, na_vitrine_plataforma=$10, atualizada_em = now()
+              professor=$8, ordem=$9, na_vitrine_plataforma=$10,
+              destaque=$11, nivel=$12, vagas_sem_orcamento = coalesce($13, vagas_sem_orcamento),
+              atualizada_em = now()
         WHERE id = $1 AND portal_id = $2`,
       [id, portalId, d.areaId, d.nome.trim(), normalizarParagrafos(d.ementa),
-       d.onda ?? null, d.status, d.professor?.trim() || null, d.ordem, d.naVitrinePlataforma],
+       d.onda ?? null, d.status, d.professor?.trim() || null, d.ordem, d.naVitrinePlataforma,
+       d.destaque ?? false, d.nivel?.trim() || null, vagasValidas(d.vagasSemOrcamento)],
     );
     await auditar(exec, ator, 'materia.editada', 'materia', id, {
       portalId, nome: d.nome.trim(),

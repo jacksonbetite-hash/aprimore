@@ -1,0 +1,25 @@
+-- =====================================================================
+-- A capa do curso — a imagem que o cartão do catálogo mostra.
+--
+-- O catálogo passou a ser uma vitrine de cartões com capa
+-- (docs/plano-catalogo-em-prateleiras.md). Sem imagem, a prateleira é
+-- uma fila de retângulos coloridos: a forma fica igual à da referência e
+-- o conteúdo, não.
+--
+-- A coluna guarda o CAMINHO servido (`/api/imagem/<id>`), como
+-- `personalizacao->>'foto'` do portal já faz — e não a URL absoluta, que
+-- amarraria a linha ao domínio do dia.
+--
+-- É opcional de propósito. Curso sem capa continua caindo no desenho
+-- (gradiente da área com o ícone), do mesmo jeito que post de blog sem
+-- foto cai no fundo da categoria desde db/017. Nenhuma tela espera
+-- imagem para existir, e nenhum professor precisa de arte para publicar.
+--
+-- De onde a imagem vem, hoje: um quadro do vídeo da primeira aula
+-- publicada do curso, extraído por `lib/capa-video.ts` — no envio do
+-- vídeo pelo painel, e em lote por `scripts/gerar-capas.mjs`. Trocar por
+-- uma capa desenhada pelo professor é um UPDATE nesta coluna, não uma
+-- mudança de estrutura.
+-- =====================================================================
+
+ALTER TABLE materia ADD COLUMN capa TEXT;

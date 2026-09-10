@@ -35,8 +35,10 @@ await p.goto(base + '/aula/direitos-fundamentais-na-pratica', { waitUntil: 'load
 check(await p.getByText('faz parte de um curso licenciado').first().isVisible(),
   'visitante vê a oferta na aula licenciada');
 // mas a amostra grátis abre
-await p.goto(base + '/aula/o-que-e-uma-constituicao', { waitUntil: 'load' });
-check(await p.locator('.alternativa').first().isVisible(), 'amostra gratuita abre para visitante');
+// O exercício mora na aba "Exercício"; a âncora a abre.
+await p.goto(base + '/aula/o-que-e-uma-constituicao#exercicio', { waitUntil: 'load' });
+await p.waitForLoadState('networkidle');
+check(await p.locator('#exercicio .alternativa').first().isVisible(), 'amostra gratuita abre para visitante');
 
 // ---------- login errado ----------
 await p.goto(base + '/entrar', { waitUntil: 'load' });

@@ -8,9 +8,16 @@
  *
  * Busca o id da subconta pelo endereço do portal e bate no MESMO webhook
  * que o gateway real usa, com a mesma assinatura.
+ *
+ * Portal ATIVO que nunca PEDIU a subconta (foi criado pela retaguarda,
+ * por exemplo, e não pelo pagamento da 1ª mensalidade) fica preso: sem
+ * subconta ele não vende, e sem pedido não há o que aprovar. Neste caso
+ * o roteiro abre a subconta primeiro, pela mesma função que o webhook
+ * usa — e só então aprova.
  */
 import { createHmac, randomBytes } from 'node:crypto';
 import pg from 'pg';
+import { abrirSubconta } from '../lib/portal-subconta.ts';
 
 const mascara = process.argv[2];
 if (!mascara) {
@@ -24,15 +31,24 @@ const pool = new pg.Pool({
     ?? 'postgres://aprimore:aprimore@localhost:5432/aprimoreosaber',
 });
 const { rows } = await pool.query(
-  `SELECT gateway_subconta_id AS id, subconta_situacao AS situacao
+  `SELECT id AS "portalId", gateway_subconta_id AS id, subconta_situacao AS situacao
      FROM portal WHERE lower(mascara) = lower($1)`, [mascara],
 );
-await pool.end();
-if (!rows[0]) { console.error(`✘ portal "${mascara}" não existe`); process.exit(1); }
-if (!rows[0].id) {
-  console.error(`✘ o portal "${mascara}" ainda não pediu subconta (situação: ${rows[0].situacao})`);
-  process.exit(1);
+if (!rows[0]) {
+  await pool.end();
+  console.error(`✘ portal "${mascara}" não existe`); process.exit(1);
 }
+if (!rows[0].id) {
+  if (recusar) {
+    await pool.end();
+    console.error(`✘ o portal "${mascara}" ainda não pediu subconta (situação: ${rows[0].situacao})`);
+    process.exit(1);
+  }
+  const aberta = await abrirSubconta(Number(rows[0].portalId));
+  rows[0].id = aberta.subcontaId;
+  console.log(`· subconta ainda não pedida — aberta agora (${aberta.situacao}, ${aberta.subcontaId})`);
+}
+await pool.end();
 
 const base = process.env.BASE_URL ?? 'http://localhost:3000';
 const segredo = process.env.WEBHOOK_SEGREDO ?? 'segredo-de-desenvolvimento';

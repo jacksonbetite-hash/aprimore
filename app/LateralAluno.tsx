@@ -1,6 +1,7 @@
 import BarraLateral, { type GrupoLateral } from './BarraLateral.tsx';
 import { Icone } from './ui.tsx';
 import { sair } from './acoes-auth.ts';
+import { daEquipe } from '../lib/permissoes.ts';
 
 /**
  * A barra lateral da área do aluno — a mesma em `/painel` e em `/conta`,
@@ -33,7 +34,8 @@ export default function LateralAluno({ papel }: { papel: string }) {
     },
   ];
 
-  if (papel === 'admin') {
+  // Admin, financeiro e suporte: o caminho de volta para a retaguarda.
+  if (daEquipe(papel)) {
     grupos.push({
       titulo: 'Equipe',
       itens: [{ href: '/admin', icone: 'settings', texto: 'Administração' }],
@@ -43,7 +45,7 @@ export default function LateralAluno({ papel }: { papel: string }) {
   return (
     <BarraLateral
       titulo="Minha Jornada"
-      subtitulo={papel === 'admin' ? 'Administração' : 'Área do aluno'}
+      subtitulo={daEquipe(papel) ? 'Equipe da plataforma' : 'Área do aluno'}
       grupos={grupos}
       rodape={
         <form action={sair}>

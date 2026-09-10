@@ -168,7 +168,8 @@ test('venda da plataforma segue sem split e sem percentual', talvez, async () =>
      VALUES (0, 'Aluno Plataforma', 'aluno-subconta-${++n}@exemplo.com', 'aluno')
      RETURNING id`);
   const [mat] = await query<{ id: number }>(
-    `SELECT id FROM materia WHERE portal_id = 0 AND status = 'publicado' ORDER BY ordem LIMIT 1`);
+    `SELECT id FROM materia WHERE portal_id = 0 AND status = 'publicado'
+        AND slug NOT LIKE 'prog-%' AND slug NOT LIKE 'teste-%' ORDER BY ordem LIMIT 1`);
   const pedido = await abrirPedido(0, aluno.id, `aluno-subconta-${n}@exemplo.com`,
     'MATERIA', 'mensal', mat.id, 'PIX');
   const gravado = await queryOne<{ pct: string | null }>(

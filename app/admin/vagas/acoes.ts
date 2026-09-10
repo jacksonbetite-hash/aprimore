@@ -2,7 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { exigirAdmin } from '../../../lib/sessao.ts';
+import { exigirPermissao } from '../../../lib/sessao.ts';
+import type { Permissao } from '../../../lib/permissoes.ts';
 import {
   criarVaga, editarVaga, publicarVaga, recusarVaga, pausarVaga, retomarVaga, reporVaga,
   type DadosVaga,
@@ -13,8 +14,8 @@ import {
 } from '../../../lib/vagas-rotulos.ts';
 import type { EstadoAdmin } from '../acoes.ts';
 
-async function admin() {
-  const u = await exigirAdmin();
+async function admin(permissao: Permissao) {
+  const u = await exigirPermissao(permissao);
   if (!u) throw new Error('acesso negado');
   return u;
 }
@@ -53,7 +54,7 @@ function lerFormulario(dados: FormData): DadosVaga {
 
 export async function acaoCriarVaga(_e: EstadoAdmin, dados: FormData): Promise<EstadoAdmin> {
   let u;
-  try { u = await admin(); } catch { return { erro: 'Acesso negado.' }; }
+  try { u = await admin('conteudo.agir'); } catch { return { erro: 'Acesso negado.' }; }
 
   let id: number;
   try {
@@ -67,7 +68,7 @@ export async function acaoCriarVaga(_e: EstadoAdmin, dados: FormData): Promise<E
 
 export async function acaoEditarVaga(_e: EstadoAdmin, dados: FormData): Promise<EstadoAdmin> {
   let u;
-  try { u = await admin(); } catch { return { erro: 'Acesso negado.' }; }
+  try { u = await admin('conteudo.agir'); } catch { return { erro: 'Acesso negado.' }; }
 
   const id = Number(dados.get('id'));
   if (!Number.isInteger(id)) return { erro: 'Vaga inválida.' };
@@ -86,7 +87,7 @@ export async function acaoEditarVaga(_e: EstadoAdmin, dados: FormData): Promise<
  * onde a regra não depende de nenhum formulário.
  */
 export async function acaoPublicarVaga(dados: FormData) {
-  const u = await admin();
+  const u = await admin('conteudo.agir');
   const id = Number(dados.get('id'));
   const dias = Number(dados.get('dias') ?? DIAS_MAXIMOS);
   await publicarVaga(u.email, id, Number.isInteger(dias) ? dias : DIAS_MAXIMOS);
@@ -94,28 +95,28 @@ export async function acaoPublicarVaga(dados: FormData) {
 }
 
 export async function acaoRecusarVaga(dados: FormData) {
-  const u = await admin();
+  const u = await admin('conteudo.agir');
   const id = Number(dados.get('id'));
   await recusarVaga(u.email, id, String(dados.get('motivo') ?? ''));
   revalidarMural(id);
 }
 
 export async function acaoPausarVaga(dados: FormData) {
-  const u = await admin();
+  const u = await admin('conteudo.agir');
   const id = Number(dados.get('id'));
   await pausarVaga(u.email, id);
   revalidarMural(id);
 }
 
 export async function acaoRetomarVaga(dados: FormData) {
-  const u = await admin();
+  const u = await admin('conteudo.agir');
   const id = Number(dados.get('id'));
   await retomarVaga(u.email, id);
   revalidarMural(id);
 }
 
 export async function acaoReporVaga(dados: FormData) {
-  const u = await admin();
+  const u = await admin('conteudo.agir');
   const id = Number(dados.get('id'));
   await reporVaga(u.email, id);
   revalidarMural(id);

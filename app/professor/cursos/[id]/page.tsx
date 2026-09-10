@@ -5,15 +5,19 @@ import FormMateria from '../../../admin/cursos/FormMateria.tsx';
 import FormAssunto from '../../../admin/cursos/FormAssunto.tsx';
 import FormAula from '../../../admin/cursos/FormAula.tsx';
 import { BotaoIcone, LinkIcone, EdicaoNaLinha } from '../../../ui.tsx';
+import Enviar from '../../Enviar.tsx';
 import {
   acaoEditarMateria, acaoSalvarAssunto, acaoEditarAssuntoLinha, acaoExcluirAssunto,
   acaoCriarAula, acaoStatusAula,
 } from '../../acoes.ts';
-import { buscarMateria, listarAreas, listarAssuntos, listarAulas } from '../../../../lib/admin-cursos.ts';
+import {
+  buscarMateria, listarAreas, listarAssuntos, listarAulas, niveisDoPortal,
+} from '../../../../lib/admin-cursos.ts';
 import { formatarDuracao } from '../../../../lib/catalogo.ts';
 import { alunoAtual } from '../../../../lib/sessao.ts';
 import { portalDoProfessor } from '../../../../lib/professor.ts';
 import { enderecoDoPortal } from '../../../../lib/portal-consultas.ts';
+import CursoCatalogo from '../../catalogo/Curso.tsx';
 
 export const metadata: Metadata = { title: 'Curso — Painel do professor' };
 
@@ -28,15 +32,17 @@ export default async function CursoDoProfessor(
   const { id } = await params;
   const { criada } = await searchParams;
   const u = (await alunoAtual())!;
-  const portal = (await portalDoProfessor(u.id))!;
   const materiaId = Number(id);
   if (!Number.isInteger(materiaId)) notFound();
+  const portal = await portalDoProfessor(u.id);
+  if (!portal) return <CursoCatalogo u={u} materiaId={materiaId} criada={criada} />;
 
   // `buscarMateria(portal.id, …)` só acha curso DESTE portal: id de curso
   // alheio na URL simplesmente não encontra a linha.
-  const [materia, areas, assuntos, aulas] = await Promise.all([
+  const [materia, areas, assuntos, aulas, niveis] = await Promise.all([
     buscarMateria(portal.id, materiaId), listarAreas(portal.id),
     listarAssuntos(portal.id, materiaId), listarAulas(portal.id, materiaId),
+    niveisDoPortal(portal.id),
   ]);
   if (!materia) notFound();
   const endereco = await enderecoDoPortal(portal.mascara);
@@ -76,9 +82,70 @@ export default async function CursoDoProfessor(
         ementa e a organização.
       </p>
 
+      {/* A capa do curso (docs/plano-vitrine-do-professor.md, fase 3a).
+          Até aqui ela só saía de um quadro do vídeo, e não havia como
+          corrigir: o quadro acerta na média e erra feio no caso ruim —
+          slide preto, rosto no meio de uma palavra, transição. Agora o
+          quadro é a RESERVA, e o que o professor enviar manda nela. */}
+      <div className="cartao">
+        <h2 className="headline-md" style={{ marginBottom: 6 }}>Capa do curso</h2>
+        <p className="caption suave" style={{ marginBottom: 16 }}>
+          A imagem do cartão deste curso na sua página e no catálogo. Sem capa enviada, ela
+          sai sozinha de um quadro do vídeo da primeira aula; sem vídeo, entra o desenho da
+          área. O que você enviar aqui passa na frente das duas.
+        </p>
+        <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          {materia.capa ? (
+            <img src={materia.capa} alt="Capa atual do curso" width={240} height={135}
+                 style={{ borderRadius: 'var(--r-md)', objectFit: 'cover', border: '1px solid var(--surface-variant)' }} />
+          ) : (
+            <div style={{
+              width: 240, height: 135, borderRadius: 'var(--r-md)', display: 'grid',
+              placeItems: 'center', background: 'var(--surface-container)',
+              color: 'var(--on-surface-variant)', fontSize: 13, textAlign: 'center', padding: 8,
+            }}>
+              sem capa — o cartão está usando o desenho da área
+            </div>
+          )}
+          <div style={{ flex: 1, minWidth: 260 }}>
+            {/* `materiaId` daqui, e não `materia.id`: o id é BIGINT e chega
+                como texto na projeção; o da URL já veio por Number(). */}
+            <Enviar tipo="imagem" materiaId={materiaId} rotulo="Enviar capa"
+                    aceita="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                    dica="JPG, PNG ou WebP, até 5 MB. Proporção 16:9 — o cartão mostra cerca de 320 × 180 px, então use pelo menos 640 × 360 px; 1280 × 720 px é o ideal. Enviar outra substitui a atual." />
+          </div>
+        </div>
+      </div>
+
+      {/* A prévia do cartão (docs/plano-catalogo-streaming.md). O controle
+          dela não é novo — é o marcador "amostra gratuita" da aula, que
+          já existia. O que faltava era dizer, aqui, QUAL aula ele
+          escolheu: sem esta linha o professor vê um vídeo rodando no
+          cartão do catálogo e não tem como saber de onde ele sai. */}
+      <div className="cartao">
+        <h2 className="headline-md" style={{ marginBottom: 6 }}>Prévia do cartão</h2>
+        <p className="caption suave" style={{ marginBottom: 12 }}>
+          No catálogo, quem passa o mouse sobre a capa deste curso vê um trecho rodando ali
+          mesmo, sem sair da página. O trecho é sempre a <strong>primeira aula marcada como
+          amostra gratuita</strong> que tenha vídeo — a única que pode ser vista por quem não
+          assinou. Para trocar, abra a aula e mova o marcador “amostra gratuita”.
+        </p>
+        {materia.previaAula ? (
+          <p className="alerta alerta-ok" role="status" style={{ marginBottom: 0 }}>
+            Rodando no cartão: <strong>{materia.previaAula}</strong>
+          </p>
+        ) : (
+          <p className="alerta" style={{ background: 'var(--surface-container)', marginBottom: 0 }}>
+            Nenhuma aula deste curso é amostra gratuita com vídeo — o cartão mostra só a capa,
+            parada. Marque uma aula como amostra para ela virar a prévia.
+          </p>
+        )}
+      </div>
+
       <div className="cartao">
         <h2 className="headline-md" style={{ marginBottom: 16 }}>Dados do curso</h2>
-        <FormMateria acao={acaoEditarMateria} areas={areas} portalId={portal.id} materia={materia} ehPlataforma={false} />
+        <FormMateria acao={acaoEditarMateria} areas={areas} portalId={portal.id} materia={materia}
+                     ehPlataforma={false} niveis={niveis} />
       </div>
 
       <div className="cartao">

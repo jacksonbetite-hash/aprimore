@@ -29,11 +29,17 @@ export async function acaoAceitarConvite(
   if (erroSenha) return { erro: erroSenha };
 
   let usuarioId: number;
+  let ligadoAExistente: boolean;
   try {
-    ({ usuarioId } = await aceitarConvite(portal.id, token, nome, await gerarHashSenha(senha)));
+    ({ usuarioId, ligadoAExistente } = await aceitarConvite(portal.id, token, nome, await gerarHashSenha(senha)));
   } catch (err) {
     return { erro: (err as Error).message };
   }
+  // A pessoa já tinha conta (por outro portal): o perfil daqui nasceu,
+  // mas a senha que ela acabou de digitar NÃO virou a senha dela — a de
+  // sempre continua valendo. Não abrimos sessão sem a senha certa: ela
+  // entra pela tela de login com a que já usa, e a tela avisa.
+  if (ligadoAExistente) redirect('/entrar?ja-tem-conta=1');
 
   const { token: sessao, expiraEm } = await criarSessao(usuarioId);
   (await cookies()).set(COOKIE_SESSAO, sessao, {

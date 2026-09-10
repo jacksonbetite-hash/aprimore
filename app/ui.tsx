@@ -66,6 +66,8 @@ const TRACOS: Record<string, React.ReactNode> = {
   timer: <><circle cx="12" cy="13.5" r="7" /><path d="M12 9.5v4M9.5 3.5h5" /></>,
   insights: <><path d="M4 19V5" /><path d="M4 16.5 9 11l3.5 3.5L20 7" /><circle cx="20" cy="7" r="1.6" /></>,
   info: <><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 7.8v.6" /></>,
+  /* O contato do professor na vitrine do portal: envelope. */
+  mail: <><rect x="3" y="5.5" width="18" height="13" rx="2.5" /><path d="m3.8 7 8.2 6 8.2-6" /></>,
   format_quote: (
     <>
       <path d="M9.5 6.5C7 7.6 5.5 9.9 5.5 12.6v4.9h5.2v-5.2H8.3c0-1.9.6-3.4 1.9-4.3Z" />
@@ -106,7 +108,35 @@ const TRACOS: Record<string, React.ReactNode> = {
   timeline: <><path d="M3 15.5h4l3-8 4 11 3-7h4" /><circle cx="7" cy="15.5" r="1.3" fill="currentColor" stroke="none" /><circle cx="17" cy="11.5" r="1.3" fill="currentColor" stroke="none" /></>,
   print: <><path d="M7 8.5V4h10v4.5" /><rect x="4" y="8.5" width="16" height="8" rx="2" /><path d="M7 13.5h10v6H7z" /></>,
   link: <><path d="M10 14a4 4 0 0 0 5.7 0l2.8-2.8a4 4 0 0 0-5.7-5.7l-1.2 1.2" /><path d="M14 10a4 4 0 0 0-5.7 0l-2.8 2.8a4 4 0 0 0 5.7 5.7l1.2-1.2" /></>,
+  /* Estados do exercício passo a passo e da lista do módulo: errou
+     (círculo com x), começada (pausa), ainda não aberta (círculo vazio)
+     e o marcador do resultado (bandeira). */
+  cancel: <><circle cx="12" cy="12" r="9" /><path d="m9 9 6 6M15 9l-6 6" /></>,
+  pause_circle: <><circle cx="12" cy="12" r="9" /><path d="M10 8.5v7M14 8.5v7" /></>,
+  radio_button_unchecked: <circle cx="12" cy="12" r="9" />,
+  flag: <><path d="M5.5 21V4" /><path d="M5.5 4.5h12l-2.5 4 2.5 4h-12" /></>,
 
+  /* Menus dos painéis da empresa e do colaborador.
+     Os cinco primeiros JÁ eram usados por `app/empresa/layout.tsx` sem
+     existir aqui: `Icone` devolve null para nome desconhecido (é de
+     propósito — nunca mostrar "monitoring" em texto cru na tela), então
+     metade do menu do RH vinha sem ícone nenhum, e ninguém via erro. */
+  route: <><circle cx="6.5" cy="18" r="2.4" /><circle cx="17.5" cy="6" r="2.4" /><path d="M8.9 18h4.6a3.4 3.4 0 0 0 0-6.8h-3a3.4 3.4 0 0 1 0-6.8h4.6" /></>,
+  groups: <><circle cx="9.5" cy="9" r="3.1" /><path d="M3.5 19.5c0-2.9 2.7-4.6 6-4.6s6 1.7 6 4.6" /><circle cx="17.6" cy="8.6" r="2.2" /><path d="M17.8 13.3c2.2.3 3.7 1.7 3.7 3.7" /></>,
+  assignment_turned_in: <><path d="M9 4.5H6.5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-12a2 2 0 0 0-2-2H15" /><rect x="9" y="2.8" width="6" height="3.4" rx="1.2" /><path d="m8.6 13.2 2.6 2.6 4.8-5.1" /></>,
+  monitoring: <><path d="M4 3.5v17h16" /><path d="m7.5 15.5 3.6-4.2 3 2.6 4.4-6" /><circle cx="18.5" cy="7.9" r="1.3" fill="currentColor" stroke="none" /></>,
+  web: <><rect x="3" y="4.5" width="18" height="15" rx="2.5" /><path d="M3.5 9.5h17" /><circle cx="6.6" cy="7" r=".8" fill="currentColor" stroke="none" /><circle cx="9.2" cy="7" r=".8" fill="currentColor" stroke="none" /></>,
+  /* Quatro quadrados iguais — "tudo o que existe", ao lado do `route`,
+     que é o caminho de uma pessoa só. Não repete o `dashboard`, cujos
+     retângulos são de tamanhos diferentes. */
+  grid_view: <><rect x="3.5" y="3.5" width="7" height="7" rx="2" /><rect x="13.5" y="3.5" width="7" height="7" rx="2" /><rect x="3.5" y="13.5" width="7" height="7" rx="2" /><rect x="13.5" y="13.5" width="7" height="7" rx="2" /></>,
+  /* Biblioteca da empresa (§ acervo): o item, o envio e o filtro. */
+  article: <><rect x="4.5" y="3.5" width="15" height="17" rx="2.5" /><path d="M8 8.5h8M8 12h8M8 15.5h5" /></>,
+  upload_file: <><path d="M13.5 3.5H7a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9" /><path d="M13.5 3.5 19 9h-4a1.5 1.5 0 0 1-1.5-1.5V3.5Z" /><path d="M12 17.5v-6.8M9.4 13.3 12 10.7l2.6 2.6" /></>,
+  filter_list: <path d="M4 7h16M7 12h10M10 17h4" />,
+  /* Primeiro degrau da trilha de migalhas (/entrar). Telhado em traço
+     aberto e porta fechada — o mesmo peso das outras casas do conjunto. */
+  home: <><path d="m3.5 10.5 8.5-7 8.5 7" /><path d="M5.5 9.2V19a1.5 1.5 0 0 0 1.5 1.5h10a1.5 1.5 0 0 0 1.5-1.5V9.2" /><path d="M10 20.5v-5.5h4v5.5" /></>,
 };
 
 export function Icone(
@@ -127,22 +157,45 @@ export function Icone(
   );
 }
 
-/** `nome` troca o rótulo — no portal de um professor, a marca é a dele (§5.10). */
-export function Marca({ href = '/', nome }: { href?: string; nome?: string }) {
+/**
+ * A marca — o símbolo da lâmpada e o nome, lado a lado.
+ *
+ * A LÂMPADA É A DO LAYOUT DE 09/09/2026 e vale para a plataforma inteira:
+ * ladrilho de canto arredondado na tinta da casa, a lâmpada em traço
+ * branco dentro e um halo roxo embaixo. Onde a marca aparecer — topo,
+ * rodapé, aba do navegador (`app/icon.svg`, o mesmo desenho) — é este
+ * símbolo, e não uma variação por tela.
+ *
+ * Continua em SVG embutido, e não em imagem: assim a cor sai de
+ * `--primary-container`, que o portal de cada professor sobrescreve com a
+ * cor dele, e a marca nunca depende de uma requisição de rede para
+ * aparecer.
+ *
+ * `nome` troca o rótulo — no portal de um professor, a marca é a dele
+ * (§5.10). `assinatura` é a linha miúda embaixo do nome ("por Aprimore o
+ * Saber"): quem opera o portal, dito onde a pessoa olha primeiro. Não é
+ * enfeite — é a mesma informação que o rodapé legal carrega, e ela só faz
+ * sentido quando o nome em cima é de OUTRA pessoa.
+ */
+export function Marca({ href = '/', nome, assinatura }: {
+  href?: string; nome?: string; assinatura?: string | null;
+}) {
   return (
     <Link className="marca" href={href}>
-      {/* Símbolo: a lâmpada do "saber" dentro da cápsula da marca. Vai em
-          SVG aqui, e não como imagem, para a marca acompanhar a cor do
-          tema e nunca depender de uma requisição de rede. */}
-      <svg className="marca-simbolo" width="32" height="32" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
-        <rect width="32" height="32" rx="10" fill="var(--primary-texto)" />
+      <svg className="marca-simbolo" width="40" height="40" viewBox="0 0 40 40"
+           aria-hidden="true" focusable="false">
+        <rect width="40" height="40" rx="12" fill="var(--primary-container)" />
         <path
-          d="M16 8.5a5.4 5.4 0 0 0-3.2 9.75c.5.37.8.94.8 1.55v.2h4.8v-.2c0-.61.3-1.18.8-1.55A5.4 5.4 0 0 0 16 8.5Z"
-          fill="none" stroke="#fff" strokeWidth="1.8" strokeLinejoin="round"
+          d="M20 10.5a6.6 6.6 0 0 0-3.9 11.94c.6.44.97 1.14.97 1.89v.42h5.86v-.42c0-.75.36-1.45.97-1.89A6.6 6.6 0 0 0 20 10.5Z"
+          fill="none" stroke="#fff" strokeWidth="2" strokeLinejoin="round"
         />
-        <path d="M14.1 23h3.8" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" />
+        <path d="M17.6 27.8h4.8M18.6 30.4h2.8" fill="none" stroke="#fff"
+              strokeWidth="2" strokeLinecap="round" />
       </svg>
-      <span className="rotulo">{nome ?? 'Aprimore o Saber'}</span>
+      <span className="marca-nomes">
+        <span className="rotulo">{nome ?? 'Aprimore o Saber'}</span>
+        {assinatura && <span className="marca-assinatura">{assinatura}</span>}
+      </span>
     </Link>
   );
 }

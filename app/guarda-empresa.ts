@@ -52,7 +52,29 @@ export async function exigirPortalAberto(destino?: string): Promise<void> {
  * criar conta sozinho. Numa empresa quem libera acesso é o RH — uma
  * página de planos ali seria oferta ao colaborador de algo que ele não
  * pode contratar, e um cadastro aberto seria qualquer um entrando.
+ *
+ * `paraOColaborador` diz onde a mesma pergunta é respondida DENTRO do
+ * painel. Sem isso, quem clicava em "Planos" caía na home sem explicação
+ * nenhuma — a recusa estava certa, o destino é que não dizia nada.
  */
-export async function recusarNoPortalDeEmpresa(): Promise<void> {
-  if (await noPortalDeEmpresa()) redirect('/');
+export async function recusarNoPortalDeEmpresa(paraOColaborador = '/'): Promise<void> {
+  if (await noPortalDeEmpresa()) redirect(paraOColaborador);
+}
+
+/**
+ * O contrário da guarda acima: rotas que só existem DENTRO do portal de
+ * uma empresa — o painel do colaborador (`/painel/...`).
+ *
+ * Na plataforma e no portal de um professor as mesmas telas já existem,
+ * em endereço próprio e com a casca do site. Quem chega ali por link
+ * antigo ou por engano vai para a versão que vale no portal dele, em vez
+ * de tomar um 404 — que é o que uma rota inexistente daria.
+ */
+export async function exigirColaborador(equivalenteFora: string): Promise<void> {
+  if (!(await noPortalDeEmpresa())) redirect(equivalenteFora);
+  // Segunda linha de defesa: quem guarda a sessão do subpainel é
+  // `app/painel/layout.tsx`, e é dele que sai o `destino` — repetido
+  // aqui com o mesmo valor para que a ordem de renderização entre layout
+  // e página não mude para onde a pessoa vai parar.
+  if (!(await alunoAtual())) redirect('/entrar?destino=/painel');
 }

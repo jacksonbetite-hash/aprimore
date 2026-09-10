@@ -1,6 +1,6 @@
 import { queryOne } from './db.ts';
 import { emTransacao, auditar } from './auditoria.ts';
-import { gerarHashSenha, validarEmail, validarSenha } from './auth.ts';
+import { gerarHashSenha, validarEmail, validarSenha, garantirConta } from './auth.ts';
 import { PORTAL_PLATAFORMA, validarCnpj,
   validarTelefone, conferirEndereco, normalizarEndereco, somenteDigitos,
   type Endereco, type PortalTipo,
@@ -238,18 +238,24 @@ export async function assinarPortal(d: DadosAssinatura): Promise<AssinaturaCriad
     // opera o próprio site. E-mail já usado NÃO é promovido em silêncio:
     // promover conta alheia por um formulário público seria presente
     // para engraçadinho com o e-mail dos outros.
-    const [conta] = await exec<{ id: number }>(
-      `INSERT INTO usuario (portal_id, nome, email, senha_hash, papel)
-       VALUES (${PORTAL_PLATAFORMA}, $1, lower($2), $3, $4::papel_usuario)
-       ON CONFLICT (portal_id, lower(email)) DO NOTHING
-       RETURNING id::int AS id`,
-      [d.nome.trim().slice(0, 120), d.email.trim(), await gerarHashSenha(d.senha),
-       tipo === 'EMPRESA' ? 'gestor' : 'professor'],
-    );
-    if (!conta) {
+    // Com a credencial global (db/045) a recusa vale para conta em
+    // QUALQUER portal: contratar com o e-mail de uma conta que já tem
+    // senha exigiria entrar nela primeiro — e esse fluxo não existe aqui.
+    const credencial = await garantirConta(exec, {
+      nome: d.nome, email: d.email, senhaHash: await gerarHashSenha(d.senha),
+      documento: semPontuacao(d.cnpj),
+    });
+    if (credencial.existia) {
       throw new Error('Já existe uma conta com esse e-mail. Entre nela para contratar '
         + 'o portal, ou fale com o suporte.');
     }
+    const [conta] = await exec<{ id: number }>(
+      `INSERT INTO usuario (portal_id, conta_id, nome, email, papel)
+       VALUES (${PORTAL_PLATAFORMA}, $1, $2, lower($3), $4::papel_usuario)
+       RETURNING id::int AS id`,
+      [credencial.id, d.nome.trim().slice(0, 120), d.email.trim(),
+       tipo === 'EMPRESA' ? 'gestor' : 'professor'],
+    );
 
     const mascara = await conferirMascara(exec, d.mascara);
 

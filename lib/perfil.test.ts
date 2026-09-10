@@ -111,6 +111,7 @@ test('senha nova fraca é recusada antes de tocar no banco', talvez, async () =>
     /8 caracteres/,
   );
   const linha = await queryOne<{ senhaHash: string }>(
-    'SELECT senha_hash AS "senhaHash" FROM usuario WHERE id = $1', [u.id]);
+    `SELECT c.senha_hash AS "senhaHash" FROM usuario u JOIN conta c ON c.id = u.conta_id
+      WHERE u.id = $1`, [u.id]);
   assert.equal(await conferirSenha(SENHA, linha!.senhaHash), true);
 });
