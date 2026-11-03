@@ -110,12 +110,14 @@ export function FormPlano({ acao, plano }: { acao: Acao; plano?: PlanoPortal }) 
 
 /** Cadastro do portal: quem é o dono, qual o endereço e sob qual plano. */
 export function FormPortal({
-  acao, planos, professores, portal,
+  acao, planos, professores, portal, dominio,
 }: {
   acao: Acao;
   planos: PlanoPortal[];
   professores: { id: number; nome: string; email: string }[];
   portal?: PortalAdmin;
+  /** DOMINIO_BASE do servidor — o cliente não enxerga variável de ambiente. */
+  dominio: string;
 }) {
   const [estado, enviar, pendente] = useActionState(acao, {});
   return (
@@ -129,7 +131,7 @@ export function FormPortal({
           <input name="mascara" defaultValue={portal?.mascara} required
             pattern="[a-z0-9][a-z0-9-]{1,30}[a-z0-9]" placeholder="jackson" />
           <span className="dica">
-            Vira <code>{'{máscara}'}.aprimoreosaber.com.br</code>. Minúsculas, números e hífen no
+            Vira <code>{'{máscara}'}.{dominio}</code>. Minúsculas, números e hífen no
             meio. Nome de rota do sistema, de infraestrutura ou da marca é recusado.
           </span>
         </label>

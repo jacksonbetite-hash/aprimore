@@ -23,7 +23,9 @@ import {
   salvarSetor, excluirSetor, cadastrarColaborador, editarColaborador,
   desativarColaborador, reativarColaborador, atribuirTrilha, removerAtribuicao,
   criarConvite, cancelarConvite, importarConvites, type LinhaImportada,
+  atenderPedidoAcesso, recusarPedidoAcesso,
 } from '../../lib/empresa-equipe.ts';
+import { lerPaginaDoFormulario } from '../../lib/pagina-empresa.ts';
 import { medirArmazenamento } from '../../lib/portal-financeiro.ts';
 import { enderecoDoPortal } from '../../lib/portal-consultas.ts';
 import { unlink } from 'node:fs/promises';
@@ -80,14 +82,25 @@ async function tentar<T>(fn: () => Promise<T>): Promise<{ valor?: T; erro?: stri
 // Minha página
 // ---------------------------------------------------------------------
 
+/**
+ * A marca: nome da universidade, mensagem, contato, logo, cor e os textos
+ * internos. `editarPortal` grava a personalização INTEIRA (é um JSONB
+ * substituído, não mesclado), então o que este formulário não mostra — a
+ * página pública, em `pagina` — é copiado do que já estava. Sem isso,
+ * salvar a cor apagaria a página que o RH montou na tela ao lado.
+ */
 export async function acaoSalvarPaginaEmpresa(
   _e: EstadoAdmin, dados: FormData,
 ): Promise<EstadoAdmin> {
   let d;
   try { d = await gestor(); } catch (err) { return { erro: (err as Error).message }; }
+  const nomeExibicao = String(dados.get('nomeExibicao') ?? '').trim().slice(0, 80);
+  if (nomeExibicao.length < 2) return { erro: 'A universidade precisa de um nome com pelo menos 2 letras.' };
   try {
     await editarPortal(d.u.email, d.portal.id, {
+      nomeExibicao,
       personalizacao: {
+        ...d.portal.personalizacao,
         chamada: String(dados.get('chamada') ?? '').trim(),
         proposito: String(dados.get('proposito') ?? '').trim(),
         sobre: String(dados.get('sobre') ?? '').trim(),
@@ -101,7 +114,31 @@ export async function acaoSalvarPaginaEmpresa(
   }
   revalidatePath('/empresa', 'layout');
   revalidatePath('/');
-  return { ok: 'Página salva. Abra o portal para ver como o colaborador vê.' };
+  return { ok: 'Marca salva. Abra o portal para ver como fica.' };
+}
+
+/**
+ * A página pública, seção a seção (docs/plano-pagina-da-universidade.md,
+ * §3.1 a 3.5). O que vai ao JSON é só o que foi preenchido — campo vazio
+ * é "use o padrão", e é `lerPaginaDoFormulario` quem decide isso.
+ */
+export async function acaoSalvarSecoesPagina(
+  _e: EstadoAdmin, dados: FormData,
+): Promise<EstadoAdmin> {
+  let d;
+  try { d = await gestor(); } catch (err) { return { erro: (err as Error).message }; }
+  try {
+    const pagina = lerPaginaDoFormulario(
+      (c) => String(dados.get(c) ?? ''), { comFotos: true, comChaves: true });
+    await editarPortal(d.u.email, d.portal.id, {
+      personalizacao: { ...d.portal.personalizacao, pagina },
+    });
+  } catch (err) {
+    return { erro: (err as Error).message };
+  }
+  revalidatePath('/empresa', 'layout');
+  revalidatePath('/');
+  return { ok: 'Página pública salva. O que ficou em branco usa o texto padrão.' };
 }
 
 export async function acaoSalvarDominiosEmail(
@@ -499,6 +536,32 @@ export async function acaoConvidar(_e: EstadoEquipe, dados: FormData): Promise<E
       + 'funciona para esse e-mail.',
     link: `${endereco}/convite/${r.valor!.token}`,
   };
+}
+
+/**
+ * O pedido de acesso da página pública (db/048) vira convite por link —
+ * com o setor, as trilhas e o prazo que o RH escolher na hora. A
+ * resposta traz o link para copiar, como no convite comum.
+ */
+export async function acaoAtenderPedidoAcesso(_e: EstadoEquipe, dados: FormData): Promise<EstadoEquipe> {
+  let d;
+  try { d = await gestor(); } catch (err) { return { erro: (err as Error).message }; }
+  const r = await tentar(() => atenderPedidoAcesso(d.u.email, d.portal.id, Number(dados.get('id')), {
+    setorId: setorDoForm(dados), trilhas: trilhasDoForm(dados), prazoDias: prazoDoForm(dados),
+  }));
+  if (r.erro) return { erro: r.erro };
+  revalidatePath('/empresa', 'layout');
+  const endereco = await enderecoDoPortal(d.portal.mascara);
+  return {
+    ok: 'Convite criado a partir do pedido. Copie o link e mande para a pessoa — vale por 7 dias.',
+    link: `${endereco}/convite/${r.valor!.token}`,
+  };
+}
+
+export async function acaoRecusarPedidoAcesso(dados: FormData) {
+  const d = await gestor();
+  await recusarPedidoAcesso(d.u.email, d.portal.id, Number(dados.get('id')));
+  revalidatePath('/empresa', 'layout');
 }
 
 export async function acaoCancelarConvite(dados: FormData) {

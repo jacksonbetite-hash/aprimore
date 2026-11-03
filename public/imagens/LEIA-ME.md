@@ -1,6 +1,6 @@
 # Imagens da página inicial e da vitrine do portal
 
-Cinco arquivos, e a mesma regra para todos: **imagem encenada, sintética ou de
+Sete arquivos, e a mesma regra para todos: **imagem encenada, sintética ou de
 banco leva `.selo-ilustrativo` na página até ser substituída por conteúdo real
 com licença e cessão.** Anunciar como real o que é encenado é publicidade
 enganosa (CDC, art. 37). Não existe terceira opção em que o selo saia e a figura
@@ -13,6 +13,8 @@ fique.
 | `estudo-em-grupo.jpg` | abertura do portal do professor | "Imagem ilustrativa" |
 | `estudio-do-professor.jpg` | banner do catálogo, só quando o curso em destaque não tem capa (`app/catalogo/Destaque.tsx`) | "Imagem ilustrativa" |
 | `mulher-no-arquivo.jpg` | banner do catálogo **da plataforma**, sempre (`app/catalogo/page.tsx`) | "Imagem ilustrativa" |
+| `equipe-colaborando.jpg` | abertura da página pública da universidade corporativa (`app/PaginaEmpresa.tsx`) | "Imagem ilustrativa" |
+| `treinamento-no-celular.jpg` | seção de multiplataforma da mesma página | "Tela ilustrativa do aplicativo" |
 
 ---
 
@@ -172,3 +174,32 @@ cessão de uso de imagem da modelo é a que a Adobe Stock já obteve (*model
 release* incluído no arquivo licenciado); **é vedado** usá-la de modo que
 sugira endosso da pessoa retratada ao produto — por isso o selo, e por isso
 nenhuma legenda a apresenta como aluna, professora ou depoente.
+
+---
+
+## equipe-colaborando.jpg e treinamento-no-celular.jpg
+
+**Procedência: as duas vieram no layout da página pública da universidade
+corporativa entregue pelo dono do projeto em 10/09/2026** (o "code.html" do
+pedido "Aprimore Empresas", que as carregava de
+`lh3.googleusercontent.com/aida-public/…` e `…/aida/…`). Os endereços originais
+entregam uma miniatura de 512px; o sufixo `=s0` devolve o original, e foi o que
+se guardou: 1376×768 e 768×1376, imagens **geradas por computador**. Servidas
+daqui, e não de lá, pelo motivo de sempre: endereço de terceiro sai do ar sem
+aviso.
+
+`equipe-colaborando.jpg` é **imagem de pessoa**, sintética (os rótulos dos
+gráficos nas telas e os títulos dos livros ao fundo são ilegíveis). Vale o
+mesmo do `estudo-em-grupo.jpg`: selo "Imagem ilustrativa" visível logo abaixo,
+e nada no texto ao redor afirma que aquelas pessoas são colaboradoras DESTA
+empresa. O selo "+N colaboradores ativos" sobre a foto é a contagem real de
+contas do portal, e some quando é zero — o layout trazia "+8.400", que não é
+número de ninguém. Licença do gerador a registrar antes de publicar.
+
+`treinamento-no-celular.jpg` é a mesma classe do `aula-no-celular.jpg`: tela
+**simulada** (a aula "Responsabilidade Civil: Dano e Nexo Causal" e a
+"Prof. Dra. Beatriz Oliveira" são inventadas, e há letra deformada nos
+rótulos) com a marca **da plataforma** dentro do aparelho — que no portal de
+uma empresa com outra cor lê como marca de terceiro. Leva o selo "Tela
+ilustrativa do aplicativo"; uma captura real da interface no tema do portal
+resolve as duas coisas e tira o selo.

@@ -19,6 +19,8 @@ import { concederLicenca } from '../../../lib/admin.ts';
 import { brl } from '../../../lib/precos.ts';
 import { apurarComissao, aprovarApuracao, registrarRepasse, pagarRepasse } from '../../../lib/apuracao.ts';
 import { lerFerramentas } from '../../../lib/ferramentas.ts';
+import { lerPaginaDoFormulario } from '../../../lib/pagina-empresa.ts';
+import { salvarConfiguracao } from '../../../lib/configuracao.ts';
 
 // ---------- Apuração da comissão de vitrine (§5.6.1) ----------
 
@@ -323,4 +325,26 @@ export async function acaoCortesiaPortal(_e: EstadoAdmin, dados: FormData): Prom
   } catch (err) {
     return { erro: (err as Error).message };
   }
+}
+
+// ---------- Página padrão da universidade corporativa (db/048) ----------
+
+/**
+ * Os textos de fábrica da página pública das empresas — o que aparece
+ * onde a empresa não escreveu nada. Conteúdo, então `conteudo.agir`; e
+ * sem fotos nem links (isso é de cada empresa), só texto e as chaves de
+ * seção, que valem como padrão para todas.
+ */
+export async function acaoSalvarPaginaPadrao(_e: EstadoAdmin, dados: FormData): Promise<EstadoAdmin> {
+  let u;
+  try { u = await admin('conteudo.agir'); } catch { return { erro: 'Acesso negado.' }; }
+  try {
+    const pagina = lerPaginaDoFormulario((c) => String(dados.get(c) ?? ''), { comChaves: true });
+    await salvarConfiguracao(u.email, 'pagina-universidade', pagina);
+  } catch (err) {
+    return { erro: (err as Error).message };
+  }
+  revalidatePath('/admin/portais/pagina-da-universidade');
+  revalidatePath('/');
+  return { ok: 'Padrão salvo. Vale para toda empresa que não escreveu o próprio texto.' };
 }

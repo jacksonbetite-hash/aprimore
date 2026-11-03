@@ -1,7 +1,10 @@
 import Link from 'next/link';
 import { alunoAtual } from '../lib/sessao.ts';
 import { portalAtual } from '../lib/portal-consultas.ts';
-import { corSegura, formatarCnpj } from '../lib/portal.ts';
+import { formatarCnpj } from '../lib/portal.ts';
+import { temaDoPortal } from '../lib/tema-portal.ts';
+import { resolverPagina } from '../lib/pagina-empresa.ts';
+import { lerConfiguracao } from '../lib/configuracao.ts';
 import { portalFechadoParaVisitante } from './guarda-empresa.ts';
 import { sair } from './acoes-auth.ts';
 import { daEquipe } from '../lib/permissoes.ts';
@@ -34,13 +37,15 @@ export async function Cabecalho({ ativo }: { ativo?: string }) {
   return (
     <header className="topo">
       <div className="container topo-nav">
-        {/* No portal de um professor, a marca em cima é a DELE e a linha
-            miúda diz quem opera — a mesma informação do rodapé legal
-            (§5.10), agora onde a pessoa olha primeiro. No portal de uma
-            empresa não: ali o portal é interno, e o nome do fornecedor
-            no alto da tela do colaborador não acrescenta nada a ele. */}
+        {/* No portal de um professor ou de uma empresa, a marca em cima é
+            a DELES e a linha miúda diz quem opera — a mesma informação do
+            rodapé legal (§5.10), agora onde a pessoa olha primeiro. Na
+            empresa a linha entrou com a página pública da universidade
+            (layout de 10/09/2026, "Universidade Aurora / por Aprimore o
+            Saber"): é a página que a rua vê, e ali quem opera importa. */}
         <Marca nome={noPortal ? portal.nomeExibicao : undefined}
-               assinatura={noPortal && !empresa ? 'por Aprimore o Saber' : null} />
+               assinatura={noPortal && (!empresa || portal.personalizacao.pagina?.assinatura !== false)
+                 ? 'por Aprimore o Saber' : null} />
         {/* Navegação ao centro: a marca ancora a esquerda, a ação de entrar
             ancora a direita, e o miolo fica com os destinos. */}
         {/* A Biblioteca não está na barra: é ferramenta de consulta, e
@@ -48,7 +53,11 @@ export async function Cabecalho({ ativo }: { ativo?: string }) {
             ferramentas passou a ser dos portais). O Blog ocupa o primeiro
             nível porque é conteúdo de leitura, a porta de entrada de quem
             ainda não é aluno. */}
+        {/* Na empresa, sem sessão, a barra fica vazia: Trilhas e Meu
+            progresso levariam ao login, e a página pública da
+            universidade tem a própria navegação por âncoras. */}
         <nav className="topo-links">
+          {empresa && !aluno ? null : <>
           {item('/catalogo', 'catalogo', empresa ? 'Trilhas' : 'Cursos')}
           {!noPortal && item('/blog', 'blog', 'Blog')}
           {!empresa && item('/planos', 'planos', 'Planos')}
@@ -57,6 +66,7 @@ export async function Cabecalho({ ativo }: { ativo?: string }) {
           {!noPortal && item('/para-professores', 'para-professores', 'Para professores')}
           {item('/painel', 'painel', empresa ? 'Meu progresso' : 'Meu painel')}
           {!empresa && ferramentas.length > 0 && <MenuFerramentas itens={ferramentas} ativo={ativo} />}
+          </>}
         </nav>
         <div className="topo-acoes">
           {aluno ? (
@@ -86,6 +96,11 @@ export async function Rodape() {
   // da casa dele (§5.10.2, etapa 3).
   const portal = await portalAtual();
   const plataforma = portal.id === 0;
+  // A página pública da universidade (empresa): descrição da marca no
+  // rodapé e os links de termos/privacidade da própria empresa.
+  const pagina = portal.tipo === 'EMPRESA'
+    ? resolverPagina(portal.personalizacao, await lerConfiguracao('pagina-universidade'))
+    : null;
 
   if (!plataforma) {
     // §5.10, rodapé legal do portal: quem responde pelo conteúdo é o
@@ -97,7 +112,12 @@ export async function Rodape() {
           <div className="rodape-grade">
             <div>
               <Marca nome={portal.nomeExibicao}
-                     assinatura={portal.tipo === 'EMPRESA' ? null : 'por Aprimore o Saber'} />
+                     assinatura={pagina ? (pagina.assinatura ? 'por Aprimore o Saber' : null) : 'por Aprimore o Saber'} />
+              {pagina && (
+                <p className="caption suave" style={{ marginTop: 12, maxWidth: '22rem', lineHeight: 1.7 }}>
+                  {pagina.rodapeDescricao}
+                </p>
+              )}
               <p className="caption suave" style={{ marginTop: 12, maxWidth: '22rem', lineHeight: 1.7 }}>
                 {portal.personalizacao.contato && <>Contato: {portal.personalizacao.contato}<br /></>}
                 Responsável pelo conteúdo: {portal.responsavelNome ?? portal.nomeExibicao}
@@ -109,10 +129,22 @@ export async function Rodape() {
                 oferecer a ele páginas que só existem para quem compra. */}
             {portal.tipo === 'EMPRESA' ? (
               <>
+                {/* As seções da página pública da universidade
+                    (app/PaginaEmpresa.tsx). Âncora absoluta, para valer
+                    de qualquer tela do portal. */}
+                <div>
+                  <h4>A universidade</h4>
+                  <Link href="/#proposito">Cultura de Aprendizagem</Link>
+                  <Link href="/#experiencia">Ambiente do Colaborador</Link>
+                  <Link href="/#biblioteca">Biblioteca Corporativa</Link>
+                  <Link href="/#gestao-rh">Métricas e Governança</Link>
+                  <Link href="/#multiplataforma">Acesso em Celular e Tablet</Link>
+                </div>
                 <div>
                   <h4>Neste portal</h4>
                   <Link href="/catalogo">Trilhas</Link>
                   <Link href="/painel">Meu progresso</Link>
+                  <Link href="/entrar">Entrar</Link>
                 </div>
                 <div>
                   <h4>Precisa de ajuda?</h4>
@@ -120,6 +152,12 @@ export async function Rodape() {
                     Quem libera o seu acesso é o setor responsável pelo treinamento
                     {portal.personalizacao.contato && <> — {portal.personalizacao.contato}</>}.
                   </span>
+                  {pagina?.links.termos && (
+                    <a href={pagina.links.termos} target="_blank" rel="noreferrer">Termos de uso</a>
+                  )}
+                  {pagina?.links.privacidade && (
+                    <a href={pagina.links.privacidade} target="_blank" rel="noreferrer">Política de privacidade</a>
+                  )}
                 </div>
               </>
             ) : (
@@ -246,12 +284,10 @@ export async function PortalSuspenso() {
  */
 export async function PortalDeEmpresaFechado() {
   const portal = await portalAtual();
-  const cor = corSegura(portal.personalizacao.corPrimaria);
+  const tema = temaDoPortal(portal.personalizacao.corPrimaria);
   return (
     <>
-      {cor && (
-        <style>{`:root{--primary:${cor};--primary-texto:${cor};--primary-container:${cor};--on-primary-fixed-variant:${cor}}`}</style>
-      )}
+      {tema && <style>{tema}</style>}
       <main>
         <section className="secao caixa-auth">
           <div className="cartao cartao-auth" style={{ width: 'min(520px, 92vw)' }}>
@@ -288,15 +324,14 @@ export async function Pagina(
   // maçaneta.
   if (!aberta && await portalFechadoParaVisitante()) return <PortalDeEmpresaFechado />;
 
-  // §5.10 — a cor principal do portal entra como variável de tema. Só uma
-  // cor validada (#rgb/#rrggbb) chega ao CSS: cor é dado, não código.
+  // §5.10 — a cor principal do portal entra como tema (lib/tema-portal.ts):
+  // só uma cor validada chega ao CSS, e o texto e o botão principal saem
+  // de uma versão dela que passa AA sobre branco.
   const portal = await portalAtual();
-  const cor = corSegura(portal.personalizacao.corPrimaria);
+  const tema = temaDoPortal(portal.personalizacao.corPrimaria);
   return (
     <>
-      {cor && (
-        <style>{`:root{--primary:${cor};--primary-texto:${cor};--primary-container:${cor};--on-primary-fixed-variant:${cor}}`}</style>
-      )}
+      {tema && <style>{tema}</style>}
       <Cabecalho ativo={ativo} />
       <main>{children}</main>
       <Rodape />

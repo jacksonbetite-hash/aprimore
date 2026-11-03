@@ -3,7 +3,7 @@
  *
  * §5.10 do discovery: o sistema serve N catálogos pela mesma aplicação, e
  * quem decide qual deles é o endereço da requisição —
- * `jackson.aprimoreosaber.com.br` é o portal do Jackson, o domínio nu é a
+ * `jackson.aprimoree.com.br` é o portal do Jackson, o domínio nu é a
  * plataforma.
  *
  * A leitura do endereço mora aqui, separada do banco, por dois motivos:
@@ -66,7 +66,43 @@ export interface Personalizacao {
    * aparece: o padrão é a página dele, sem enfeite que ele não pediu.
    */
   ferramentas?: string[];
+  /**
+   * A página pública da universidade corporativa (portal EMPRESA) —
+   * `docs/plano-pagina-da-universidade.md`. Campo vazio = texto padrão da
+   * plataforma; o formato está em `lib/pagina-empresa.ts`.
+   */
+  pagina?: PaginaEmpresa;
 }
+
+/** O que a empresa (ou o administrador, como padrão) preenche na página pública. */
+export interface PaginaEmpresa {
+  titulo?: string;
+  subtitulo?: string;
+  /** As três provas curtas sob os botões da abertura. */
+  provas?: string[];
+  /** A frase de vidro sobre a foto. */
+  citacao?: string;
+  pilares?: { icone: string; titulo: string; texto: string }[];
+  contatoTitulo?: string;
+  contatoTexto?: string;
+  contatoEmail?: string;
+  rodapeDescricao?: string;
+  fotoAbertura?: string;
+  fotoCelular?: string;
+  /** Seção ausente ou `true` = ligada. */
+  secoes?: Partial<Record<SecaoPagina, boolean>>;
+  mostrarNumeros?: boolean;
+  /** "por Aprimore o Saber" sob o nome, no topo. Ausente = ligado. */
+  assinatura?: boolean;
+  links?: { termos?: string; privacidade?: string };
+}
+
+export type SecaoPagina =
+  | 'compromisso' | 'experiencia' | 'biblioteca' | 'multiplataforma' | 'gestao'
+  /** O formulário de demonstração da PLATAFORMA (grava em interesse_empresa). */
+  | 'contato'
+  /** O "Fale com o RH": pedido de acesso que vira convite. */
+  | 'pedidoAcesso';
 
 export interface Portal {
   id: number;

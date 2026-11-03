@@ -13,6 +13,8 @@ Docker Desktop e `.\instalar.ps1`.
 
 **macOS e Linux:** `./instalar.sh`
 
+**Servidor (VPS, produção):** siga [`docs/implantacao-vps.md`](docs/implantacao-vps.md).
+
 Ou, se preferir os comandos crus:
 
 ```bash

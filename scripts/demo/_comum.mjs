@@ -24,6 +24,28 @@ import pg from 'pg';
 export const BASE = process.env.BASE_URL ?? 'http://localhost:3010';
 export const PORTA = new URL(BASE).port || '80';
 export const SEGREDO = process.env.WEBHOOK_SEGREDO ?? 'segredo-de-desenvolvimento';
+
+/**
+ * Senha das contas que os roteiros criam.
+ *
+ * As senhas padrão estão escritas neste repositório, que é público: servem
+ * na máquina de quem desenvolve e em nenhum outro lugar. Contra um
+ * endereço que não seja local, o roteiro só roda com `SENHA_DEMO`
+ * definida (12+ caracteres) — e todas as contas que ele cria usam ela.
+ */
+const LOCAL = /^(localhost|127\.0\.0\.1|\[::1\])$|\.localhost$/;
+export function senhaDemo(padrao) {
+  const s = process.env.SENHA_DEMO;
+  if (s) {
+    if (s.length < 12) throw new Error('SENHA_DEMO precisa de pelo menos 12 caracteres');
+    return s;
+  }
+  if (!LOCAL.test(new URL(BASE).hostname)) {
+    console.error(`✖ ${BASE} não é local: defina SENHA_DEMO — as senhas padrão estão no repositório público.`);
+    process.exit(1);
+  }
+  return padrao;
+}
 /**
  * Onde estão os arquivos que os roteiros enviam: `imagens/` (foto do
  * professor, logo da empresa) e `portais/` (vídeos das aulas).

@@ -6,7 +6,7 @@ import { Icone } from '../componentes.tsx';
 import { sair } from '../acoes-auth.ts';
 import { alunoAtual } from '../../lib/sessao.ts';
 import { portalAtual } from '../../lib/portal-consultas.ts';
-import { corSegura } from '../../lib/portal.ts';
+import { temaDoPortal } from '../../lib/tema-portal.ts';
 
 export const dynamic = 'force-dynamic';
 
@@ -80,13 +80,11 @@ export default async function LayoutDoPainel({ children }: { children: React.Rea
   ];
 
   // Só uma cor validada (#rgb/#rrggbb) chega ao CSS: cor é dado, não código.
-  const cor = corSegura(portal.personalizacao.corPrimaria);
+  const tema = temaDoPortal(portal.personalizacao.corPrimaria);
 
   return (
     <div className="app">
-      {cor && (
-        <style>{`:root{--primary:${cor};--primary-texto:${cor};--primary-container:${cor};--on-primary-fixed-variant:${cor}}`}</style>
-      )}
+      {tema && <style>{tema}</style>}
       <BarraLateral
         titulo={portal.nomeExibicao}
         subtitulo="Treinamento"

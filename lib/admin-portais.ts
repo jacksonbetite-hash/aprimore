@@ -16,7 +16,7 @@ import {
  *
  * Três regras do §5.10 vivem aqui:
  *
- * 1. A MÁSCARA É O ENDEREÇO. `jackson.aprimoreosaber.com.br` é resolvido
+ * 1. A MÁSCARA É O ENDEREÇO. `jackson.aprimoree.com.br` é resolvido
  *    pelo `Host` antes de qualquer consulta. Uma máscara que colida com
  *    rota do sistema derruba a própria rota — por isso a lista de
  *    reservadas mora em tabela (`mascara_reservada`) e é conferida aqui.

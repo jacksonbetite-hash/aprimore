@@ -49,12 +49,22 @@ export default function FormPaginaEmpresa({ acao, valores, nomeExibicao }: {
       )}
 
       <label>
+        Nome da universidade
+        <input name="nomeExibicao" type="text" required minLength={2} maxLength={80}
+               defaultValue={nomeExibicao} />
+        <span className="dica">
+          É o nome no topo de toda tela do portal, no rodapé legal e no certificado —
+          "Universidade Aurora", por exemplo. Muda na hora para quem abrir o endereço.
+        </span>
+      </label>
+
+      <label>
         Mensagem de boas-vindas
         <input name="chamada" type="text" maxLength={160} defaultValue={valores.chamada ?? ''}
                placeholder={`Treinamento e desenvolvimento na ${nomeExibicao}`} />
         <span className="dica">
-          A frase que aparece embaixo do nome, na tela de entrada. É o que a pessoa lê
-          antes de fazer login.
+          A etiqueta no alto da página pública da universidade, acima do título — e a
+          frase embaixo do nome na tela de entrada. É o que a pessoa lê antes de fazer login.
         </span>
       </label>
 
@@ -108,7 +118,7 @@ export default function FormPaginaEmpresa({ acao, valores, nomeExibicao }: {
 
       <div className="acoes">
         <button className="btn btn-primario" type="submit" disabled={pendente}>
-          {pendente ? 'Salvando…' : 'Salvar página'}
+          {pendente ? 'Salvando…' : 'Salvar marca'}
         </button>
       </div>
     </form>

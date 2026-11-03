@@ -5,15 +5,17 @@ import FormColaborador, { FormSetor } from './FormColaborador.tsx';
 import FormConvite from './FormConvite.tsx';
 import FormImportar from './FormImportar.tsx';
 import EdicaoColaborador from './EdicaoColaborador.tsx';
+import PedidosAcesso from './PedidosAcesso.tsx';
 import {
   acaoCadastrarColaborador, acaoEditarColaborador, acaoDesativarColaborador,
   acaoReativarColaborador, acaoSalvarSetor, acaoEditarSetorLinha, acaoExcluirSetor,
   acaoConvidar, acaoCancelarConvite, acaoImportar,
+  acaoAtenderPedidoAcesso, acaoRecusarPedidoAcesso,
 } from '../acoes.ts';
 import { alunoAtual } from '../../../lib/sessao.ts';
 import { portalDaEmpresa, ocupacaoDeContas } from '../../../lib/empresa.ts';
 import {
-  listarColaboradores, listarSetores, listarConvites,
+  listarColaboradores, listarSetores, listarConvites, listarPedidosAcesso,
 } from '../../../lib/empresa-equipe.ts';
 import { listarMaterias } from '../../../lib/admin-cursos.ts';
 
@@ -41,12 +43,14 @@ export default async function ColaboradoresDaEmpresa(
   const u = (await alunoAtual())!;
   const portal = (await portalDaEmpresa(u.id))!;
   const setorId = setor ? Number(setor) : null;
-  const [pessoas, setores, convites, trilhas, ocupacao] = await Promise.all([
+  const [pessoas, setores, convites, trilhas, ocupacao, pedidos] = await Promise.all([
     listarColaboradores(portal.id, q, setorId), listarSetores(portal.id),
     listarConvites(portal.id), listarMaterias(portal.id), ocupacaoDeContas(portal.id),
+    listarPedidosAcesso(portal.id),
   ]);
   const ativas = pessoas.filter((p) => p.statusConta !== 'ENCERRADA');
   const pendentes = convites.filter((c) => c.situacao === 'pendente');
+  const pedidosAbertos = pedidos.filter((p) => p.status === 'novo').length;
 
   return (
     <>
@@ -57,6 +61,7 @@ export default async function ColaboradoresDaEmpresa(
             {ocupacao.usadas} pessoa(s) com acesso
             {ocupacao.limite !== null && ` de ${ocupacao.limite} do plano`}
             {pendentes.length > 0 && ` · ${pendentes.length} convite(s) pendente(s)`}
+            {pedidosAbertos > 0 && ` · ${pedidosAbertos} pedido(s) de acesso a responder`}
           </p>
         </div>
       </div>
@@ -184,6 +189,21 @@ export default async function ColaboradoresDaEmpresa(
           quem voltar, volta de onde parou. Para trocar o setor de alguém, use o lápis — as
           trilhas do setor antigo saem e as do novo entram.
         </p>
+      </div>
+
+      {/* ---------- Pedidos de acesso ---------- */}
+      <div className="cartao" id="pedidos">
+        <h2 className="headline-md" style={{ marginBottom: 6 }}>
+          <Icone nome="badge" /> Pedidos de acesso
+          {pedidosAbertos > 0 && <span className="chip chip-sm chip-terciaria" style={{ marginLeft: 10 }}>{pedidosAbertos}</span>}
+        </h2>
+        <p className="caption suave" style={{ marginBottom: 16 }}>
+          Quem pediu para entrar pelo "Fale com o RH" da página pública. Convidar gera o link
+          de convite (ocupa vaga no plano, como qualquer convite); recusar fecha o pedido sem
+          criar conta. O sistema não manda e-mail: copie o link e envie você.
+        </p>
+        <PedidosAcesso pedidos={pedidos} setores={setores} trilhas={trilhas}
+                       atender={acaoAtenderPedidoAcesso} recusar={acaoRecusarPedidoAcesso} />
       </div>
 
       {/* ---------- Convites ---------- */}

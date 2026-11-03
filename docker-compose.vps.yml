@@ -1,0 +1,47 @@
+# Sobreposição de PRODUÇÃO (VPS). Sempre junto do arquivo principal:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.vps.yml --profile vps up -d --build
+#
+# (o scripts/vps/subir.sh já monta esse comando). Precisa do Docker Compose
+# 2.24.4 ou mais novo, por causa do `!reset`.
+#
+# O que muda em relação à máquina de desenvolvimento:
+#
+# - NENHUMA porta da aplicação ou do banco fica publicada no host. Na rua
+#   só o Caddy escuta; o resto conversa pela rede interna do Compose. É o
+#   que fecha o acesso direto à porta 3000, que pularia o HTTPS, a senha
+#   de acesso e o limite de tentativas de login. Atenção: porta publicada
+#   pelo Docker passa POR CIMA do ufw — fechar no firewall não bastaria.
+#
+# - O vídeo sai pelo nginx (sendfile), não pelo Node.
+#
+# - Teto de memória e de log por serviço, para esta pilha não disputar a
+#   máquina com outros sistemas que rodem na mesma VPS.
+
+x-log: &log
+  logging:
+    driver: json-file
+    options:
+      max-size: "20m"
+      max-file: "5"
+
+services:
+  db:
+    <<: *log
+    ports: !reset []
+    mem_limit: ${LIMITE_MEMORIA_BANCO:-1g}
+
+  web:
+    <<: *log
+    ports: !reset []
+    mem_limit: ${LIMITE_MEMORIA_WEB:-1536m}
+    environment:
+      VIDEO_ACCEL_REDIRECT: /midia-interna
+
+  nginx:
+    <<: *log
+    mem_limit: 256m
+
+  caddy:
+    <<: *log
+    mem_limit: 256m

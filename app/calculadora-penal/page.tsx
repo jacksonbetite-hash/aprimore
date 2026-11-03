@@ -178,7 +178,7 @@ export default async function CalculadoraPenal(
           ⚖️ Ferramenta de <strong>estudo e conferência</strong>. Onde a jurisprudência diverge, o critério
           usado está dito na memória de cálculo e pode ser trocado. Não substitui a análise do caso concreto
           nem a jurisprudência do tribunal local. Encontrou uma regra errada?{' '}
-          <a href={`mailto:contato@aprimoreosaber.com.br?subject=${encodeURIComponent('Calculadora Penal: possível erro')}&body=${encodeURIComponent(`Link do cálculo: /calculadora-penal?c=${param}\n\nO que está errado:\n`)}`}>
+          <a href={`mailto:contato@aprimoree.com.br?subject=${encodeURIComponent('Calculadora Penal: possível erro')}&body=${encodeURIComponent(`Link do cálculo: /calculadora-penal?c=${param}\n\nO que está errado:\n`)}`}>
             Avise com o link do cálculo
           </a>.
         </p>

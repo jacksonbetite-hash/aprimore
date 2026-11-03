@@ -25,12 +25,12 @@
  * Idempotente por destruição: apaga os alunos que criou, neste portal,
  * antes de recomeçar.
  */
-import { PORTA, pool, passo, fim, abrirNavegador, webhook, preencher } from './_comum.mjs';
+import { PORTA, pool, passo, fim, abrirNavegador, webhook, preencher, senhaDemo } from './_comum.mjs';
 
 const MASCARA = process.env.PORTAL ?? 'tecnologiaempaula';
 const PORTAL_URL = `http://${MASCARA}.localhost:${PORTA}`;
 /** Uma senha só para todos: é demonstração local, e a lista tem de caber num recado. */
-const SENHA = 'aluno-demo-2026';
+const SENHA = senhaDemo('aluno-demo-2026');
 const CPF = '529.982.247-25';
 
 /**

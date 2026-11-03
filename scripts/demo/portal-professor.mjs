@@ -18,13 +18,13 @@
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  BASE, PORTA, MIDIA, pool, passo, fim, abrirNavegador, webhook, rodarSql,
+  BASE, PORTA, MIDIA, pool, passo, fim, abrirNavegador, webhook, rodarSql, senhaDemo,
   esperarOk, preencher, cadastrarQuestao,
 } from './_comum.mjs';
 
 const MASCARA = 'otaviolins';
 const EMAIL = 'otavio.lins@exemplo.com.br';
-const SENHA = 'aulas-de-penal-2026';
+const SENHA = senhaDemo('aulas-de-penal-2026');
 const PORTAL_URL = `http://${MASCARA}.localhost:${PORTA}`;
 
 // ---------------------------------------------------------------------

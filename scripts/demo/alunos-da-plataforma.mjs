@@ -14,10 +14,10 @@
  */
 import { join } from 'node:path';
 import {
-  BASE, MIDIA, pool, passo, fim, abrirNavegador, webhook, preencher,
+  BASE, MIDIA, pool, passo, fim, abrirNavegador, webhook, preencher, senhaDemo,
 } from './_comum.mjs';
 
-const SENHA = 'estudar-todo-dia-2026';
+const SENHA = senhaDemo('estudar-todo-dia-2026');
 const SUFIXO = 'exemplo.com.br';
 
 /**

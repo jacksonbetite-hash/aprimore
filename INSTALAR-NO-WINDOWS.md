@@ -1,4 +1,4 @@
-# Instalar em `C:\Users\Usuario\Documents\Aprimoreosaber`
+# Instalar em `C:\Users\Usuario\Documents\Aprimore`
 
 Eu rodo num contêiner na nuvem e **não tenho acesso à sua máquina** — não
 consigo escrever nessa pasta daqui. O que dá para fazer, e é o caminho normal,
@@ -11,17 +11,17 @@ Abra o **PowerShell** e cole:
 ```powershell
 cd "$env:USERPROFILE\Documents"
 git clone -b claude/discovery-repo-prototype-xgljgy `
-  https://github.com/jacksonbetite-hash/aprendendoodireito.git Aprimoreosaber
-cd Aprimoreosaber
+  https://github.com/jacksonbetite-hash/aprimore.git Aprimore
+cd Aprimore
 ```
 
-> Se a pasta `Aprimoreosaber` já existir com o `discovery.md` dentro,
-> mova-a antes (`Rename-Item Aprimoreosaber Aprimoreosaber-antigo`) —
+> Se a pasta `Aprimore` já existir com o `discovery.md` dentro,
+> mova-a antes (`Rename-Item Aprimore Aprimore-antigo`) —
 > o `git clone` precisa de uma pasta vazia.
 
 Sem Git instalado? Baixe o ZIP em
-`https://github.com/jacksonbetite-hash/aprendendoodireito/archive/refs/heads/claude/discovery-repo-prototype-xgljgy.zip`,
-extraia e renomeie a pasta para `Aprimoreosaber`.
+`https://github.com/jacksonbetite-hash/aprimore/archive/refs/heads/claude/discovery-repo-prototype-xgljgy.zip`,
+extraia e renomeie a pasta para `Aprimore`.
 
 ## 2. Instalar o Docker Desktop
 

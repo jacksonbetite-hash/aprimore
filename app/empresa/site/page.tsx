@@ -1,11 +1,12 @@
 import type { Metadata } from 'next';
 import { Icone } from '../../ui.tsx';
 import FormPaginaEmpresa from './FormPaginaEmpresa.tsx';
+import FormSecoesPagina from './FormSecoesPagina.tsx';
 import FormDominiosEmail from './FormDominiosEmail.tsx';
 import FormDominio from '../../professor/site/FormDominio.tsx';
 import Enviar from '../../professor/Enviar.tsx';
 import {
-  acaoSalvarPaginaEmpresa, acaoSalvarDominiosEmail,
+  acaoSalvarPaginaEmpresa, acaoSalvarSecoesPagina, acaoSalvarDominiosEmail,
   acaoDefinirDominioEmpresa, acaoVerificarDominioEmpresa,
 } from '../acoes.ts';
 import { alunoAtual } from '../../../lib/sessao.ts';
@@ -13,6 +14,8 @@ import { portalDaEmpresa } from '../../../lib/empresa.ts';
 import { situacaoDominio } from '../../../lib/portal-dominio.ts';
 import { enderecoDoPortal } from '../../../lib/portal-consultas.ts';
 import { brl } from '../../../lib/precos.ts';
+import { resolverPagina } from '../../../lib/pagina-empresa.ts';
+import { lerConfiguracao } from '../../../lib/configuracao.ts';
 
 export const metadata: Metadata = { title: 'Minha página — Painel da empresa' };
 export const dynamic = 'force-dynamic';
@@ -27,8 +30,12 @@ export const dynamic = 'force-dynamic';
 export default async function PaginaDaEmpresa() {
   const u = (await alunoAtual())!;
   const portal = (await portalDaEmpresa(u.id))!;
-  const dominio = await situacaoDominio(portal.id);
-  const endereco = await enderecoDoPortal(portal.mascara);
+  const [dominio, endereco, padraoAdmin] = await Promise.all([
+    situacaoDominio(portal.id), enderecoDoPortal(portal.mascara), lerConfiguracao('pagina-universidade'),
+  ]);
+  // O que a página mostra onde a empresa não escreveu nada: o padrão do
+  // administrador, ou o do código. Vai nos placeholders do formulário.
+  const padrao = resolverPagina({}, padraoAdmin);
   const visivel = endereco.replace(/^https?:\/\//, '');
 
   return (
@@ -37,7 +44,8 @@ export default async function PaginaDaEmpresa() {
         <div>
           <h1 className="headline-lg">Minha página</h1>
           <p className="suave">
-            O que o colaborador vê ao chegar em <code>{visivel}</code> antes de entrar.
+            A página pública da universidade em <code>{visivel}</code> — o que qualquer
+            pessoa vê antes de entrar.
           </p>
         </div>
         <div className="acoes">
@@ -48,9 +56,11 @@ export default async function PaginaDaEmpresa() {
       </div>
 
       <p className="aviso" style={{ marginBottom: 24 }}>
-        <strong>O portal da sua empresa é fechado.</strong> Quem chega ao endereço sem
-        acesso vê só a marca e o login — não há catálogo, preço nem cadastro aberto. O
-        conteúdo interno não aparece em busca.
+        <strong>O conteúdo do portal da sua empresa é fechado.</strong> Quem chega ao
+        endereço sem acesso vê a página institucional da universidade — a sua marca, a
+        mensagem de boas-vindas e o que o ambiente oferece — e o botão de entrar. Não há
+        catálogo, preço nem cadastro aberto, e nenhuma trilha, documento ou nome de
+        colaborador aparece antes do login.
       </p>
 
       <div className="cartao" style={{ marginBottom: 24 }}>
@@ -77,6 +87,23 @@ export default async function PaginaDaEmpresa() {
           acao={acaoSalvarPaginaEmpresa}
           nomeExibicao={portal.nomeExibicao}
           valores={portal.personalizacao}
+        />
+      </div>
+
+      <div className="cartao" style={{ marginBottom: 24 }}>
+        <h2 className="headline-md" style={{ marginBottom: 6 }}>
+          <Icone nome="web" /> A página pública, seção a seção
+        </h2>
+        <p className="caption suave" style={{ marginBottom: 16 }}>
+          O que aparece em cinza é o texto padrão — a página usa esse quando o campo está em
+          branco. Escreva só onde quiser outra coisa; apagar volta ao padrão. Nenhuma trilha,
+          documento ou pessoa da empresa entra nesta página: ela é institucional.
+        </p>
+        <FormSecoesPagina
+          acao={acaoSalvarSecoesPagina}
+          valores={portal.personalizacao.pagina ?? {}}
+          padrao={padrao}
+          modo="empresa"
         />
       </div>
 

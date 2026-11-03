@@ -51,6 +51,7 @@ const GRUPOS: { titulo?: string; itens: ItemDaRetaguarda[] }[] = [
       { href: '/admin/alunos', icone: 'group', texto: 'Alunos', permissao: 'cadastros.ver' },
       { href: '/admin/portais', icone: 'public', texto: 'Portais de professor', permissao: 'cadastros.ver' },
       { href: '/admin/empresas', icone: 'handshake', texto: 'Empresas & RH', permissao: 'cadastros.ver' },
+      { href: '/admin/portais/pagina-da-universidade', icone: 'web', texto: 'Página das universidades', permissao: 'conteudo.agir' },
     ],
   },
   {

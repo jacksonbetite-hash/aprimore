@@ -11,7 +11,7 @@ import {
 } from '../../../../lib/admin-portais.ts';
 import { historicoDePrecos, tabelaVigente } from '../../../../lib/precos-consultas.ts';
 import { brl, PERIODOS, dataBR } from '../../../../lib/precos.ts';
-import { PORTAL_PLATAFORMA } from '../../../../lib/portal.ts';
+import { PORTAL_PLATAFORMA, dominioBase } from '../../../../lib/portal.ts';
 import { permissoesDaTela } from '../../guarda.ts';
 
 export const metadata: Metadata = { title: 'Portal — Administração' };
@@ -47,7 +47,7 @@ export default async function Portal(
         <div>
           <h1 className="headline-lg">{portal.nomeExibicao}</h1>
           <p className="suave">
-            <code>{portal.mascara}.aprimoreosaber.com.br</code> · {portal.status.toLowerCase()} ·{' '}
+            <code>{portal.mascara}.{dominioBase()}</code> · {portal.status.toLowerCase()} ·{' '}
             {portal.materias} curso(s) · {portal.alunos} aluno(s)
           </p>
         </div>
@@ -80,7 +80,7 @@ export default async function Portal(
         <div className="cartao">
           <h2 className="headline-md" style={{ marginBottom: 16 }}>Dados do portal</h2>
           <FormPortal acao={acaoEditarPortal} planos={planos} professores={professores}
-            portal={portal} />
+            portal={portal} dominio={dominioBase()} />
         </div>
       ) : (
         <div className="cartao">

@@ -15,13 +15,13 @@ import { join } from 'node:path';
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import {
-  BASE, PORTA, MIDIA, pool, passo, fim, abrirNavegador, webhook, rodarSql,
+  BASE, PORTA, MIDIA, pool, passo, fim, abrirNavegador, webhook, rodarSql, senhaDemo,
   esperarOk, preencher, cadastrarQuestao,
 } from './_comum.mjs';
 
 const MASCARA = 'aurora';
 const EMAIL_RH = 'treinamento@grupoaurora.com.br';
-const SENHA_RH = 'universidade-aurora-2026';
+const SENHA_RH = senhaDemo('universidade-aurora-2026');
 const PORTAL_URL = `http://${MASCARA}.localhost:${PORTA}`;
 const DOMINIO = 'grupoaurora.com.br';
 
@@ -312,7 +312,7 @@ try {
   const formPessoa = p.locator('form:has(input[name=senha])').first();
   await preencher(formPessoa, {
     nome: 'André Coutinho', email: `andre.coutinho@${DOMINIO}`,
-    matricula: 'AUR-2291', senha: 'primeiro-acesso-2026',
+    matricula: 'AUR-2291', senha: senhaDemo('primeiro-acesso-2026'),
   });
   await formPessoa.locator('select[name=setorId]').selectOption({ label: 'Logística' });
   await formPessoa.locator('button[type=submit]').click();
@@ -454,7 +454,7 @@ try {
   await cola.goto(linkConvite, { waitUntil: 'load' });
   passo((await cola.locator('body').innerText()).includes('Universidade Aurora'),
     'o convite abre no endereço da empresa, com a marca dela');
-  await cola.fill('input[name=senha]', 'minha-senha-aurora');
+  await cola.fill('input[name=senha]', senhaDemo('minha-senha-aurora'));
   await cola.click('button[type=submit]');
   await cola.waitForURL('**/painel**', { timeout: 40000 });
   // O painel é servidor: esperar a rede assentar evita ler a página no meio.

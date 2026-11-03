@@ -5,6 +5,7 @@ import { BotaoIcone, LinkIcone } from '../../ui.tsx';
 import { acaoCriarPortal, acaoSalvarPlano, acaoCriarProfessor, acaoStatusPortal } from './acoes.ts';
 import { listarPortais, listarPlanos, listarProfessores } from '../../../lib/admin-portais.ts';
 import { brl } from '../../../lib/precos.ts';
+import { dominioBase } from '../../../lib/portal.ts';
 import { permissoesDaTela } from '../guarda.ts';
 
 export const metadata: Metadata = { title: 'Portais de professor — Administração' };
@@ -57,7 +58,7 @@ export default async function Portais() {
                         style={{ marginLeft: 8 }}>
                     {p.tipo === 'EMPRESA' ? 'empresa' : 'professor'}
                   </span>
-                  <br /><span className="suave mono">{p.mascara}.aprimoreosaber.com.br</span>
+                  <br /><span className="suave mono">{p.mascara}.{dominioBase()}</span>
                 </td>
                 <td>
                   {p.professorNome}
@@ -124,7 +125,8 @@ export default async function Portais() {
             {planos.length === 0 && 'Crie um plano comercial abaixo.'}
           </div>
         ) : (
-          <FormPortal acao={acaoCriarPortal} planos={planos} professores={professores} />
+          <FormPortal acao={acaoCriarPortal} planos={planos} professores={professores}
+            dominio={dominioBase()} />
         )}
       </div>}
 

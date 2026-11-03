@@ -3,8 +3,9 @@ import { Pagina, portalSuspenso, PortalSuspenso, Icone } from './componentes.tsx
 import VideoHero from './VideoHero.tsx';
 import AnuncioDestaque from './AnuncioDestaque.tsx';
 import PaginaPortal from './PaginaPortal.tsx';
+import PaginaEmpresa from './PaginaEmpresa.tsx';
 import { listarAreasEmCache, listarMateriasEmCache } from '../lib/catalogo.ts';
-import { portalIdAtual } from '../lib/portal-consultas.ts';
+import { portalIdAtual, portalAtual } from '../lib/portal-consultas.ts';
 import { alunoAtual } from '../lib/sessao.ts';
 
 export const dynamic = 'force-dynamic';
@@ -99,7 +100,12 @@ export default async function Home() {
   // §5.10 — no endereço de um professor, a home é a página única do
   // portal dele, não a nossa (que fala de nós, das nossas 7 áreas e dos
   // nossos professores).
-  if (portalId !== 0) return <PaginaPortal />;
+  // §5.11 — no endereço de uma empresa, a home é a página pública da
+  // universidade corporativa dela (institucional, sem conteúdo interno);
+  // no de um professor, a vitrine com o acervo e os preços.
+  if (portalId !== 0) {
+    return (await portalAtual()).tipo === 'EMPRESA' ? <PaginaEmpresa /> : <PaginaPortal />;
+  }
   // §5.10 — portal suspenso por inadimplência: visitante não vê o catálogo;
   // quem está logado passa (a licença vigente dele continua valendo).
   if (await portalSuspenso() && !(await alunoAtual())) return <PortalSuspenso />;

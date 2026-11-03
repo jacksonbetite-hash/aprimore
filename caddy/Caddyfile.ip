@@ -1,0 +1,69 @@
+# Caddy da VPS — MODO IP, enquanto o domínio não está registrado.
+#
+#   CADDYFILE=./caddy/Caddyfile.ip   (no .env; ver .env.vps.example)
+#
+# Três coisas mudam em relação ao caddy/Caddyfile (modo domínio):
+#
+# 1. HTTPS com certificado INTERNO para o IP. O Let's Encrypt não emite
+#    para IP, e HTTP puro não serve: em produção os cookies de sessão são
+#    `Secure` (app/acoes-auth.ts) e o navegador os descarta em http:// — o
+#    login simplesmente não funcionaria. E a senha trafegaria aberta. O
+#    navegador avisa "certificado não confiável" uma vez; aceite e siga.
+#
+# 2. SENHA NA PORTA do site inteiro (basic auth). Antes do lançamento,
+#    ninguém além de você tem o que fazer aqui; com a senha, robô de
+#    varredura nenhum chega à aplicação. Ficam de fora só o webhook do
+#    gateway (o Asaas não sabe a senha; a rota confere a própria
+#    assinatura) e a checagem de saúde.
+#
+# 3. Nada de TLS sob demanda: só o IP configurado responde. Requisição a
+#    qualquer outro Host não encontra site e morre aqui.
+#
+# Ao registrar o domínio: aponte o DNS, troque CADDYFILE para
+# ./caddy/Caddyfile e rode `docker compose ... up -d caddy`. Ver docs/implantacao-vps.md.
+
+{
+  email {$ACME_EMAIL:contato@example.com}
+
+  # O redirecionamento http -> https é feito abaixo, à mão, para levar a
+  # porta HTTPS certa quando ela não for a 443.
+  auto_https disable_redirects
+
+  # Navegador não manda SNI quando o endereço é um IP (RFC 6066). Sem
+  # isto, o Caddy não sabe qual certificado entregar e o handshake falha.
+  default_sni {$IP_PUBLICO}
+
+  servers {
+    timeouts {
+      read_body   30m
+      read_header 30s
+      idle        5m
+    }
+  }
+}
+
+https://{$IP_PUBLICO} {
+  tls internal
+
+  @protegido not path /api/webhook /api/webhook/* /api/saude
+  basic_auth @protegido {
+    {$ACESSO_USUARIO:aprimore} {$ACESSO_SENHA_HASH}
+  }
+
+  request_body {
+    max_size 2GB
+  }
+
+  header -Server
+
+  reverse_proxy nginx:80 {
+    transport http {
+      read_timeout  30m
+      write_timeout 30m
+    }
+  }
+}
+
+http://{$IP_PUBLICO} {
+  redir https://{host}:{$PORTA_HTTPS:443}{uri} permanent
+}

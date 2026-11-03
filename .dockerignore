@@ -5,3 +5,7 @@ prototipo
 *.md
 docker-compose.yml
 midia
+# segredos nunca entram no contexto de build
+.env
+.env.local
+.env*.local

@@ -42,6 +42,8 @@ services:
       ASAAS_API_KEY: ${ASAAS_API_KEY:-}
       ASAAS_WEBHOOK_TOKEN: ${ASAAS_WEBHOOK_TOKEN:-}
       ALUNO_DEMO: ${ALUNO_DEMO:-}
+      # Primeira subida importa o vade-mécum do Planalto (~3 min). 0 pula.
+      IMPORTAR_LEIS: ${IMPORTAR_LEIS:-1}
       # §5.10 — domínio sob o qual os portais de professor vivem.
       # `jackson.<DOMINIO_BASE>` resolve o portal do Jackson; o domínio
       # nu é a plataforma. Em desenvolvimento, `jackson.localhost` funciona.
@@ -97,8 +99,15 @@ services:
     image: caddy:2-alpine
     environment:
       ACME_EMAIL: ${ACME_EMAIL:-}
+      # Modo IP (caddy/Caddyfile.ip), enquanto não há domínio registrado.
+      IP_PUBLICO: ${IP_PUBLICO:-}
+      PORTA_HTTPS: ${PORTA_HTTPS:-443}
+      ACESSO_USUARIO: ${ACESSO_USUARIO:-aprimore}
+      ACESSO_SENHA_HASH: ${ACESSO_SENHA_HASH:-}
     volumes:
-      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # caddy/Caddyfile = domínio com HTTPS automático; caddy/Caddyfile.ip =
+      # só o IP, com certificado interno e senha na porta. Ver .env.vps.example.
+      - ${CADDYFILE:-./caddy/Caddyfile}:/etc/caddy/Caddyfile:ro
       # Certificados e chaves: perder este volume é reemitir tudo.
       - caddy-dados:/data
       - caddy-config:/config

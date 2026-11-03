@@ -82,19 +82,13 @@ event loop deixam o site inteiro lento, inclusive para quem só está
 fazendo exercício. Por isso, na VPS, o nginx é obrigatório.
 
 ```bash
-# .env
-VIDEO_SEGREDO=<32 bytes aleatórios>
-VIDEO_ACCEL_REDIRECT=/midia-interna
-
-docker compose --profile vps up -d --build
+./scripts/vps/subir.sh
 ```
 
-O perfil `vps` sobe o nginx. Sem ele, o Compose sobe como sempre — é o
-modo de desenvolvimento.
-
-Depois, no servidor: apontar o domínio, emitir o certificado
-(`certbot --nginx`), e **remover a publicação da porta 3000** do serviço
-`web`, para que só o nginx responda da rua.
+O `docker-compose.vps.yml` liga `VIDEO_ACCEL_REDIRECT=/midia-interna` e
+fecha a porta 3000; o perfil `vps` sobe o nginx e o Caddy (HTTPS). O
+passo a passo completo — `.env`, segredos, modo IP e domínio — está em
+[`implantacao-vps.md`](implantacao-vps.md).
 
 A linha mais importante do `nginx/aprimoreosaber.conf` é o `internal`
 da location `/midia-interna/`: ela não responde a requisição vinda da rua.

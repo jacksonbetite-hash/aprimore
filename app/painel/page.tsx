@@ -12,7 +12,7 @@ import {
   estatisticas, cadernoDeErros,
 } from '../../lib/sessao.ts';
 import { licencaVigente } from '../../lib/licenca.ts';
-import { corSegura } from '../../lib/portal.ts';
+import { temaDoPortal } from '../../lib/tema-portal.ts';
 import { formatarDuracao } from '../../lib/catalogo.ts';
 
 export const metadata: Metadata = { title: 'Minha jornada' };
@@ -60,13 +60,11 @@ export default async function Painel(
   // §5.10 — a cor do portal também vale na área do aluno: fora daqui o
   // aluno via a página do professor no tema dele e o painel no nosso.
   // Só uma cor validada (#rgb/#rrggbb) chega ao CSS: cor é dado, não código.
-  const cor = corSegura(portal.personalizacao.corPrimaria);
+  const tema = temaDoPortal(portal.personalizacao.corPrimaria);
 
   return (
     <div className="app">
-      {cor && (
-        <style>{`:root{--primary:${cor};--primary-texto:${cor};--primary-container:${cor};--on-primary-fixed-variant:${cor}}`}</style>
-      )}
+      {tema && <style>{tema}</style>}
       <LateralAluno papel={aluno.papel} />
 
       <div className="conteudo">

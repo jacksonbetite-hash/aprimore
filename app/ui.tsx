@@ -137,6 +137,36 @@ const TRACOS: Record<string, React.ReactNode> = {
   /* Primeiro degrau da trilha de migalhas (/entrar). Telhado em traço
      aberto e porta fechada — o mesmo peso das outras casas do conjunto. */
   home: <><path d="m3.5 10.5 8.5-7 8.5 7" /><path d="M5.5 9.2V19a1.5 1.5 0 0 0 1.5 1.5h10a1.5 1.5 0 0 0 1.5-1.5V9.2" /><path d="M10 20.5v-5.5h4v5.5" /></>,
+  /* Página pública da universidade corporativa (app/PaginaEmpresa.tsx),
+     layout de 10/09/2026. Os nomes são os do Material Symbols que o
+     protótipo usava; o traço é o da casa. */
+  favorite: <path d="M12 20s-7-4.4-7-9.5A3.8 3.8 0 0 1 12 8a3.8 3.8 0 0 1 7 2.5C19 15.6 12 20 12 20Z" />,
+  trending_up: <><path d="m3.5 16.5 6-6 4 4 7-7" /><path d="M15.5 7.5h5v5" /></>,
+  military_tech: <><circle cx="12" cy="15.5" r="4.5" /><path d="M9.2 11.5 6.5 3.5h11l-2.7 8" /><path d="M10 3.5v6.3M14 3.5v6.3" /></>,
+  psychology: <><path d="M9.5 20.5v-3.2H6.3L4.5 13 6 12.8V10a6.5 6.5 0 0 1 13 0c0 2.4-1.2 4-2.5 5.3v5.2" /><circle cx="12.5" cy="10.5" r="2.2" /><path d="M12.5 6.8v1.5M12.5 12.7v1.5M8.8 10.5h1.5M14.7 10.5h1.5" /></>,
+  play_lesson: <><path d="M5 4.5h11a2 2 0 0 1 2 2V11" /><path d="M5 4.5v13a2 2 0 0 0 2 2h4" /><circle cx="16.5" cy="17" r="4" /><path d="m15.5 15.3 2.6 1.7-2.6 1.7v-3.4Z" /></>,
+  card_membership: <><rect x="3" y="4.5" width="18" height="11" rx="2" /><path d="M3.5 9.5h17" /><path d="M9.5 15.5v5l2.5-1.5 2.5 1.5v-5" /></>,
+  verified: <><path d="m12 3 2 1.6 2.5-.3.9 2.4 2.2 1.2-.4 2.5 1.5 2.1-1.8 1.8v2.6l-2.5.6-1.3 2.2-2.4-.8-2.4.8-1.3-2.2-2.5-.6v-2.6L4.7 14.7l1.5-2.1-.4-2.5L8 8.9l.9-2.4 2.5.3L12 3Z" /><path d="m8.8 12.3 2.3 2.3 4.2-4.6" /></>,
+  auto_stories: <><path d="M12 19.5c-1.4-1.2-3.4-2-6-2-1 0-1.9.1-2.8.3v-13c.9-.2 1.8-.3 2.8-.3 2.6 0 4.6.8 6 2v13Z" /><path d="M12 6.5c1.4-1.2 3.4-2 6-2 1 0 1.9.1 2.8.3v13c-.9-.2-1.8-.3-2.8-.3-2.6 0-4.6.8-6 2" /><path d="m14.5 11 4-5.5" /></>,
+  smartphone: <><rect x="6.5" y="2.5" width="11" height="19" rx="2.5" /><path d="M10.5 18.5h3" /></>,
+  cloud_sync: <><path d="M7.5 18.5a4.5 4.5 0 0 1-.9-8.9 6 6 0 0 1 11.5 1.3 3.8 3.8 0 0 1 .4 7.6" /><path d="M9.8 14.2a2.6 2.6 0 0 1 4.4-.7" /><path d="M14.2 11.8v1.9h-1.9" /><path d="M14.2 17.8a2.6 2.6 0 0 1-4.4.7" /><path d="M9.8 20.2v-1.9h1.9" /></>,
+  download_for_offline: <><circle cx="12" cy="12" r="9" /><path d="M12 6.5v7M9 11l3 3 3-3" /><path d="M8.5 17h7" /></>,
+  touch_app: <><path d="M9 11.5V6.5a2.5 2.5 0 0 1 5 0V12" /><path d="M14 12v-1l3.2 1a2.5 2.5 0 0 1 1.7 2.7l-.6 4.2a2.5 2.5 0 0 1-2.5 2.1h-4.3a2.5 2.5 0 0 1-2-1L6.5 16.5a1.4 1.4 0 0 1 2.1-1.8L9 15.5v-4" /><path d="M6.2 6.5a5.5 5.5 0 0 1 10.6 0" /></>,
+  notifications_active: <><path d="M18 9a6 6 0 1 0-12 0c0 5-2 6.5-2 6.5h16S18 14 18 9Z" /><path d="M13.7 19a2 2 0 0 1-3.4 0" /><path d="M3.5 7.5a8.5 8.5 0 0 1 2.4-4M20.5 7.5a8.5 8.5 0 0 0-2.4-4" /></>,
+  analytics: <><rect x="3.5" y="3.5" width="17" height="17" rx="2.5" /><path d="M8 16v-3M12 16V8M16 16v-5" /></>,
+  hub: <><circle cx="12" cy="5.5" r="2.2" /><circle cx="5.5" cy="17" r="2.2" /><circle cx="18.5" cy="17" r="2.2" /><circle cx="12" cy="12.5" r="2.4" /><path d="M12 7.7v2.4M10 13.9l-2.8 1.6M14 13.9l2.8 1.6" /></>,
+  security: <><path d="M12 3 5 5.6v5.2c0 4.4 3 8.5 7 9.5 4-1 7-5.1 7-9.5V5.6L12 3Z" /><path d="M12 3v17.3M5.2 11.5h13.6" /></>,
+  integration_instructions: <><rect x="4" y="4" width="16" height="16" rx="2.5" /><path d="M9.5 3v2.5M14.5 3v2.5" /><path d="m9.5 10-2.5 2.2 2.5 2.2M14.5 10l2.5 2.2-2.5 2.2M13 9l-2 6.5" /></>,
+  support_agent: <><path d="M5 13.5V11a7 7 0 0 1 14 0v2.5" /><rect x="3.5" y="12.5" width="3.5" height="5" rx="1.5" /><rect x="17" y="12.5" width="3.5" height="5" rx="1.5" /><path d="M13 20.5h2.5a3 3 0 0 0 3-3" /></>,
+  calendar_month: <><rect x="3.5" y="5" width="17" height="15.5" rx="2.5" /><path d="M3.5 9.5h17M8 3v4M16 3v4" /><path d="M7.5 13h2M11 13h2M14.5 13h2M7.5 16.5h2M11 16.5h2" /></>,
+  /* Painel da empresa (/empresa/site e /empresa/colaboradores) — cinco
+     nomes que as telas já pediam sem existir aqui (a chave, o endereço, o
+     copiar e as duas ações de pessoa), e que por isso saíam em branco. */
+  key: <><circle cx="8" cy="12" r="3.5" /><path d="M11.5 12h9M17.5 12v3M20.5 12v2.2" /></>,
+  language: <><circle cx="12" cy="12" r="8.5" /><path d="M3.6 12h16.8M12 3.5c2.4 2.3 3.6 5.3 3.6 8.5s-1.2 6.2-3.6 8.5c-2.4-2.3-3.6-5.3-3.6-8.5s1.2-6.2 3.6-8.5Z" /></>,
+  content_copy: <><rect x="8.5" y="8.5" width="11" height="12.5" rx="2" /><path d="M5.5 15.5h-.5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v.5" /></>,
+  person_add: <><circle cx="10" cy="8" r="3.5" /><path d="M3 20c0-3.3 3.1-5.5 7-5.5 1.2 0 2.3.2 3.3.6" /><path d="M18 14v6M15 17h6" /></>,
+  person_off: <><circle cx="10" cy="8" r="3.5" /><path d="M3 20c0-3.3 3.1-5.5 7-5.5 1.2 0 2.3.2 3.3.6" /><path d="m15.5 15.5 5 5M20.5 15.5l-5 5" /></>,
 };
 
 export function Icone(

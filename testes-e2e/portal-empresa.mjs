@@ -137,11 +137,29 @@ check(semIcone === 0, 'todo item do menu do RH tem ícone — nenhum nome descon
 
 // ---------- a marca e a política de acesso ----------
 await p.goto(base + '/empresa/site', { waitUntil: 'load' });
+// O nome da universidade é o que a contratação pediu — e o RH troca aqui.
+// É ELE que vai ao topo de toda tela do portal (docs/plano-pagina-da-
+// universidade.md, §3.5): a checagem do portão, mais abaixo, exige o
+// nome NOVO, e não o da contratação.
+check((await p.inputValue('input[name=nomeExibicao]')) === 'Universidade Acme',
+  'o nome da universidade vem preenchido com o que a contratação pediu');
+await p.fill('input[name=nomeExibicao]', 'Universidade Acme Corp');
 await p.fill('input[name=chamada]', 'Treinamento e desenvolvimento na Acme');
 await p.fill('input[name=contato]', 'treinamento@acme.com.br');
-await p.click('button:has-text("Salvar página")');
+await p.click('button:has-text("Salvar marca")');
 await p.waitForSelector('.alerta-ok', { timeout: 15000 });
-check(true, 'a página de entrada foi salva');
+check(true, 'a marca foi salva, com o nome novo');
+
+// ---------- a página pública, seção a seção ----------
+// Título com destaque, uma prova, o bloco da plataforma desligado — e o
+// resto em branco, que tem de cair no padrão sem deixar buraco.
+const pub = p.locator('form.form-editor').first();
+await pub.locator('input[name=titulo]').fill('A escola da *Acme*');
+await pub.locator('input[name=prova0]').fill('Feito para quem trabalha na Acme');
+await pub.locator('input[name=secao_contato]').uncheck();
+await pub.locator('button:has-text("Salvar página pública")').click();
+await p.waitForSelector('form.form-editor .alerta-ok', { timeout: 15000 });
+check(true, 'a página pública foi salva (título, uma prova, bloco da plataforma desligado)');
 
 await p.fill('input[name=dominios]', 'gmail.com');
 await p.click('button:has-text("Salvar política")');
@@ -173,11 +191,44 @@ const pb = await (await b.newContext()).newPage();
 
 await pb.goto(raiz + '/', { waitUntil: 'load' });
 const portao = await pb.locator('body').innerText();
-check(portao.includes('Universidade Acme'), 'o portão mostra a marca da empresa');
+check((await pb.locator('header .marca .rotulo').innerText()) === 'Universidade Acme Corp',
+  'o topo mostra o nome que o RH acabou de salvar — não o da contratação');
+check(portao.includes('Universidade Acme Corp'), 'o portão mostra a marca da empresa');
 check(portao.includes('Treinamento e desenvolvimento na Acme'),
   'e a mensagem de boas-vindas que o RH escreveu');
 check(!portao.includes('Criar conta') && !portao.includes(REAL),
   'sem cadastro aberto e sem preço na tela');
+// A página pública lê as três camadas: o que a empresa escreveu, o que
+// ela deixou em branco (cai no padrão) e o que desligou (some).
+check((await pb.locator('h1').innerText()).includes('A escola da Acme')
+  && (await pb.locator('h1 em').innerText()) === 'Acme',
+  'o título é o da empresa, com o destaque na cor do portal');
+check(portao.includes('Feito para quem trabalha na Acme') && portao.includes('Ambiente 100% privativo'),
+  'a prova escrita aparece e as em branco caem no padrão');
+check(!portao.includes('Falar com um Especialista') && portao.includes('Pedir acesso ao RH'),
+  'com o bloco da plataforma desligado, o botão principal vira "Pedir acesso ao RH"');
+check(portao.includes('Educação como o maior pilar'),
+  'a seção que ficou ligada continua lá');
+
+// ---------- pedido de acesso: da página pública à fila do RH ----------
+await pb.fill('#pedir-acesso input[name=nome]', 'Colaborador Sem Conta');
+await pb.fill('#pedir-acesso input[name=email]', `e2e-pede-${sufixo}@acme.com.br`);
+await pb.fill('#pedir-acesso input[name=setor]', 'Loja Centro');
+await pb.click('#pedir-acesso button[type=submit]');
+await pb.waitForSelector('.alerta-ok', { timeout: 15000 });
+check((await pb.locator('.alerta-ok').innerText()).includes('setor responsável'),
+  'o pedido de acesso foi registrado pela página pública');
+
+await p.goto(base + '/empresa/colaboradores', { waitUntil: 'load' });
+const fila = await p.locator('body').innerText();
+check(fila.includes('Colaborador Sem Conta') && fila.includes('Loja Centro'),
+  'o RH vê o pedido na fila, com o setor que a pessoa escreveu');
+await p.locator('#pedidos button:has-text("Convidar")').first().click();
+await p.locator('#pedidos button:has-text("Gerar o convite por link")').click();
+await p.waitForSelector('#pedidos .alerta-ok code', { timeout: 15000 });
+const linkDoPedido = await p.locator('#pedidos .alerta-ok code').innerText();
+check(linkDoPedido.includes(`${MASCARA}.localhost`) && linkDoPedido.includes('/convite/'),
+  'atender o pedido gera o convite por link no endereço da empresa');
 
 /**
  * A varredura: toda rota pública, anonimamente, no endereço da empresa.

@@ -668,3 +668,100 @@ export async function autocadastrar(
     return u.id;
   });
 }
+
+// ---------------------------------------------------------------------
+// Pedido de acesso — o "Fale com o RH" da página pública (db/048)
+// ---------------------------------------------------------------------
+
+export interface PedidoAcesso {
+  id: number; nome: string; email: string; setor: string | null; mensagem: string | null;
+  status: 'novo' | 'convidado' | 'recusado';
+  criadoEm: Date; atendidoPor: string | null; atendidoEm: Date | null;
+}
+
+export interface DadosPedidoAcesso { nome: string; email: string; setor?: string; mensagem?: string }
+
+/**
+ * Quem chegou à página da universidade sem conta e pediu para entrar.
+ * Anônimo, então curto e rígido: e-mail válido, um pedido aberto por
+ * e-mail (índice parcial de db/048) e nada de HTML — o texto vai à tela
+ * do RH como texto. Não confere o teto do plano: quem decide se cabe é o
+ * RH, na hora de convidar.
+ */
+export async function registrarPedidoAcesso(portalId: number, d: DadosPedidoAcesso): Promise<number> {
+  const nome = d.nome.trim().slice(0, 120);
+  const email = d.email.trim().toLowerCase();
+  if (nome.length < 2) throw new Error('Informe o seu nome.');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) throw new Error('Informe um e-mail válido.');
+  const setor = d.setor?.trim().slice(0, 80) || null;
+  const mensagem = d.mensagem?.trim().slice(0, 1000) || null;
+  return emTransacao(async (exec) => {
+    const [ja] = await exec(
+      `SELECT 1 FROM usuario WHERE portal_id = $1 AND lower(email) = $2 AND status_conta <> 'ENCERRADA'`,
+      [portalId, email]);
+    if (ja) throw new Error('Este e-mail já tem acesso. Use "Entrar" — ou peça uma senha nova ao RH.');
+    const [novo] = await exec<{ id: number }>(
+      `INSERT INTO pedido_acesso (portal_id, nome, email, setor, mensagem)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT DO NOTHING RETURNING id::int AS id`,
+      [portalId, nome, email, setor, mensagem],
+    );
+    if (!novo) throw new Error('Já existe um pedido seu em aberto. O RH vai responder por e-mail.');
+    await auditar(exec, email, 'empresa.pedido_acesso.criado', 'pedido_acesso', novo.id, { portalId });
+    return novo.id;
+  });
+}
+
+export function listarPedidosAcesso(portalId: number) {
+  return query<PedidoAcesso>(
+    `SELECT id::int AS id, nome, email, setor, mensagem, status, criado_em AS "criadoEm",
+            atendido_por AS "atendidoPor", atendido_em AS "atendidoEm"
+       FROM pedido_acesso WHERE portal_id = $1
+      ORDER BY (status = 'novo') DESC, criado_em DESC LIMIT 200`,
+    [portalId],
+  );
+}
+
+export function contarPedidosAbertos(portalId: number) {
+  return queryOne<{ n: number }>(
+    `SELECT count(*)::int AS n FROM pedido_acesso WHERE portal_id = $1 AND status = 'novo'`,
+    [portalId]).then((r) => r?.n ?? 0);
+}
+
+/**
+ * Atender é convidar: nasce o convite por link (mesmo teto, mesma
+ * validade de 7 dias) e o pedido guarda qual. O link volta para o RH
+ * copiar — o sistema ainda não envia e-mail (tarefa T do §5.11).
+ */
+export async function atenderPedidoAcesso(
+  ator: string, portalId: number, id: number,
+  d: { setorId: number | null; trilhas: number[]; prazoDias: number | null },
+) {
+  const pedido = await queryOne<PedidoAcesso>(
+    `SELECT id::int AS id, nome, email, setor, mensagem, status, criado_em AS "criadoEm",
+            atendido_por AS "atendidoPor", atendido_em AS "atendidoEm"
+       FROM pedido_acesso WHERE id = $1 AND portal_id = $2`, [id, portalId]);
+  if (!pedido) throw new Error('pedido não encontrado');
+  if (pedido.status !== 'novo') throw new Error('este pedido já foi atendido');
+  const convite = await criarConvite(ator, portalId, {
+    email: pedido.email, nome: pedido.nome, setorId: d.setorId, trilhas: d.trilhas, prazoDias: d.prazoDias,
+  });
+  await emTransacao(async (exec) => {
+    await exec(
+      `UPDATE pedido_acesso SET status = 'convidado', convite_id = $3, atendido_por = $4, atendido_em = now()
+        WHERE id = $1 AND portal_id = $2`, [id, portalId, convite.id, ator]);
+    await auditar(exec, ator, 'empresa.pedido_acesso.convidado', 'pedido_acesso', id,
+      { portalId, conviteId: convite.id });
+  });
+  return convite;
+}
+
+export async function recusarPedidoAcesso(ator: string, portalId: number, id: number) {
+  await emTransacao(async (exec) => {
+    const [p] = await exec<{ id: number }>(
+      `UPDATE pedido_acesso SET status = 'recusado', atendido_por = $3, atendido_em = now()
+        WHERE id = $1 AND portal_id = $2 AND status = 'novo' RETURNING id`, [id, portalId, ator]);
+    if (!p) throw new Error('pedido não encontrado, ou já atendido');
+    await auditar(exec, ator, 'empresa.pedido_acesso.recusado', 'pedido_acesso', id, { portalId });
+  });
+}
