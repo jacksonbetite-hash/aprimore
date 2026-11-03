@@ -44,14 +44,19 @@ jobs:
       DATABASE_URL: postgres://aprimore:aprimore@localhost:5432/aprimore
       NEXT_TELEMETRY_DISABLED: 1
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
 
       - run: npm ci --no-audit --no-fund
+
+      # A imagem de produção tem ffmpeg (capa do curso, lib/capa-video.ts);
+      # sem ele aqui, os testes da capa seriam pulados.
+      - name: ffmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends ffmpeg >/dev/null
 
       # Base nova, como a da primeira subida na VPS: prova que as 48+
       # migrações aplicam do zero, em ordem.
@@ -63,6 +68,7 @@ jobs:
 
       # Sem o vade-mécum do Planalto (rede externa, ~3 min): os 2 testes que
       # comparam com o acervo são pulados com o motivo no relatório.
+      # Todos os outros rodam, inclusive os de banco e os de ffmpeg.
       - name: Testes
         run: npm test
 
@@ -85,22 +91,22 @@ jobs:
     outputs:
       imagem: ${{ steps.nome.outputs.imagem }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Etiqueta imutável por commit: é ela que vai para a VPS, e é o que
       # permite voltar a uma versão anterior com segurança.
       - id: nome
         run: echo "imagem=ghcr.io/${GITHUB_REPOSITORY,,}:sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         with:
           context: .
           push: true
