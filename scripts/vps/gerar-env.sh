@@ -2,7 +2,12 @@
 # Gera o .env de PRODUÇÃO a partir do .env.vps.example, sorteando todos
 # os segredos. Roda NA VPS, na pasta do projeto:
 #
-#   ./scripts/vps/gerar-env.sh 203.0.113.10
+#   ./scripts/vps/gerar-env.sh 203.0.113.10             # produção
+#   ./scripts/vps/gerar-env.sh 203.0.113.10 --staging   # homologação
+#
+# --staging: projeto `aprimore-staging` (containers, volumes e banco
+# próprios) nas portas 8080/8443, para conviver com a produção na mesma
+# VPS. Rode-o na pasta do clone de staging (ver docs/implantacao-vps.md).
 #
 # Imprime UMA vez a senha de acesso ao site (modo IP). Recusa sobrescrever
 # um .env existente: trocar POSTGRES_PASSWORD depois que o banco nasceu
@@ -11,6 +16,7 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 
 IP="${1:-}"
+STAGING=0; [ "${2:-}" = "--staging" ] && STAGING=1
 if [[ ! "$IP" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]]; then
   echo "uso: $0 <IP público da VPS>   (ex.: $0 203.0.113.10)" >&2
   exit 1
@@ -36,15 +42,18 @@ sed \
   -e "s|^WEBHOOK_SEGREDO=.*|WEBHOOK_SEGREDO=$(segredo)|" \
   -e "s|^VIDEO_SEGREDO=.*|VIDEO_SEGREDO=$(segredo)|" \
   .env.vps.example > .env
+if [ $STAGING = 1 ]; then
+  sed -i -e 's|^COMPOSE_PROJECT_NAME=.*|COMPOSE_PROJECT_NAME=aprimore-staging|'          -e 's|^PORTA_HTTP=.*|PORTA_HTTP=8080|'          -e 's|^PORTA_HTTPS=.*|PORTA_HTTPS=8443|' .env
+fi
 chmod 600 .env
 
-if grep -q '<gerado>' .env; then
-  echo "✖ sobrou valor sem gerar no .env:" >&2; grep -n '<gerado>' .env >&2; exit 1
+if grep -qE "^[A-Z_]+='?<gerado>" .env; then
+  echo "✖ sobrou valor sem gerar no .env:" >&2; grep -nE "^[A-Z_]+='?<gerado>" .env >&2; exit 1
 fi
 
 cat <<FIM
 
-✔ .env de produção criado (permissão 600).
+✔ .env de $([ $STAGING = 1 ] && echo staging || echo produção) criado (permissão 600).
 
   Acesso ao site enquanto não há domínio:
     endereço: https://$IP$( [ "$(grep '^PORTA_HTTPS=' .env | cut -d= -f2)" = "443" ] || echo ":$(grep '^PORTA_HTTPS=' .env | cut -d= -f2)")

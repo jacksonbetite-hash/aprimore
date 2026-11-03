@@ -28,7 +28,7 @@ fi
 
 echo ".env"
 if [ ! -f .env ]; then erro "sem .env — rode ./scripts/vps/gerar-env.sh <IP>"; else
-  grep -q '<gerado>' .env && erro ".env ainda tem valores <gerado>"
+  grep -qE "^[A-Z_]+='?<gerado>" .env && erro ".env ainda tem valores <gerado>"
   [ -n "$(valor VIDEO_SEGREDO)" ] || erro "VIDEO_SEGREDO vazio (produção não sobe sem ele)"
   [ "$(valor POSTGRES_PASSWORD)" = "aprimore" ] && erro "POSTGRES_PASSWORD ainda é o padrão"
   [ "$(valor WEBHOOK_SEGREDO)" = "segredo-de-desenvolvimento" ] && erro "WEBHOOK_SEGREDO ainda é o padrão"
@@ -44,11 +44,13 @@ if [ ! -f .env ]; then erro "sem .env — rode ./scripts/vps/gerar-env.sh <IP>";
   [ "$(stat -c %a .env 2>/dev/null)" = "600" ] || aviso ".env não está com permissão 600 (chmod 600 .env)"
 fi
 
+projeto="$(valor COMPOSE_PROJECT_NAME)"; projeto="${projeto:-aprimore}"
+
 echo "Portas (só o Caddy desta pilha publica portas no host)"
 for nome in PORTA_HTTP PORTA_HTTPS; do
   p="$(valor $nome)"; p="${p:-$([ $nome = PORTA_HTTP ] && echo 80 || echo 443)}"
   dono="$(docker ps --filter "publish=$p" --format '{{.Names}}' 2>/dev/null | head -1)"
-  if [ "$dono" = "aprimore-caddy-1" ]; then ok "$p já é desta pilha"
+  if [ "$dono" = "$projeto-caddy-1" ]; then ok "$p já é desta pilha"
   elif [ -n "$dono" ]; then erro "porta $p ocupada pelo container '$dono' — troque $nome no .env"
   elif ss -ltnH "sport = :$p" 2>/dev/null | grep -q .; then
     erro "porta $p ocupada por um processo do host ($(ss -ltnpH "sport = :$p" 2>/dev/null | grep -o 'users:(("[^"]*' | cut -d'"' -f2 | head -1)) — troque $nome no .env"
@@ -56,10 +58,12 @@ for nome in PORTA_HTTP PORTA_HTTPS; do
 done
 
 echo "Nomes"
-projeto="$(valor COMPOSE_PROJECT_NAME)"; projeto="${projeto:-aprimore}"
-outros="$(docker ps -a --format '{{.Names}}\t{{.Label "com.docker.compose.project.working_dir"}}' 2>/dev/null \
-  | awk -v p="$projeto-" -v d="$PWD" 'index($1,p)==1 && $2!=d {print $1" ("$2")"}')"
-if [ -n "$outros" ]; then erro "já existem containers '$projeto-*' de OUTRA pasta: $outros"
+# Pela etiqueta exata do Compose, não pelo prefixo do nome: `aprimore` e
+# `aprimore-staging` convivem na mesma VPS sem se confundirem.
+outros="$(docker ps -a --filter "label=com.docker.compose.project=$projeto" \
+  --format '{{.Names}}|{{.Label "com.docker.compose.project.working_dir"}}' 2>/dev/null \
+  | awk -F'|' -v d="$PWD" '$2!=d {print $1" ("$2")"}')"
+if [ -n "$outros" ]; then erro "o projeto '$projeto' já existe em OUTRA pasta: $outros"
 else ok "projeto '$projeto' não colide com containers existentes"; fi
 
 echo "Recursos"

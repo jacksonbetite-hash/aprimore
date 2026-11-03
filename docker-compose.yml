@@ -32,7 +32,10 @@ services:
 
   web:
     build: .
-    image: aprimore:latest
+    # Local: imagem montada aqui (`--build`). VPS: a imagem que o GitHub
+    # Actions montou (ghcr.io/...), gravada no .env pelo scripts/vps/subir.sh —
+    # o servidor só baixa, nunca compila o Next.
+    image: ${IMAGEM_WEB:-aprimore:latest}
     environment:
       DATABASE_URL: postgres://aprimore:${POSTGRES_PASSWORD:-aprimore}@db:5432/aprimore
       NODE_ENV: production

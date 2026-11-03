@@ -15,13 +15,19 @@ import { dias } from './penas/tempo.ts';
  */
 const { pool, query } = await import('./db.ts');
 
-let temBanco = true;
+// Base nova (a do CI, a da primeira subida antes do `npm run leis`) tem o
+// banco mas não o acervo do Planalto: comparar com tabela vazia acusaria
+// todo o catálogo de divergente, sem que nada esteja errado.
+let motivo: string | false = false;
 try {
-  await pool.query('SELECT 1 FROM dispositivo LIMIT 1');
+  // Mesmo critério do importador (scripts/importar-leis.mjs --se-necessario):
+  // o seed traz uma amostra das normas; o acervo de verdade vem do Planalto.
+  const { rows } = await pool.query(`SELECT 1 FROM norma WHERE fonte LIKE 'Planalto%' LIMIT 1`);
+  if (rows.length === 0) motivo = 'acervo do Planalto não importado (npm run leis)';
 } catch {
-  temBanco = false;
+  motivo = 'banco não disponível';
 }
-const talvez = { skip: temBanco ? false : 'banco não disponível' };
+const talvez = { skip: motivo };
 
 test('o extrator lê as formas que a lei usa para escrever a pena', () => {
   assert.deepEqual(

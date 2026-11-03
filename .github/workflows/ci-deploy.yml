@@ -1,0 +1,193 @@
+# CI e deploy do Aprimore.
+#
+#   push em staging → testes → imagem → deploy no ambiente "staging"
+#   push em main    → testes → imagem → deploy no ambiente "producao"
+#   pull request    → só os testes
+#
+# A imagem é montada AQUI e publicada no GitHub Container Registry
+# (ghcr.io/jacksonbetite-hash/aprimore). A VPS só baixa: compilar o Next no
+# servidor come vários GB de RAM e disputaria a máquina com os outros
+# sistemas que rodam nela.
+#
+# O deploy só acontece com o ambiente configurado (Settings → Environments,
+# ver docs/implantacao-vps.md §8). Sem a configuração, o job avisa e
+# termina sem enviar nada — a imagem fica publicada mesmo assim.
+
+name: CI e deploy
+
+on:
+  push:
+    branches: [main, staging]
+  pull_request:
+    branches: [main, staging]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  testes:
+    name: Testes e checagens
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: aprimore
+          POSTGRES_PASSWORD: aprimore
+          POSTGRES_DB: aprimore
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U aprimore -d aprimore"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      DATABASE_URL: postgres://aprimore:aprimore@localhost:5432/aprimore
+      NEXT_TELEMETRY_DISABLED: 1
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci --no-audit --no-fund
+
+      # Base nova, como a da primeira subida na VPS: prova que as 48+
+      # migrações aplicam do zero, em ordem.
+      - name: Migrações numa base nova
+        run: npm run migrate
+
+      - name: Tipos
+        run: npx next typegen && npx tsc --noEmit
+
+      # Sem o vade-mécum do Planalto (rede externa, ~3 min): os 2 testes que
+      # comparam com o acervo são pulados com o motivo no relatório.
+      - name: Testes
+        run: npm test
+
+      - name: Scripts e Compose da VPS
+        run: |
+          for f in scripts/vps/*.sh docker-entrypoint.sh; do bash -n "$f"; done
+          cp .env.vps.example .env
+          sed -i -E "s/^([A-Z_]+)='?<gerado>'?$/\1=x/" .env
+          docker compose -f docker-compose.yml -f docker-compose.vps.yml --profile vps config -q
+          rm .env
+
+  imagem:
+    name: Imagem Docker
+    needs: testes
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      imagem: ${{ steps.nome.outputs.imagem }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Etiqueta imutável por commit: é ela que vai para a VPS, e é o que
+      # permite voltar a uma versão anterior com segurança.
+      - id: nome
+        run: echo "imagem=ghcr.io/${GITHUB_REPOSITORY,,}:sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.nome.outputs.imagem }}
+            ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+          # O source é o que o scripts/vps/subir.sh usa para limpar só as
+          # imagens DESTA aplicação na VPS.
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy (${{ github.ref_name == 'main' && 'produção' || 'staging' }})
+    needs: imagem
+    if: github.event_name != 'pull_request' && (github.ref_name == 'main' || github.ref_name == 'staging')
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.ref_name == 'main' && 'producao' || 'staging' }}
+    # Um deploy por ambiente de cada vez, e nenhum é cancelado no meio.
+    concurrency:
+      group: deploy-${{ github.ref_name }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: read
+    env:
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      VPS_USUARIO: ${{ secrets.VPS_USUARIO }}
+      VPS_CHAVE_SSH: ${{ secrets.VPS_CHAVE_SSH }}
+      VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+      VPS_PORTA_SSH: ${{ vars.VPS_PORTA_SSH || '22' }}
+      VPS_PASTA: ${{ vars.VPS_PASTA || (github.ref_name == 'main' && '/opt/aprimore' || '/opt/aprimore-staging') }}
+      IMAGEM: ${{ needs.imagem.outputs.imagem }}
+    steps:
+      - name: Conferir configuração do ambiente
+        id: cfg
+        run: |
+          faltam=""
+          for v in VPS_HOST VPS_USUARIO VPS_CHAVE_SSH VPS_KNOWN_HOSTS; do
+            [ -n "${!v}" ] || faltam="$faltam $v"
+          done
+          if [ -n "$faltam" ]; then
+            echo "::warning title=Deploy não configurado::Faltam segredos no ambiente '${{ github.ref_name == 'main' && 'producao' || 'staging' }}':$faltam. A imagem $IMAGEM foi publicada; nada foi enviado à VPS. Ver docs/implantacao-vps.md."
+            echo "pronto=0" >> "$GITHUB_OUTPUT"
+          else
+            echo "pronto=1" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Chave SSH
+        if: steps.cfg.outputs.pronto == '1'
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$VPS_CHAVE_SSH" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
+          # known_hosts fixo (segredo), sem ssh-keyscan: aceitar a chave que
+          # aparecer seria aceitar um servidor falso no meio do caminho.
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      # Login no registro numa pasta TEMPORÁRIA do servidor, apagada em
+      # seguida: o ~/.docker/config.json de quem já usa a VPS (outros
+      # sistemas) não é tocado. O token vale só durante este job.
+      - name: Baixar a imagem na VPS
+        if: steps.cfg.outputs.pronto == '1'
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          printf '%s\n' "$GHCR_TOKEN" | ssh -i ~/.ssh/deploy -p "$VPS_PORTA_SSH" \
+            -o BatchMode=yes -o StrictHostKeyChecking=yes "$VPS_USUARIO@$VPS_HOST" \
+            "set -e; D=\$(mktemp -d); trap 'rm -rf \"\$D\"' EXIT; \
+             DOCKER_CONFIG=\"\$D\" docker login ghcr.io -u '${{ github.actor }}' --password-stdin >/dev/null; \
+             DOCKER_CONFIG=\"\$D\" docker pull -q '$IMAGEM'"
+
+      - name: Atualizar o código e subir
+        if: steps.cfg.outputs.pronto == '1'
+        run: |
+          ssh -i ~/.ssh/deploy -p "$VPS_PORTA_SSH" -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$VPS_USUARIO@$VPS_HOST" bash -s -- "$VPS_PASTA" "${{ github.ref_name }}" "$IMAGEM" <<'REMOTO'
+          set -euo pipefail
+          cd "$1"
+          git fetch --quiet origin "$2"
+          git checkout --quiet "$2"
+          git merge --ff-only --quiet "origin/$2"
+          IMAGEM_WEB="$3" ./scripts/vps/subir.sh
+          REMOTO
+
+      - name: Resumo
+        if: steps.cfg.outputs.pronto == '1'
+        run: echo "Implantado em ${{ github.ref_name }} — $IMAGEM" >> "$GITHUB_STEP_SUMMARY"
