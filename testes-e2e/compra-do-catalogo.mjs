@@ -15,7 +15,7 @@
  * da Aurora. Cria um admin temporário e apaga tudo que gerou no fim.
  *
  *   BASE_URL=http://localhost:3010 \
- *   DATABASE_URL=postgres://aprimore:aprimore@localhost:5433/aprimoreosaber \
+ *   DATABASE_URL=postgres://aprimore:aprimore@localhost:5433/aprimore \
  *   CHROMIUM="C:/Program Files/Google/Chrome/Application/chrome.exe" \
  *   node testes-e2e/compra-do-catalogo.mjs
  */
@@ -31,7 +31,7 @@ const EMPRESA = `http://aurora.localhost${porta}`;
 const segredo = process.env.WEBHOOK_SEGREDO ?? 'segredo-de-desenvolvimento';
 const pool = new pg.Pool({
   connectionString: process.env.DATABASE_URL
-    ?? 'postgres://aprimore:aprimore@localhost:5432/aprimoreosaber',
+    ?? 'postgres://aprimore:aprimore@localhost:5432/aprimore',
 });
 
 let falhas = 0;

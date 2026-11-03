@@ -9,7 +9,7 @@
  * hora de navegador digitando texto que já está escrito.
  *
  *   BASE_URL=http://localhost:3010 \
- *   DATABASE_URL=postgres://aprimore:aprimore@localhost:5433/aprimoreosaber \
+ *   DATABASE_URL=postgres://aprimore:aprimore@localhost:5433/aprimore \
  *   CHROMIUM="C:/Program Files/Google/Chrome/Application/chrome.exe" \
  *   node scripts/demo/portal-professor.mjs
  */
@@ -63,7 +63,7 @@ export const MIDIA = process.env.DEMO_MIDIA
 
 export const pool = new pg.Pool({
   connectionString: process.env.DATABASE_URL
-    ?? 'postgres://aprimore:aprimore@localhost:5433/aprimoreosaber',
+    ?? 'postgres://aprimore:aprimore@localhost:5433/aprimore',
 });
 
 let falhas = 0;
@@ -109,7 +109,7 @@ export function rodarSql(caminho) {
   const sql = readFileSync(caminho, 'utf8');
   const saida = execFileSync(
     'docker',
-    ['exec', '-i', 'aprimore-db-1', 'psql', '-U', 'aprimore', '-d', 'aprimoreosaber',
+    ['exec', '-i', 'aprimore-db-1', 'psql', '-U', 'aprimore', '-d', 'aprimore',
      '-v', 'ON_ERROR_STOP=1', '-q'],
     { input: sql, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 },
   );

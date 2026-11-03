@@ -35,7 +35,7 @@ const limite = posLimite >= 0 ? Number(argumentos[posLimite + 1]) : null;
 const pool = new pg.Pool({
   connectionString:
     process.env.DATABASE_URL ??
-    'postgres://aprimore:aprimore@localhost:5432/aprimoreosaber',
+    'postgres://aprimore:aprimore@localhost:5432/aprimore',
 });
 
 const mb = (bytes) => `${(bytes / 1024 / 1024).toFixed(1)} MB`;

@@ -17,7 +17,7 @@
  *   colaboradora — tereza.souza@grupoaurora.com.br (portal aurora)
  *
  *   BASE_URL=http://localhost:3010 \
- *   DATABASE_URL=postgres://aprimore:aprimore@localhost:5433/aprimoreosaber \
+ *   DATABASE_URL=postgres://aprimore:aprimore@localhost:5433/aprimore \
  *   CHROMIUM="C:/Program Files/Google/Chrome/Application/chrome.exe" \
  *   node testes-e2e/separacao-de-bases.mjs
  */
@@ -30,7 +30,7 @@ const base = process.env.BASE_URL ?? 'http://localhost:3000';
 const porta = new URL(base).port ? `:${new URL(base).port}` : '';
 const pool = new pg.Pool({
   connectionString: process.env.DATABASE_URL
-    ?? 'postgres://aprimore:aprimore@localhost:5432/aprimoreosaber',
+    ?? 'postgres://aprimore:aprimore@localhost:5432/aprimore',
 });
 
 let falhas = 0;

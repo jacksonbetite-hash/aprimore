@@ -163,7 +163,7 @@ Para desenvolver com recarga automática (precisa de Node 22):
 
 ```powershell
 docker compose up -d db
-$env:DATABASE_URL="postgres://aprimore:aprimore@localhost:5432/aprimoreosaber"
+$env:DATABASE_URL="postgres://aprimore:aprimore@localhost:5432/aprimore"
 npm install
 npm run migrate
 npm run dev

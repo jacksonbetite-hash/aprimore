@@ -11,7 +11,7 @@
 -- final (tabela avaliacao, questões com avaliacao_id).
 --
 -- Rodar:  docker exec -i aprimore-db-1 psql -U aprimore \
---           -d aprimoreosaber -v ON_ERROR_STOP=1 < scripts/demo/empresa-aurora-2.sql
+--           -d aprimore -v ON_ERROR_STOP=1 < scripts/demo/empresa-aurora-2.sql
 -- =====================================================================
 
 -- ---------------------------------------------------------------------

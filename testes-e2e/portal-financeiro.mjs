@@ -2,7 +2,7 @@
  * Verificação de ponta a ponta — etapa 4 do §5.10.2: indicação pelo link
  * rastreado, telas de alunos e financeiro no admin, e o portal suspenso.
  *
- *   DATABASE_URL=postgres://aprimore:aprimore@localhost:5433/aprimoreosaber \
+ *   DATABASE_URL=postgres://aprimore:aprimore@localhost:5433/aprimore \
  *   BASE_URL=http://localhost:3010 SENHA_ADMIN=... node testes-e2e/portal-financeiro.mjs
  *
  * Usa o portal de demonstração `jackson`; deixa-o como encontrou.
@@ -18,7 +18,7 @@ const base = process.env.BASE_URL ?? 'http://localhost:3000';
 const porta = new URL(base).port || '80';
 const pool = new pg.Pool({
   connectionString: process.env.DATABASE_URL
-    ?? 'postgres://aprimore:aprimore@localhost:5432/aprimoreosaber',
+    ?? 'postgres://aprimore:aprimore@localhost:5432/aprimore',
 });
 let falhas = 0;
 const check = (c, m) => { if (!c) falhas++; console.log((c ? '✔' : '✘') + ' ' + m); };

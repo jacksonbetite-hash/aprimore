@@ -133,7 +133,7 @@ const CATALOGO = [
 
 const pool = new pg.Pool({
   connectionString:
-    process.env.DATABASE_URL ?? 'postgres://aprimore:aprimore@localhost:5432/aprimoreosaber',
+    process.env.DATABASE_URL ?? 'postgres://aprimore:aprimore@localhost:5432/aprimore',
 });
 
 /**

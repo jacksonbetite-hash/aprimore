@@ -7,7 +7,7 @@
 -- = 'otaviolins'). Nenhum ID numérico fixo.
 --
 -- Uso:
---   docker exec -i aprimore-db-1 psql -U aprimore -d aprimoreosaber \
+--   docker exec -i aprimore-db-1 psql -U aprimore -d aprimore \
 --     -v ON_ERROR_STOP=1 < scripts/demo/professor-otaviolins-penal.sql
 --
 -- Vídeos (provedor LOCAL): otaviolins-penal-parte-1.mp4 e

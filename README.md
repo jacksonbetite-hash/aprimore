@@ -47,7 +47,7 @@ Depois entre em `/entrar` e o menu de administração aparece.
 
 ```bash
 docker compose up -d db                 # só o Postgres (publicado em 127.0.0.1:5432)
-export DATABASE_URL=postgres://aprimore:aprimore@localhost:5432/aprimoreosaber
+export DATABASE_URL=postgres://aprimore:aprimore@localhost:5432/aprimore
 npm install && npm run migrate && npm run dev
 npm run leis      # importa o acervo do vade-mécum do Planalto (~3 min, precisa de rede)
 

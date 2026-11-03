@@ -114,7 +114,7 @@ if (-not $pronto) {
 Ok 'Aplicacao no ar.'
 
 Passo 'Criando o administrador'
-$existe = docker compose exec -T db psql -U aprimore -d aprimoreosaber -t -A -c "SELECT count(*) FROM usuario WHERE papel='admin'"
+$existe = docker compose exec -T db psql -U aprimore -d aprimore -t -A -c "SELECT count(*) FROM usuario WHERE papel='admin'"
 if ($existe.Trim() -eq '0') {
   $email = Read-Host 'E-mail do administrador'
   $nome  = Read-Host 'Nome do administrador'

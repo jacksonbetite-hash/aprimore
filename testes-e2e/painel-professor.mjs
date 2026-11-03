@@ -4,7 +4,7 @@
  * cria área → curso → assunto → aula → questão, publica, e vê tudo no ar
  * no endereço dele — com a marca dele, sem o nosso blog.
  *
- *   DATABASE_URL=postgres://aprimore:aprimore@localhost:5433/aprimoreosaber \
+ *   DATABASE_URL=postgres://aprimore:aprimore@localhost:5433/aprimore \
  *   BASE_URL=http://localhost:3010 node testes-e2e/painel-professor.mjs
  */
 import { createHmac, randomBytes } from 'node:crypto';
@@ -48,7 +48,7 @@ const porta = new URL(base).port || '80';
 const segredo = process.env.WEBHOOK_SEGREDO ?? 'segredo-de-desenvolvimento';
 const pool = new pg.Pool({
   connectionString: process.env.DATABASE_URL
-    ?? 'postgres://aprimore:aprimore@localhost:5432/aprimoreosaber',
+    ?? 'postgres://aprimore:aprimore@localhost:5432/aprimore',
 });
 let falhas = 0;
 const check = (c, m) => { if (!c) falhas++; console.log((c ? '✔' : '✘') + ' ' + m); };

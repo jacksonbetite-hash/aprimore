@@ -11,7 +11,7 @@
 # O volume `midia` NÃO está no dump do Postgres: são duas cópias.
 #
 # Restaurar:
-#   gunzip -c banco-AAAAMMDD-HHMM.sql.gz | docker compose exec -T db psql -U aprimore -d aprimoreosaber
+#   gunzip -c banco-AAAAMMDD-HHMM.sql.gz | docker compose exec -T db psql -U aprimore -d aprimore
 #   docker run --rm -v aprimore_midia:/midia -v "$PWD":/b alpine tar xzf /b/midia-AAAAMMDD-HHMM.tar.gz -C /midia
 set -euo pipefail
 cd "$(dirname "$0")/../.."
@@ -22,7 +22,7 @@ QUANDO="$(date +%Y%m%d-%H%M)"
 PROJETO="$(grep -E '^COMPOSE_PROJECT_NAME=' .env | cut -d= -f2)"; PROJETO="${PROJETO:-aprimore}"
 mkdir -p "$DESTINO"; chmod 700 "$DESTINO"
 
-docker compose exec -T db pg_dump -U aprimore -d aprimoreosaber --no-owner \
+docker compose exec -T db pg_dump -U aprimore -d aprimore --no-owner \
   | gzip > "$DESTINO/banco-$QUANDO.sql.gz.parcial"
 mv "$DESTINO/banco-$QUANDO.sql.gz.parcial" "$DESTINO/banco-$QUANDO.sql.gz"
 

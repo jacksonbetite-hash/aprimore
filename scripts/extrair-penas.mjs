@@ -22,7 +22,7 @@ if (!slug) {
 }
 
 const pool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL ?? 'postgres://aprimore:aprimore@localhost:5432/aprimoreosaber',
+  connectionString: process.env.DATABASE_URL ?? 'postgres://aprimore:aprimore@localhost:5432/aprimore',
 });
 
 const { rows } = await pool.query(

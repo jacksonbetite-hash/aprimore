@@ -10,7 +10,7 @@ services:
     environment:
       POSTGRES_USER: aprimore
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aprimore}
-      POSTGRES_DB: aprimoreosaber
+      POSTGRES_DB: aprimore
       # pt_BR no ordenamento e busca textual
       LANG: pt_BR.UTF-8
     volumes:
@@ -20,7 +20,7 @@ services:
       # de desenvolvimento do README; em produção, remova o mapeamento.
       - "127.0.0.1:${PORTA_BANCO:-5432}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U aprimore -d aprimoreosaber"]
+      test: ["CMD-SHELL", "pg_isready -U aprimore -d aprimore"]
       interval: 5s
       timeout: 5s
       retries: 12
@@ -34,7 +34,7 @@ services:
     build: .
     image: aprimore:latest
     environment:
-      DATABASE_URL: postgres://aprimore:${POSTGRES_PASSWORD:-aprimore}@db:5432/aprimoreosaber
+      DATABASE_URL: postgres://aprimore:${POSTGRES_PASSWORD:-aprimore}@db:5432/aprimore
       NODE_ENV: production
       PROVEDOR_PAGAMENTO: ${PROVEDOR_PAGAMENTO:-simulado}
       WEBHOOK_SEGREDO: ${WEBHOOK_SEGREDO:-segredo-de-desenvolvimento}

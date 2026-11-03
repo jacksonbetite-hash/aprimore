@@ -75,7 +75,7 @@ curl -sf "http://localhost:$PORTA/" >/dev/null || {
 }
 
 passo 'Criando o administrador'
-if [ "$(docker compose exec -T db psql -U aprimore -d aprimoreosaber -t -A -c "SELECT count(*) FROM usuario WHERE papel='admin'" | tr -d '[:space:]')" = "0" ]; then
+if [ "$(docker compose exec -T db psql -U aprimore -d aprimore -t -A -c "SELECT count(*) FROM usuario WHERE papel='admin'" | tr -d '[:space:]')" = "0" ]; then
   if [ ! -t 0 ]; then
     # sem terminal interativo (CI, pipe): não trava pedindo dados
     echo '    Sem terminal interativo. Crie o admin depois com:'

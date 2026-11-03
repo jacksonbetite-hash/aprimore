@@ -16,7 +16,7 @@
 -- Idempotente: apaga o que criou antes de recriar.
 --
 -- Uso:
---   docker exec -i aprimore-db-1 psql -U aprimore -d aprimoreosaber \
+--   docker exec -i aprimore-db-1 psql -U aprimore -d aprimore \
 --     -v ON_ERROR_STOP=1 < scripts/demo/professor-tecnologiaempaula-ia.sql
 -- =====================================================================
 

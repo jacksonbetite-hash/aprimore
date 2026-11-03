@@ -12,7 +12,7 @@
  * SENHA_ADMIN.
  *
  *   BASE_URL=http://localhost:3010 \
- *   DATABASE_URL=postgres://aprimore:aprimore@localhost:5433/aprimoreosaber \
+ *   DATABASE_URL=postgres://aprimore:aprimore@localhost:5433/aprimore \
  *   CHROMIUM="C:/Program Files/Google/Chrome/Application/chrome.exe" \
  *   node testes-e2e/perfis-e-usuarios.mjs
  */
@@ -24,7 +24,7 @@ const b = await chromium.launch({ executablePath: process.env.CHROMIUM || undefi
 const base = process.env.BASE_URL ?? 'http://localhost:3000';
 const pool = new pg.Pool({
   connectionString: process.env.DATABASE_URL
-    ?? 'postgres://aprimore:aprimore@localhost:5432/aprimoreosaber',
+    ?? 'postgres://aprimore:aprimore@localhost:5432/aprimore',
 });
 
 let falhas = 0;

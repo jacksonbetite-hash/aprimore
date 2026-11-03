@@ -34,7 +34,7 @@ Com o ambiente montado:
 
 ```
 BASE_URL=http://localhost:3010 \
-DATABASE_URL=postgres://aprimore:aprimore@localhost:5433/aprimoreosaber \
+DATABASE_URL=postgres://aprimore:aprimore@localhost:5433/aprimore \
 CHROMIUM="C:/Program Files/Google/Chrome/Application/chrome.exe" \
 DEMO_MIDIA=<pasta com imagens/ e portais/> \
 node scripts/demo/portal-professor.mjs
