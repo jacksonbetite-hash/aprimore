@@ -1,7 +1,7 @@
 # Implantação na VPS
 
 Pilha **independente**: não faz parte do grupo Electria nem do TeiaFlow e
-não compartilha nada com eles (containers `aprimoreosaber-*`, volumes e
+não compartilha nada com eles (containers `aprimore-*`, volumes e
 rede próprios). O único ponto de contato possível numa VPS compartilhada são
 as portas do host, e o `scripts/vps/verificar.sh` barra a subida se
 alguma estiver ocupada.
@@ -124,7 +124,7 @@ no cabeçalho do script.
 cd /opt/aprimore && git pull && ./scripts/vps/subir.sh
 ```
 
-Só os containers `aprimoreosaber-*` são recriados.
+Só os containers `aprimore-*` são recriados.
 
 ## 9. Quando o domínio `aprimoree.com.br` for registrado
 

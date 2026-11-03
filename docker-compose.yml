@@ -32,7 +32,7 @@ services:
 
   web:
     build: .
-    image: aprimoreosaber:latest
+    image: aprimore:latest
     environment:
       DATABASE_URL: postgres://aprimore:${POSTGRES_PASSWORD:-aprimore}@db:5432/aprimoreosaber
       NODE_ENV: production

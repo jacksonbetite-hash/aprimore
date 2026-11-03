@@ -291,7 +291,7 @@ try {
   try {
     const { execSync } = await import('node:child_process');
     const alvos = [videoEnviado && `/midia/video/${videoEnviado}`, fotoEnviada && `/midia/imagem/${fotoEnviada}`].filter(Boolean);
-    if (alvos.length) execSync(`docker exec aprimoreosaber-web-1 rm -f ${alvos.join(' ')}`, { stdio: 'ignore' });
+    if (alvos.length) execSync(`docker exec aprimore-web-1 rm -f ${alvos.join(' ')}`, { stdio: 'ignore' });
   } catch { /* sem docker por perto */ }
 }
 console.log(falhas ? `\n${falhas} verificação(ões) falharam` : '\nTodas as verificações passaram');

@@ -255,7 +255,7 @@ try {
                       'aurora-governanca-1.mp4', 'aurora-lideranca-1.mp4', 'aurora-ia-1.mp4',
                       'aurora-ia-2.mp4']) {
     execFileSync('docker', ['cp', join(MIDIA, 'portais', nome),
-      `aprimoreosaber-web-1:/midia/video/${nome}`]);
+      `aprimore-web-1:/midia/video/${nome}`]);
   }
   const { rows: [acervo] } = await pool.query(
     `SELECT (SELECT count(*)::int FROM materia WHERE portal_id = p.id AND status = 'publicado') AS trilhas,

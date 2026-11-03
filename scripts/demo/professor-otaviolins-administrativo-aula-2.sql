@@ -9,7 +9,7 @@
 -- Este arquivo só ADICIONA a segunda aula desse assunto.
 --
 -- Uso (depois de a interface criar o curso):
---   docker exec -i aprimoreosaber-db-1 psql -U aprimore -d aprimoreosaber \
+--   docker exec -i aprimore-db-1 psql -U aprimore -d aprimoreosaber \
 --     -v ON_ERROR_STOP=1 < scripts/demo/professor-otaviolins-administrativo-aula-2.sql
 --
 -- Vídeo (provedor LOCAL): otaviolins-adm-parte-2.mp4 — trecho 6:00-12:00

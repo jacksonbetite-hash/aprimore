@@ -10,7 +10,7 @@
 -- Cada aula tem exercício (≥ 5 questões) e cada trilha tem UMA avaliação
 -- final (tabela avaliacao, questões com avaliacao_id).
 --
--- Rodar:  docker exec -i aprimoreosaber-db-1 psql -U aprimore \
+-- Rodar:  docker exec -i aprimore-db-1 psql -U aprimore \
 --           -d aprimoreosaber -v ON_ERROR_STOP=1 < scripts/demo/empresa-aurora-2.sql
 -- =====================================================================
 

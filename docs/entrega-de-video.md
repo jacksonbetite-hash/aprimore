@@ -98,7 +98,7 @@ assinatura. Tirar essa palavra publica o acervo inteiro.
 ### Subindo as aulas
 
 O volume é nomeado, então o caminho no host sai de
-`docker volume inspect aprimoreosaber_midia`. Ou, mais simples:
+`docker volume inspect aprimore_midia`. Ou, mais simples:
 
 ```bash
 docker compose cp aula-01.mp4 web:/midia/video/aula-01.mp4

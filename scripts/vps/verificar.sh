@@ -48,7 +48,7 @@ echo "Portas (só o Caddy desta pilha publica portas no host)"
 for nome in PORTA_HTTP PORTA_HTTPS; do
   p="$(valor $nome)"; p="${p:-$([ $nome = PORTA_HTTP ] && echo 80 || echo 443)}"
   dono="$(docker ps --filter "publish=$p" --format '{{.Names}}' 2>/dev/null | head -1)"
-  if [ "$dono" = "aprimoreosaber-caddy-1" ]; then ok "$p já é desta pilha"
+  if [ "$dono" = "aprimore-caddy-1" ]; then ok "$p já é desta pilha"
   elif [ -n "$dono" ]; then erro "porta $p ocupada pelo container '$dono' — troque $nome no .env"
   elif ss -ltnH "sport = :$p" 2>/dev/null | grep -q .; then
     erro "porta $p ocupada por um processo do host ($(ss -ltnpH "sport = :$p" 2>/dev/null | grep -o 'users:(("[^"]*' | cut -d'"' -f2 | head -1)) — troque $nome no .env"
@@ -56,7 +56,7 @@ for nome in PORTA_HTTP PORTA_HTTPS; do
 done
 
 echo "Nomes"
-projeto="$(valor COMPOSE_PROJECT_NAME)"; projeto="${projeto:-aprimoreosaber}"
+projeto="$(valor COMPOSE_PROJECT_NAME)"; projeto="${projeto:-aprimore}"
 outros="$(docker ps -a --format '{{.Names}}\t{{.Label "com.docker.compose.project.working_dir"}}' 2>/dev/null \
   | awk -v p="$projeto-" -v d="$PWD" 'index($1,p)==1 && $2!=d {print $1" ("$2")"}')"
 if [ -n "$outros" ]; then erro "já existem containers '$projeto-*' de OUTRA pasta: $outros"

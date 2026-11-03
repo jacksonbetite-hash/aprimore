@@ -28,7 +28,7 @@ entrypoint e o catálogo já vem populado. Para parar: `docker compose down`
 Em rede corporativa com proxy que inspeciona TLS, passe a CA ao build:
 
 ```bash
-docker build --secret id=ca_bundle,src=/caminho/ca.crt -t aprimoreosaber .
+docker build --secret id=ca_bundle,src=/caminho/ca.crt -t aprimore .
 ```
 
 ### Primeiro administrador

@@ -285,7 +285,7 @@ try {
   for (const nome of ['otaviolins-penal-parte-1.mp4', 'otaviolins-penal-parte-2.mp4',
                       'otaviolins-adm-parte-2.mp4']) {
     execFileSync('docker', ['cp', join(MIDIA, 'portais', nome),
-      `aprimoreosaber-web-1:/midia/video/${nome}`]);
+      `aprimore-web-1:/midia/video/${nome}`]);
   }
   passo(true, 'vídeos das aulas restantes copiados para o volume de mídia');
 

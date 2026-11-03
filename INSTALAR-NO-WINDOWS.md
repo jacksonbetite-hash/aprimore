@@ -136,7 +136,7 @@ Sua rede inspeciona HTTPS (comum em rede corporativa). Exporte a CA da sua
 empresa para um arquivo e construa assim:
 
 ```powershell
-docker build --secret id=ca_bundle,src=C:\caminho\ca.crt -t aprimoreosaber .
+docker build --secret id=ca_bundle,src=C:\caminho\ca.crt -t aprimore .
 docker compose up -d
 ```
 

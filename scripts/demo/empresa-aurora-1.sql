@@ -7,7 +7,7 @@
 -- = 'aurora'). Nenhum ID numérico fixo.
 --
 -- Uso:
---   docker exec -i aprimoreosaber-db-1 psql -U aprimore -d aprimoreosaber \
+--   docker exec -i aprimore-db-1 psql -U aprimore -d aprimoreosaber \
 --     -v ON_ERROR_STOP=1 < scripts/demo/empresa-aurora-1.sql
 --
 -- Conteúdo:

@@ -12,14 +12,14 @@
 #
 # Restaurar:
 #   gunzip -c banco-AAAAMMDD-HHMM.sql.gz | docker compose exec -T db psql -U aprimore -d aprimoreosaber
-#   docker run --rm -v aprimoreosaber_midia:/midia -v "$PWD":/b alpine tar xzf /b/midia-AAAAMMDD-HHMM.tar.gz -C /midia
+#   docker run --rm -v aprimore_midia:/midia -v "$PWD":/b alpine tar xzf /b/midia-AAAAMMDD-HHMM.tar.gz -C /midia
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
 DESTINO="${BACKUP_DIR:-/var/backups/aprimore}"
 DIAS="${BACKUP_DIAS:-7}"
 QUANDO="$(date +%Y%m%d-%H%M)"
-PROJETO="$(grep -E '^COMPOSE_PROJECT_NAME=' .env | cut -d= -f2)"; PROJETO="${PROJETO:-aprimoreosaber}"
+PROJETO="$(grep -E '^COMPOSE_PROJECT_NAME=' .env | cut -d= -f2)"; PROJETO="${PROJETO:-aprimore}"
 mkdir -p "$DESTINO"; chmod 700 "$DESTINO"
 
 docker compose exec -T db pg_dump -U aprimore -d aprimoreosaber --no-owner \

@@ -4,7 +4,7 @@
 #   ./scripts/vps/subir.sh
 #
 # Roda a checagem antes; com impedimento, não toca em nada. Só mexe nos
-# containers deste projeto (aprimoreosaber-*): nenhum outro sistema da
+# containers deste projeto (aprimore-*): nenhum outro sistema da
 # máquina é parado, reiniciado ou reconstruído.
 set -euo pipefail
 cd "$(dirname "$0")/../.."

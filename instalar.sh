@@ -40,7 +40,7 @@ passo 'Construindo a imagem (a primeira vez leva alguns minutos)'
 #   CA_BUNDLE=/caminho/ca.crt ./instalar.sh
 if [ -n "${CA_BUNDLE:-}" ]; then
   echo "    usando CA extra: $CA_BUNDLE"
-  docker build --secret "id=ca_bundle,src=$CA_BUNDLE" -t aprimoreosaber:latest .
+  docker build --secret "id=ca_bundle,src=$CA_BUNDLE" -t aprimore:latest .
 else
   docker compose build
 fi

@@ -109,7 +109,7 @@ export function rodarSql(caminho) {
   const sql = readFileSync(caminho, 'utf8');
   const saida = execFileSync(
     'docker',
-    ['exec', '-i', 'aprimoreosaber-db-1', 'psql', '-U', 'aprimore', '-d', 'aprimoreosaber',
+    ['exec', '-i', 'aprimore-db-1', 'psql', '-U', 'aprimore', '-d', 'aprimoreosaber',
      '-v', 'ON_ERROR_STOP=1', '-q'],
     { input: sql, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 },
   );

@@ -65,7 +65,7 @@ Passo 'Construindo a imagem (a primeira vez leva alguns minutos)'
 #   $env:CA_BUNDLE = 'C:\caminho\ca.crt'
 if ($env:CA_BUNDLE) {
   Ok "usando CA extra: $env:CA_BUNDLE"
-  docker build --secret "id=ca_bundle,src=$env:CA_BUNDLE" -t aprimoreosaber:latest .
+  docker build --secret "id=ca_bundle,src=$env:CA_BUNDLE" -t aprimore:latest .
 } else {
   docker compose build
 }
